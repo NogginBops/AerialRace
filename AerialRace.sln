@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30523.141
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AerialRace", "AerialRace\AerialRace.csproj", "{80D36A9A-569C-4EBA-932A-C21340BE685D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{80D36A9A-569C-4EBA-932A-C21340BE685D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80D36A9A-569C-4EBA-932A-C21340BE685D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80D36A9A-569C-4EBA-932A-C21340BE685D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80D36A9A-569C-4EBA-932A-C21340BE685D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6D2A6EB8-57E4-45BF-9088-93BDBD319CFB}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,21 @@
+﻿Aerial racing game
+
+Flying machines racing trough a track to get to the finish first.
+We have not decided what type of art-style is fitting for this game.
+
+What are the things needed for a mvp?
+A flying plane that you can control and fly through a level.
+
+- Plane with some kind of animation support.
+- Following camera that feels somewhat good.
+- Some kind of rudementary enviroment.
+- Enviroment collision not needed in mvp.
+
+What will be needed to be able to do this?
+- Some kind of placement system for the enviroment
+- A good way to manage assets
+
+- A file format where we can store all of the enviroment data
+- A file format for models
+- A file format for materials
+
