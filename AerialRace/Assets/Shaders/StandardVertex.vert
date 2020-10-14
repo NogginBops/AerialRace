@@ -1,6 +1,6 @@
 #version 450 core
 
-layout (location = 0) in vec4 in_position;
+layout (location = 0) in vec3 in_position;
 layout (location = 1) in vec2 in_uv;
 layout (location = 2) in vec3 in_normal;
 
@@ -16,23 +16,27 @@ out VertexOutput
     vec3 fragNormal;
 };
 
-uniform PerCameraBlock
+// GLSL defines it's matrices width first
+// so a 3x4 matrix in normal math is actually
+// a 4x3 matrix in glsl... smh
+
+layout(std140) uniform PerVertex
 {
     mat4 projection;
-    mat3x4 viewMatrix;
+    mat4 viewMatrix;
+    mat4 modelMatrix;
+    mat4 mvp;
+    mat3 normalMatrix;
 };
-
-uniform mat4 modelMatrix;
-uniform mat3 normalMatrix;
 
 uniform vec2 tiling;
 
 void main(void)
 {
-    // FIXME: Figure out this transformation!!
-	gl_Position = vec4(in_position * viewMatrix, 1);
+    vec4 pos = vec4(in_position, 1);
+	gl_Position = mvp * pos;
     //projection * viewMatrix * modelMatix * in_position;
-	worldPosition = vec3(modelMatrix * in_position);
+	worldPosition = vec3(modelMatrix * pos);
 	fragUV = in_uv * tiling;
 	fragNormal = normalMatrix * in_normal;
 }

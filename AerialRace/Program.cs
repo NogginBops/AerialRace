@@ -60,10 +60,8 @@ namespace AerialRace
                 WindowState = WindowState.Normal,
             };
 
-            using (Window window = new Window(gwSettings, nwSettings))
-            {
-                window.Run();
-            }
+            using Window window = new Window(gwSettings, nwSettings);
+            window.Run();
         }
     }
 }

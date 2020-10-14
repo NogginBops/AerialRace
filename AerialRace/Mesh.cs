@@ -28,6 +28,7 @@ namespace AerialRace
         public Buffer? Positions;
         public Buffer? UVs;
         public Buffer? Normals;
+        public Buffer? VertexColors;
 
         public Submesh[]? Submeshes;
 
@@ -38,6 +39,7 @@ namespace AerialRace
             Positions = positions;
             UVs = uvs;
             Normals = normals;
+            VertexColors = null;
             Submeshes = submeshes;
         }
     }

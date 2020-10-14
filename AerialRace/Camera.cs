@@ -7,6 +7,8 @@ namespace AerialRace
 {
     class Camera
     {
+        public Transform Transform;
+
         public Color4 ClearColor;
 
         public float Fov;
@@ -16,11 +18,18 @@ namespace AerialRace
 
         public Camera(float fov, float aspect, float near, float far, Color4 clear)
         {
+            Transform = new Transform();
             ClearColor = clear;
             Fov = fov;
             Aspect = aspect;
             NearPlane = near;
             FarPlane = far;
+        }
+
+        public void CalcViewMatrix(out Matrix4x3 viewMatrix)
+        {
+            Transform.GetTransformationMatrix(out viewMatrix);
+            viewMatrix.Invert();
         }
 
         public void CalcProjectionMatrix(out Matrix4 projection)

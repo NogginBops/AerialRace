@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK.Graphics.OpenGL4;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,6 +15,21 @@ namespace AerialRace.RenderData
         Compute = 6,
     }
 
+    struct UniformFieldInfo
+    {
+        public int Location;
+        public string Name;
+        public int Size;
+        // FIXME: Leaking GL enum
+        public ActiveUniformType Type;
+    }
+
+    struct UniformBlockInfo
+    {
+        public string BlockName;
+        public UniformFieldInfo[] BlockUniforms;
+    }
+
     // This is a opengl program. 
     // Because we are using separable shaders this also works as a opengl shader.
     class ShaderProgram
@@ -21,12 +37,16 @@ namespace AerialRace.RenderData
         public string Name;
         public int Handle;
         public ShaderStage Stage;
+        public Dictionary<string, int> UniformLocations;
+        public UniformFieldInfo[]? UniformInfo;
 
-        public ShaderProgram(string name, int handle, ShaderStage stage)
+        public ShaderProgram(string name, int handle, ShaderStage stage, Dictionary<string, int> uniformLocations, UniformFieldInfo[]? uniformInfo)
         {
             Name = name;
             Handle = handle;
             Stage = stage;
+            UniformLocations = uniformLocations;
+            UniformInfo = uniformInfo;
         }
     }
 }

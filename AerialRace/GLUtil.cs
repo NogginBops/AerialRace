@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -16,7 +17,7 @@ namespace AerialRace
         public static void CreateProgramPipeline(string Name, out int ProgramPipeline)
         {
             GL.CreateProgramPipelines(1, out ProgramPipeline);
-            LabelObject(ObjectLabelIdentifier.Program, ProgramPipeline, $"Pipeline: {Name}");
+            LabelObject(ObjectLabelIdentifier.ProgramPipeline, ProgramPipeline, $"Pipeline: {Name}");
         }
 
         public static void CreateProgram(string Name, out int Program)
@@ -87,5 +88,16 @@ namespace AerialRace
         {
             GL.PopDebugGroup();
         }
+
+        [Conditional("DEBUG")]
+        public static void CheckGLError(string title)
+        {
+            var error = GL.GetError();
+            if (error != ErrorCode.NoError)
+            {
+                Debug.Print($"{title}: {error}");
+            }
+        }
+
     }
 }

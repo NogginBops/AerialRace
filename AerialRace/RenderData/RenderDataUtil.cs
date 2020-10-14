@@ -61,6 +61,8 @@ namespace AerialRace.RenderData
             Vector3 _ => BufferDataType.Float3,
             Vector4 _ => BufferDataType.Float4,
 
+            Color4 _  => BufferDataType.Float4,
+
             _ => throw new ArgumentException($"No buffer data type that matches type: '{typeof(T)}'"),
         };
 
@@ -108,6 +110,16 @@ namespace AerialRace.RenderData
 
             _ => throw new InvalidEnumArgumentException(nameof(stage), (int)stage, typeof(ShaderStage)),
         };
+
+        public static DrawElementsType ToGLDrawElementsType(IndexBufferType type) => type switch
+        {
+            IndexBufferType.UInt8 => DrawElementsType.UnsignedByte,
+            IndexBufferType.UInt16 => DrawElementsType.UnsignedShort,
+            IndexBufferType.UInt32 => DrawElementsType.UnsignedInt,
+
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(ShaderStage)),
+        };
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BufferSize(Buffer buffer) => buffer.Elements * SizeInBytes(buffer.DataType);
@@ -224,14 +236,14 @@ namespace AerialRace.RenderData
         {
             GLUtil.CreateProgram(name, out int shader);
             GL.ProgramParameter(shader, ProgramParameterName.ProgramSeparable, separable ? 1 : 0);
-            return new ShaderProgram(name, shader, stage);
+            return new ShaderProgram(name, shader, stage, new Dictionary<string, int>(), null);
         }
 
         public static bool CreateShaderProgram(string name, ShaderStage stage, string[] sources, [NotNullWhen(true)] out ShaderProgram? program)
         {
             program = CreateEmptyShaderProgram(name, stage, true);
 
-            var shader = GL.CreateShader(ToGLShaderType(stage));
+            GLUtil.CreateShader(name, ToGLShaderType(stage), out var shader);
             GL.ShaderSource(shader, sources.Length, sources, (int[]?)null);
 
             GL.CompileShader(shader);
@@ -267,6 +279,71 @@ namespace AerialRace.RenderData
                 return false;
             }
 
+            // Now we can inspect this shader!
+
+            Debug.WriteLine($"Uniforms for shader '{name}':");
+            Debug.Indent();
+
+            {
+                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
+
+                program.UniformInfo = new UniformFieldInfo[uniformCount];
+
+                for (int i = 0; i < uniformCount; i++)
+                {
+                    string uniformName = GL.GetActiveUniform(program.Handle, i, out int size, out ActiveUniformType type);
+                    var location = GL.GetUniformLocation(program.Handle, uniformName);
+
+                    UniformFieldInfo fieldInfo;
+                    fieldInfo.Location = location;
+                    fieldInfo.Name = uniformName;
+                    fieldInfo.Size = size;
+                    fieldInfo.Type = type;
+
+                    program.UniformInfo[i] = fieldInfo;
+                    program.UniformLocations.Add(uniformName, location);
+
+                    Debug.WriteLine($"{name} uniform {location} '{uniformName}' {type} ({size})");
+                }
+            }
+
+            {
+                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniformBlocks, out int uniformBlockCount);
+
+                UniformBlockInfo[] blockInfo = new UniformBlockInfo[uniformBlockCount];
+
+                for (int i = 0; i < uniformBlockCount; i++)
+                {
+                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniforms, out int uniformsInBlockCount);
+
+                    Span<int> uniformIndices = stackalloc int[uniformsInBlockCount];
+                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, out uniformIndices[0]);
+
+                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockNameLength, out int nameLength);
+                    GL.GetActiveUniformBlockName(program.Handle, i, nameLength, out _, out string uniformBlockName);
+
+                    blockInfo[i].BlockName = uniformBlockName;
+                    blockInfo[i].BlockUniforms = new UniformFieldInfo[uniformIndices.Length];
+
+                    Debug.WriteLine($"Block {i} '{uniformBlockName}':");
+                    Debug.Indent();
+                    var uniformInfo = blockInfo[i].BlockUniforms;
+                    for (int j = 0; j < uniformIndices.Length; j++)
+                    {
+                        string uniformName = GL.GetActiveUniform(program.Handle, uniformIndices[j], out int uniformSize, out var uniformType);
+
+                        uniformInfo[j].Location = uniformIndices[j];
+                        uniformInfo[j].Name = uniformName;
+                        uniformInfo[j].Size = uniformSize;
+                        uniformInfo[j].Type = uniformType;
+
+                        Debug.WriteLine($"{name} uniform {uniformIndices[j]} '{uniformName}' {uniformType} ({uniformSize})");
+                    }
+                    Debug.Unindent();
+                }
+                Debug.Unindent();
+            }
+            
             return true;
         }
 
