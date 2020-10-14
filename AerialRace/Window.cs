@@ -47,6 +47,10 @@ namespace AerialRace
             RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/StandardVertex.vert") }, out ShaderProgram? vertexProgram);
             RenderDataUtil.CreateShaderProgram("UV Debug Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Debug.frag") }, out ShaderProgram? fragmentProgram);
 
+            var firstShader = RenderDataUtil.CreateEmptyPipeline("First shader pipeline");
+            RenderDataUtil.AssembleProgramPipeline(firstShader, vertexProgram, null, fragmentProgram);
+
+            Material = new Material("First Material", firstShader, null);
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
