@@ -5,7 +5,7 @@ using System.Text;
 
 namespace AerialRace.RenderData
 {
-    enum SamplerType
+    enum SamplerType : int
     {
         Sampler1D   = 1,
         Sampler2D   = 2,
@@ -21,14 +21,14 @@ namespace AerialRace.RenderData
         Sampler2DMultisampleArray = 10,
     }
 
-    enum SamplerDataType
+    enum SamplerDataType : int
     {
-        UnsignedInt,
-        SignedInt,
-        Float,
+        UnsignedInt = 1,
+        SignedInt   = 2,
+        Float       = 3,
     }
 
-    enum ShadowSamplerType
+    enum ShadowSamplerType : int
     {
         Sampler1D   = 1,
         Sampler2D   = 2,
@@ -39,13 +39,13 @@ namespace AerialRace.RenderData
         SamplerCubeArray = 6,
     }
 
-    enum MagFilter
+    enum MagFilter : int
     {
-        Nearest,
-        Linear,
+        Nearest = 1,
+        Linear  = 2,
     }
 
-    enum MinFilter
+    enum MinFilter : int
     {
         Nearest = 1,
         Linear = 2,
@@ -55,7 +55,7 @@ namespace AerialRace.RenderData
         LinearMipmapLinear = 6,
     }
 
-    enum WrapMode
+    enum WrapMode : int
     {
         Repeat = 1,
         MirroredRepeat = 2,
@@ -63,20 +63,20 @@ namespace AerialRace.RenderData
         ClampToBorder = 4,
     }
 
-    enum TextureCoordinate
+    enum TextureCoordinate : int
     {
         S = 1,
         T = 2,
         R = 3,
     }
 
-    enum DepthTextureCompareMode
+    enum DepthTextureCompareMode : int
     {
-        RefToTexture,
-        None,
+        RefToTexture = 1,
+        None = 2,
     }
 
-    enum DepthTextureCompareFunc
+    enum DepthTextureCompareFunc : int
     {
         Less = 1,
         Greater = 2,
@@ -90,6 +90,7 @@ namespace AerialRace.RenderData
 
     class Sampler
     {
+        public string Name;
         public int Handle;
 
         // Sampler objects don't actually have a type, 
@@ -97,24 +98,33 @@ namespace AerialRace.RenderData
         public SamplerType Type;
         public SamplerDataType DataType;
 
+        public MagFilter MagFilter;
+        public MinFilter MinFilter;
+
+        // FIXME: It looks from documentation like LODBias is actually a float
         public int LODBias, LODMin, LODMax;
 
         // GLEXT:  EXT_texture_filter_anisotropic
-        public int MaxAnisotropicLevel;
+        public float MaxAnisotropy;
 
         public WrapMode WrapModeS, WrapModeT, WrapModeR;
-        public Color4? BorderColor;
+        public Color4 BorderColor;
 
+        // GLEXT: ARB_seamless_cubemap_per_texture
         public bool SeamlessCube;
 
-        public Sampler(int handle, SamplerType type, SamplerDataType dataType, int lODBias, int lODMin, int lODMax, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube)
+        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, int lODBias, int lODMin, int lODMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4 borderColor, bool seamlessCube)
         {
+            Name = name;
             Handle = handle;
             Type = type;
+            MagFilter = magFilter;
+            MinFilter = minFilter;
             DataType = dataType;
             LODBias = lODBias;
             LODMin = lODMin;
             LODMax = lODMax;
+            MaxAnisotropy = maxAnisotropy;
             WrapModeS = wrapModeS;
             WrapModeT = wrapModeT;
             WrapModeR = wrapModeR;
@@ -125,16 +135,20 @@ namespace AerialRace.RenderData
 
     class ShadowSampler
     {
+        public string Name;
         public int Handle;
 
         // Sampler objects don't actually have a type, 
         //but it might be usefull to keep track of what it's supposed to be
         public ShadowSamplerType Type;
 
+        public MagFilter MagFilter;
+        public MinFilter MinFilter;
+
         public int LODBias, LODMin, LODMax;
 
         // GLEXT:  EXT_texture_filter_anisotropic
-        public int MaxAnisotropicLevel;
+        public float MaxAnisotropy;
 
         public WrapMode WrapModeS, WrapModeT, WrapModeR;
         public Color4? BorderColor;
@@ -144,13 +158,17 @@ namespace AerialRace.RenderData
         public DepthTextureCompareMode CompareMode;
         public DepthTextureCompareFunc CompareFunc;
 
-        public ShadowSampler(int handle, ShadowSamplerType type, int lODBias, int lODMin, int lODMax, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
+        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, int lODBias, int lODMin, int lODMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
         {
+            Name = name;
             Handle = handle;
             Type = type;
+            MagFilter = magFilter;
+            MinFilter = minFilter;
             LODBias = lODBias;
             LODMin = lODMin;
             LODMax = lODMax;
+            MaxAnisotropy = maxAnisotropy;
             WrapModeS = wrapModeS;
             WrapModeT = wrapModeT;
             WrapModeR = wrapModeR;

@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Transactions;
 using GLFrameBufferTarget = OpenTK.Graphics.OpenGL4.FramebufferTarget;
 
 namespace AerialRace.RenderData
@@ -21,10 +22,10 @@ namespace AerialRace.RenderData
             BufferDataType.UInt32 => sizeof(uint),
             BufferDataType.UInt64 => sizeof(ulong),
 
-            BufferDataType.Int8   => sizeof(sbyte),
-            BufferDataType.Int16  => sizeof(short),
-            BufferDataType.Int32  => sizeof(int),
-            BufferDataType.Int64  => sizeof(long),
+            BufferDataType.Int8  => sizeof(sbyte),
+            BufferDataType.Int16 => sizeof(short),
+            BufferDataType.Int32 => sizeof(int),
+            BufferDataType.Int64 => sizeof(long),
 
             BufferDataType.Float  => sizeof(float),
             BufferDataType.Float2 => Unsafe.SizeOf<Vector2>(),
@@ -40,28 +41,28 @@ namespace AerialRace.RenderData
             IndexBufferType.UInt16 => sizeof(ushort),
             IndexBufferType.UInt32 => sizeof(uint),
 
-            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(BufferDataType)),
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(IndexBufferType)),
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static BufferDataType GetAssiciatedBufferDataType<T>() where T : unmanaged => (default(T)) switch
         {
-            byte _   => BufferDataType.UInt8,
+            byte _ => BufferDataType.UInt8,
             ushort _ => BufferDataType.UInt16,
-            uint _   => BufferDataType.UInt32,
-            ulong _  => BufferDataType.UInt64,
+            uint _ => BufferDataType.UInt32,
+            ulong _ => BufferDataType.UInt64,
 
             sbyte _ => BufferDataType.Int8,
             short _ => BufferDataType.Int16,
-            int _   => BufferDataType.Int32,
-            long _  => BufferDataType.Int64,
+            int _ => BufferDataType.Int32,
+            long _ => BufferDataType.Int64,
 
-            float _   => BufferDataType.Float,
+            float _ => BufferDataType.Float,
             Vector2 _ => BufferDataType.Float2,
             Vector3 _ => BufferDataType.Float3,
             Vector4 _ => BufferDataType.Float4,
 
-            Color4 _  => BufferDataType.Float4,
+            Color4 _ => BufferDataType.Float4,
 
             _ => throw new ArgumentException($"No buffer data type that matches type: '{typeof(T)}'"),
         };
@@ -72,7 +73,7 @@ namespace AerialRace.RenderData
             byte _ => IndexBufferType.UInt8,
             ushort _ => IndexBufferType.UInt16,
             uint _ => IndexBufferType.UInt32,
-            
+
             _ => throw new ArgumentException($"No buffer data type that matches type: '{typeof(T)}'"),
         };
 
@@ -117,9 +118,75 @@ namespace AerialRace.RenderData
             IndexBufferType.UInt16 => DrawElementsType.UnsignedShort,
             IndexBufferType.UInt32 => DrawElementsType.UnsignedInt,
 
-            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(ShaderStage)),
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(IndexBufferType)),
         };
 
+        public static TextureTarget ToGLTextureTarget(TextureType type) => type switch
+        {
+            TextureType.Texture1D => TextureTarget.Texture1D,
+            TextureType.Texture2D => TextureTarget.Texture2D,
+            TextureType.Texture3D => TextureTarget.Texture3D,
+            TextureType.TexutreCube => TextureTarget.TextureCubeMap,
+
+            TextureType.TextureBuffer => TextureTarget.TextureBuffer,
+
+            TextureType.Texture1DArray => TextureTarget.Texture1DArray,
+            TextureType.Texture2DArray => TextureTarget.Texture2DArray,
+            TextureType.TexutreCubeArray => TextureTarget.TextureCubeMapArray,
+
+            TextureType.Texture2DMultisample => TextureTarget.Texture2DMultisample,
+            TextureType.Texture2DMultisampleArray => TextureTarget.Texture2DMultisampleArray,
+
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(TextureType)),
+        };
+
+        public static VertexAttribType ToGLAttribType(AttributeType type) => type switch
+        {
+            AttributeType.UInt8 => VertexAttribType.UnsignedByte,
+            AttributeType.UInt16 => VertexAttribType.UnsignedShort,
+            AttributeType.UInt32 => VertexAttribType.UnsignedInt,
+
+            AttributeType.Int8 => VertexAttribType.Byte,
+            AttributeType.Int16 => VertexAttribType.Short,
+            AttributeType.Int32 => VertexAttribType.Int,
+
+            AttributeType.Half => VertexAttribType.HalfFloat,
+            AttributeType.Float => VertexAttribType.Float,
+            AttributeType.Double => VertexAttribType.Double,
+
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(AttributeType)),
+        };
+
+        public static TextureWrapMode ToGLTextureWrapMode(WrapMode mode) => mode switch
+        {
+            WrapMode.Repeat => TextureWrapMode.Repeat,
+            WrapMode.MirroredRepeat => TextureWrapMode.MirroredRepeat,
+            WrapMode.ClampToEdge => TextureWrapMode.ClampToEdge,
+            WrapMode.ClampToBorder => TextureWrapMode.ClampToBorder,
+
+            _ => throw new InvalidEnumArgumentException(nameof(mode), (int)mode, typeof(WrapMode)),
+        };
+
+        public static TextureMagFilter ToGLTextureMagFilter(MagFilter filter) => filter switch
+        {
+            MagFilter.Nearest => TextureMagFilter.Nearest,
+            MagFilter.Linear  => TextureMagFilter.Linear,
+
+            _ => throw new InvalidEnumArgumentException(nameof(filter), (int)filter, typeof(MinFilter)),
+        };
+
+        public static TextureMinFilter ToGLTextureMinFilter(MinFilter filter) => filter switch
+        {
+            MinFilter.Nearest => TextureMinFilter.Nearest,
+            MinFilter.Linear  => TextureMinFilter.Linear,
+
+            MinFilter.NearestMipmapNearest => TextureMinFilter.NearestMipmapNearest,
+            MinFilter.LinearMipmapNearest  => TextureMinFilter.LinearMipmapNearest,
+            MinFilter.NearestMipmapLinear  => TextureMinFilter.NearestMipmapLinear,
+            MinFilter.LinearMipmapLinear   => TextureMinFilter.LinearMipmapLinear,
+
+            _ => throw new InvalidEnumArgumentException(nameof(filter), (int)filter, typeof(MinFilter)),
+        };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BufferSize(Buffer buffer) => buffer.Elements * SizeInBytes(buffer.DataType);
@@ -228,7 +295,7 @@ namespace AerialRace.RenderData
         public static void AddDepthStencilAttachment(Framebuffer fbo, Texture depthStencilTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthStencilAttachment, depthStencilTexture.Handle, mipLevel);
-            fbo.DepthAttachment   = depthStencilTexture;
+            fbo.DepthAttachment = depthStencilTexture;
             fbo.StencilAttachment = depthStencilTexture;
         }
 
@@ -343,7 +410,7 @@ namespace AerialRace.RenderData
                 }
                 Debug.Unindent();
             }
-            
+
             return true;
         }
 
@@ -385,6 +452,220 @@ namespace AerialRace.RenderData
                 return true;
             }
         }
+
+        public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, WrapMode xAxisWrap, WrapMode yAxisWrap)
+        {
+            GLUtil.CreateSampler(name, out int sampler);
+            
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+
+            return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
+        }
+
+        #endregion
+
+        #region Attributes
+
+        public struct VertexAttribute
+        {
+            public bool Active;
+            public int Size;
+            public AttributeType Type;
+            public bool Normalized;
+            public int Offset;
+        }
+
+        const int MinimumNumberOfVertexAttributes = 16;
+
+        // Represents the state of the 16 guaranteed vertex attributes
+        public static VertexAttribute[] Attributes = new VertexAttribute[MinimumNumberOfVertexAttributes];
+        public static Buffer?[] AttributeBuffers     = new Buffer[MinimumNumberOfVertexAttributes];
+        public static IndexBuffer? CurrentIndexBuffer = null;
+
+        public static void SetupGlobalVAO()
+        {
+            GLUtil.CreateVertexArray("The one VAO", out int VAO);
+            GL.BindVertexArray(VAO);
+
+            for (int i = 0; i < Attributes.Length; i++)
+            {
+                Attributes[i].Active = false;
+                Attributes[i].Size = 0;
+                Attributes[i].Type = 0;
+                Attributes[i].Normalized = false;
+            }
+
+            // Positions
+            GL.VertexAttribFormat(0, 3, VertexAttribType.Float, false, 0);
+            // UVs
+            GL.VertexAttribFormat(1, 2, VertexAttribType.Float, false, 0);
+            // Normals
+            GL.VertexAttribFormat(2, 3, VertexAttribType.Float, false, 0);
+            // Colors
+            GL.VertexAttribFormat(3, 4, VertexAttribType.Float, false, 0);
+        }
+
+        public static void SetAndEnableVertexAttribute(int index, AttributeSpecification spec, int bufferOffset)
+        {
+            ref VertexAttribute attrib = ref Attributes[index];
+
+            // Only set the vertex attrib format if it's actually different from what is already bound
+            if (attrib.Size != spec.Size ||
+                attrib.Type != spec.Type ||
+                attrib.Normalized != spec.Normalized ||
+                attrib.Offset != bufferOffset)
+            {
+                GL.VertexAttribFormat(index, spec.Size, ToGLAttribType(spec.Type), spec.Normalized, bufferOffset);
+
+                attrib.Size = spec.Size;
+                attrib.Type = spec.Type;
+                attrib.Normalized = spec.Normalized;
+                attrib.Offset = bufferOffset;
+            }
+            
+            if (attrib.Active == false)
+            {
+                GL.EnableVertexAttribArray(index);
+                attrib.Active = true;
+            }
+        }
+
+        public static void DisableVertexAttribute(int index)
+        {
+            if (Attributes[index].Active)
+            {
+                GL.DisableVertexAttribArray(index);
+                Attributes[index].Active = false;
+            }
+        }
+
+        public static void SetAndEnableVertexAttributes(Span<AttributeSpecification> attribs, int bufferOffset)
+        {
+            for (int i = 0; i < attribs.Length; i++)
+            {
+                SetAndEnableVertexAttribute(i, attribs[i], bufferOffset);
+            }
+        }
+
+        public static void BindVertexAttribBuffer(int index, Buffer buffer)
+        {
+            if (AttributeBuffers[index] != buffer)
+            {
+                GL.BindVertexBuffer(index, buffer!.Handle, IntPtr.Zero, SizeInBytes(buffer.DataType));
+
+                AttributeBuffers[index] = buffer;
+            }
+        }
+
+        public static void BindVertexAttribBuffer(int index)
+        {
+            if (AttributeBuffers[index] != null)
+            {
+                GL.BindVertexBuffer(index, 0, IntPtr.Zero, 0);
+                AttributeBuffers[index] = null;
+            }
+        }
+
+        public static void BindIndexBuffer(IndexBuffer buffer)
+        {
+            if (CurrentIndexBuffer != buffer)
+            {
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, buffer.Handle);
+                CurrentIndexBuffer = buffer;
+            }
+        }
+
+        public static void UnbindIndexBuffer()
+        {
+            if (CurrentIndexBuffer != null)
+            {
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
+                CurrentIndexBuffer = null;
+            }
+        }
+
+        #endregion
+
+        #region Shaders and Uniforms
+
+        public static ShaderPipeline? CurrentPipeline;
+
+        public static void UsePipeline(ShaderPipeline pipeline)
+        {
+            if (CurrentPipeline != pipeline)
+            {
+                GL.BindProgramPipeline(pipeline.Handle);
+                CurrentPipeline = pipeline;
+            }
+        }
+
+        public static ShaderProgram GetPipelineStage(ShaderStage stage)
+        {
+            if (CurrentPipeline == null)
+                throw new InvalidOperationException("There is no program pipeline bound so we can't set uniforms!!");
+
+            ShaderProgram? prog = stage switch
+            {
+                ShaderStage.Vertex => CurrentPipeline.VertexProgram,
+                ShaderStage.Geometry => CurrentPipeline.GeometryProgram,
+                ShaderStage.Fragment => CurrentPipeline.FramgmentProgram,
+
+                ShaderStage.Compute => throw new NotImplementedException(),
+
+                _ => throw new ArgumentException($"Unknown shader stage: {stage}", nameof(stage)),
+            };
+
+            if (prog == null)
+                throw new ArgumentException($"The pipeline '{CurrentPipeline.Name}' does not contain a shader for the {stage} stage.", nameof(stage));
+
+            return prog;
+        }
+
+        public static int GetUniformLocation(string uniform, ShaderStage stage)
+        {
+            var prog = GetPipelineStage(stage);
+
+            if (prog == null)
+            {
+                Debug.Print($"Looking for a uniform '{uniform}' in a shader stage ({stage}) in the pipeline '{CurrentPipeline!.Name}' which doesn't have a shader for that stage!");
+                return -1;
+            }
+            else
+            {
+                return GetUniformLocation(uniform, prog);
+            }
+        }
+
+        public static int GetUniformLocation(string uniform, ShaderProgram program)
+        {
+            if (program.UniformLocations.TryGetValue(uniform, out int location))
+            {
+                return location;
+            }
+            else
+            {
+                Debug.Print($"The uniform '{uniform}' does not exist in the shader '{program.Name}'!");
+                return -1;
+            }
+        }
+
+        public static void UniformMatrix4(string uniformName, ShaderStage stage, bool transpose, ref Matrix4 matrix)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
+        }
+
+        #endregion
+
+        #region Texture Binding
+
+
 
         #endregion
     }

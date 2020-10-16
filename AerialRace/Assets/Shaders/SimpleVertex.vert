@@ -13,14 +13,19 @@ out gl_PerVertex
 out VertexOutput
 {
     vec4 fragColor;
+    vec2 fragUV;
 };
 
 uniform mat4 mvp;
 uniform mat4 proj;
+uniform mat4 view;
 uniform mat4 model;
 
 void main(void)
 {
-    gl_Position = vec4(in_position, 1f) * /*mvp*/ model * proj;
+    gl_Position = vec4(in_position, 1f) * mvp;
+    //gl_Position = vec4(in_position, 1f) * model * view * proj;
+    
     fragColor = in_color;
+    fragUV = in_uv;
 }

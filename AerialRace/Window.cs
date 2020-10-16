@@ -26,12 +26,20 @@ namespace AerialRace
         Mesh Mesh;
 
         Mesh QuadMesh;
+        Transform QuadTransform;
 
         Camera Camera;
         Transform CameraTransform;
 
+        Texture TestTexture;
+        Sampler DebugSampler;
+
+        AttributeSpecification[] StandardAttributes;
+
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
+#pragma warning disable IDE0052 // Remove unread private members
         private static GCHandle DebugProcGCHandle;
+#pragma warning restore IDE0052 // Remove unread private members
 
         protected override void OnLoad()
         {
@@ -41,7 +49,10 @@ namespace AerialRace
             DebugProcGCHandle = GCHandle.Alloc(DebugProcCallback, GCHandleType.Normal);
             GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
             GL.Enable(EnableCap.DebugOutput);
+#if DEBUG
+            // Disables two core driver, we don't want this in a release build
             GL.Enable(EnableCap.DebugOutputSynchronous);
+#endif
 
             // Enable backface culling
             // FIXME: This should be a per-material setting
@@ -90,21 +101,23 @@ namespace AerialRace
                 null);
             QuadMesh.VertexColors = StaticGeometry.UnitQuadDebugColorsBuffer;
 
+            QuadTransform = new Transform(new Vector3(0f, 0f, -2f));
+
+            TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
+
+            DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.NearestMipmapLinear, WrapMode.Repeat, WrapMode.Repeat);
+
+            StandardAttributes = new[]
+            {
+                // Position
+                new AttributeSpecification("Position",     3, RenderData.AttributeType.Float, false),
+                new AttributeSpecification("UV",           2, RenderData.AttributeType.Float, false),
+                new AttributeSpecification("Normal",       3, RenderData.AttributeType.Float, false),
+                new AttributeSpecification("VertexColor1", 4, RenderData.AttributeType.Float, false),
+            };
 
             // Setup an always bound VAO
-            {
-                GLUtil.CreateVertexArray("The one VAO", out int VAO);
-                GL.BindVertexArray(VAO);
-
-                // Positions
-                GL.VertexAttribFormat(0, 3, VertexAttribType.Float, false, 0);
-                // UVs
-                GL.VertexAttribFormat(1, 2, VertexAttribType.Float, false, 0);
-                // Normals
-                GL.VertexAttribFormat(2, 3, VertexAttribType.Float, false, 0);
-                // Colors
-                GL.VertexAttribFormat(3, 4, VertexAttribType.Float, false, 0);
-            }
+            RenderDataUtil.SetupGlobalVAO();
         }
 
         protected override void OnRenderFrame(FrameEventArgs args)
@@ -114,26 +127,22 @@ namespace AerialRace
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            GL.EnableVertexAttribArray(0);
-            GL.BindVertexBuffer(0, QuadMesh.Positions!.Handle, IntPtr.Zero, RenderDataUtil.SizeInBytes(QuadMesh.Positions.DataType));
+            RenderDataUtil.SetAndEnableVertexAttributes(StandardAttributes, 0);
 
-            GL.EnableVertexAttribArray(1);
-            GL.BindVertexBuffer(1, QuadMesh.UVs!.Handle, IntPtr.Zero, RenderDataUtil.SizeInBytes(QuadMesh.UVs.DataType));
+            RenderDataUtil.BindVertexAttribBuffer(0, QuadMesh.Positions!);
+            RenderDataUtil.BindVertexAttribBuffer(1, QuadMesh.UVs!);
+            RenderDataUtil.BindVertexAttribBuffer(2, QuadMesh.Normals!);
+            RenderDataUtil.BindVertexAttribBuffer(3, QuadMesh.VertexColors!);
 
-            GL.EnableVertexAttribArray(2);
-            GL.BindVertexBuffer(2, QuadMesh.Normals!.Handle, IntPtr.Zero, RenderDataUtil.SizeInBytes(QuadMesh.Normals.DataType));
-
-            GL.EnableVertexAttribArray(3);
-            GL.BindVertexBuffer(3, QuadMesh.VertexColors!.Handle, IntPtr.Zero, RenderDataUtil.SizeInBytes(QuadMesh.VertexColors.DataType));
-
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, QuadMesh.Indices!.Handle);
+            RenderDataUtil.BindIndexBuffer(QuadMesh.Indices!);
 
             GL.UseProgram(0);
-            GL.BindProgramPipeline(Material.Pipeline.Handle);
+            RenderDataUtil.UsePipeline(Material.Pipeline);
 
-            Transform transform = new Transform();
-            transform.Position = new Vector3(0f, 0, -2f);
-            transform.GetTransformationMatrix(out var transformMat4x3);
+            GL.BindTextureUnit(0, TestTexture.Handle);
+            GL.BindSampler(0, DebugSampler.Handle);
+
+            QuadTransform.GetTransformationMatrix(out var transformMat4x3);
             var transformMat = new Matrix4(
                 new Vector4(transformMat4x3.Row0, 0),
                 new Vector4(transformMat4x3.Row1, 0),
@@ -142,14 +151,33 @@ namespace AerialRace
 
             Camera.CalcProjectionMatrix(out var proj);
 
-            var mvp = transformMat * proj;
-            GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
-            GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
+            Camera.Transform.GetTransformationMatrix(out var viewMatrix4x3);
+            viewMatrix4x3.Invert();
+            var viewMatrix = new Matrix4(
+                new Vector4(viewMatrix4x3.Row0, 0),
+                new Vector4(viewMatrix4x3.Row1, 0),
+                new Vector4(viewMatrix4x3.Row2, 0),
+                new Vector4(viewMatrix4x3.Row3, 1));
 
-            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
+            var mvp = transformMat * viewMatrix * proj;
+            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
+            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
 
+            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
+
+            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
+
+            RenderDataUtil.BindVertexAttribBuffer(0, Mesh.Positions!);
+            RenderDataUtil.BindVertexAttribBuffer(1, Mesh.UVs!);
+            RenderDataUtil.BindVertexAttribBuffer(2, Mesh.Normals!);
+            // RenderDataUtil.BindVertexAttribBuffer(3, Mesh.VertexColors!);
+            RenderDataUtil.DisableVertexAttribute(3);
+
+            RenderDataUtil.BindIndexBuffer(Mesh.Indices!);
+
+            var transform = new Transform();
             transform.Position = new Vector3(0f, 1f, -2f);
-            transform.Rotation = Quaternion.FromAxisAngle(new Vector3(0, 1, 0), (MathF.PI * 3) / 4 );
+            //transform.Rotation = Quaternion.FromAxisAngle(new Vector3(0, 1, 0), (MathF.PI * 3) / 4 );
             transform.GetTransformationMatrix(out transformMat4x3);
             transformMat = new Matrix4(
                 new Vector4(transformMat4x3.Row0, 0),
@@ -159,11 +187,21 @@ namespace AerialRace
 
             Camera.CalcProjectionMatrix(out proj);
 
-            mvp = transformMat * proj;
-            GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
-            GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
+            Camera.Transform.GetTransformationMatrix(out viewMatrix4x3);
+            viewMatrix4x3.Invert();
+            viewMatrix = new Matrix4(
+                new Vector4(viewMatrix4x3.Row0, 0),
+                new Vector4(viewMatrix4x3.Row1, 0),
+                new Vector4(viewMatrix4x3.Row2, 0),
+                new Vector4(viewMatrix4x3.Row3, 1));
 
-            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
+            mvp = transformMat * viewMatrix * proj;
+            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
+            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
+
+            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
+
+            GL.DrawElements(PrimitiveType.Triangles, Mesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(Mesh.Indices.IndexType), 0);
 
             SwapBuffers();
         }
@@ -172,15 +210,46 @@ namespace AerialRace
         {
             base.OnUpdateFrame(args);
 
-            HandleKeyboard(KeyboardState);
+            QuadTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
+
+            HandleKeyboard(KeyboardState, (float)args.Time);
         }
 
-        public void HandleKeyboard(KeyboardState keyboard)
+        public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
         {
-            
             if (IsKeyPressed(Keys.Escape))
             {
                 Close();
+            }
+
+            if (IsKeyDown(Keys.W))
+            {
+                Camera.Transform.Position += Camera.Transform.Forward * deltaTime;
+            }
+
+            if (IsKeyDown(Keys.S))
+            {
+                Camera.Transform.Position += -Camera.Transform.Forward * deltaTime;
+            }
+
+            if (IsKeyDown(Keys.A))
+            {
+                Camera.Transform.Position += -Camera.Transform.Right * deltaTime;
+            }
+
+            if (IsKeyDown(Keys.D))
+            {
+                Camera.Transform.Position += Camera.Transform.Right * deltaTime;
+            }
+
+            if (IsKeyDown(Keys.Space))
+            {
+                Camera.Transform.Position += new Vector3(0f, 1f, 0f) * deltaTime;
+            }
+
+            if (IsKeyDown(Keys.LeftShift))
+            {
+                Camera.Transform.Position += new Vector3(0f, -1f, 0f) * deltaTime;
             }
         }
 
@@ -218,6 +287,7 @@ namespace AerialRace
                         break;
                     case DebugSeverity.DebugSeverityHigh:
                         Debug.Print($"[Error] [{source}] {message}");
+                        Debugger.Break();
                         break;
                     case DebugSeverity.DebugSeverityMedium:
                         Debug.Print($"[Warning] [{source}] {message}");

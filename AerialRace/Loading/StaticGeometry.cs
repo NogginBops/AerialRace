@@ -17,19 +17,19 @@ namespace AerialRace.Loading
         public static Buffer CenteredUnitQuadPositionsBuffer;
         public static readonly Vector3[] CenteredUnitQuadPositions = new Vector3[]
         {
-            new Vector3(-.5f,  .5f, 0f),
             new Vector3(-.5f, -.5f, 0f),
-            new Vector3( .5f, -.5f, 0f),
+            new Vector3(-.5f,  .5f, 0f),
             new Vector3( .5f,  .5f, 0f),
+            new Vector3( .5f, -.5f, 0f),
         };
 
         public static Buffer UnitQuadPositionsBuffer;
         public static readonly Vector3[] UnitQuadPositions = new Vector3[]
         {
-            new Vector3(0f, 1f, 0f),
             new Vector3(0f, 0f, 0f),
-            new Vector3(1f, 0f, 0f),
+            new Vector3(0f, 1f, 0f),
             new Vector3(1f, 1f, 0f),
+            new Vector3(1f, 0f, 0f),
         };
 
         public static Buffer UnitQuadUVsBuffer;
@@ -53,10 +53,10 @@ namespace AerialRace.Loading
         public static Buffer UnitQuadDebugColorsBuffer;
         public static readonly Color4[] UnitQuadDebugColors = new Color4[]
         {
+            new Color4(0f, 0f, 0f, 1f),
+            new Color4(1f, 1f, 1f, 1f),
             new Color4(1f, 0f, 0f, 1f),
-            new Color4(0f, 1f, 0f, 1f),
-            new Color4(0f, 0f, 1f, 1f),
-            new Color4(1f, 0f, 1f, 1f),
+            new Color4(0f, 0f, 0f, 1f),
         };
 
         public static void InitBuffers()

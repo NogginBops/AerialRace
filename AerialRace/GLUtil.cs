@@ -48,10 +48,16 @@ namespace AerialRace
             LabelObject(ObjectLabelIdentifier.VertexArray, VAO, $"VAO: {Name}");
         }
 
-        public static void CreateTexture(TextureTarget target, string Name, out int Texture)
+        public static void CreateTexture(string Name, TextureTarget target, out int Texture)
         {
             GL.CreateTextures(target, 1, out Texture);
             LabelObject(ObjectLabelIdentifier.Texture, Texture, $"Texture: {Name}");
+        }
+
+        public static void CreateSampler(string Name, out int Sampler)
+        {
+            GL.CreateSamplers(1, out Sampler);
+            LabelObject(ObjectLabelIdentifier.Sampler, Sampler, $"Sampler: {Name}");
         }
 
         public static void CreateFramebuffer(string Name, out int FBO)

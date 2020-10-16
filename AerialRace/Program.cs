@@ -49,7 +49,8 @@ namespace AerialRace
                 IsEventDriven = false,
                 IsFullscreen = false,
                 //Location =
-                //NumberOfSamples =
+                // TODO: We will probably just use FBO multisampling
+                //NumberOfSamples = 4,
                 Profile = ContextProfile.Core,
                 SharedContext = null,
                 Size = new Vector2i(1920, 1080),
