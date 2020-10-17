@@ -64,7 +64,7 @@ namespace AerialRace.RenderData
 
             Color4 _ => BufferDataType.Float4,
 
-            _ => throw new ArgumentException($"No buffer data type that matches type: '{typeof(T)}'"),
+            _ => BufferDataType.Custom,
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,6 +89,9 @@ namespace AerialRace.RenderData
 
             if (flags.HasFlag(BufferFlags.MapPersistent))
                 result |= BufferStorageFlags.MapPersistentBit;
+
+            if (flags.HasFlag(BufferFlags.Dynamic))
+                result |= BufferStorageFlags.DynamicStorageBit;
 
             return result;
         }
@@ -189,7 +192,7 @@ namespace AerialRace.RenderData
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BufferSize(Buffer buffer) => buffer.Elements * SizeInBytes(buffer.DataType);
+        public static int BufferSize(Buffer buffer) => buffer.Elements * buffer.ElementSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BufferSize(IndexBuffer buffer) => buffer.Elements * SizeInBytes(buffer.IndexType);
@@ -202,13 +205,32 @@ namespace AerialRace.RenderData
 
             BufferDataType bufferType = GetAssiciatedBufferDataType<T>();
 
-            Debug.Assert(SizeInBytes(bufferType) == Unsafe.SizeOf<T>());
+            int elementSize = Unsafe.SizeOf<T>();
+            if (bufferType != BufferDataType.Custom) 
+                Debug.Assert(SizeInBytes(bufferType) == Unsafe.SizeOf<T>());
 
             // GLEXT: ARB_direct_access
             BufferStorageFlags glFlags = ToGLStorageFlags(flags);
-            GL.NamedBufferStorage(Handle, data.Length * SizeInBytes(bufferType), ref data[0], glFlags);
+            GL.NamedBufferStorage(Handle, data.Length * elementSize, ref data[0], glFlags);
 
-            return new Buffer(name, Handle, bufferType, data.Length);
+            return new Buffer(name, Handle, bufferType, elementSize, data.Length, flags);
+        }
+
+        public static Buffer CreateDataBuffer<T>(string name, int elements, BufferFlags flags) where T : unmanaged
+        {
+            GLUtil.CreateBuffer(name, out int Handle);
+
+            BufferDataType bufferType = GetAssiciatedBufferDataType<T>();
+
+            int elementSize = Unsafe.SizeOf<T>();
+            if (bufferType != BufferDataType.Custom)
+                Debug.Assert(SizeInBytes(bufferType) == Unsafe.SizeOf<T>());
+
+            BufferStorageFlags glFlags = ToGLStorageFlags(flags);
+            // GLEXT: ARB_direct_access
+            GL.NamedBufferStorage(Handle, elements * elementSize, IntPtr.Zero, glFlags);
+
+            return new Buffer(name, Handle, bufferType, elementSize, elements, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<byte> data, BufferFlags flags)
@@ -223,7 +245,7 @@ namespace AerialRace.RenderData
             BufferStorageFlags glFlags = ToGLStorageFlags(flags);
             GL.NamedBufferStorage(Handle, data.Length * sizeof(byte), ref data[0], glFlags);
 
-            return new IndexBuffer(name, Handle, bufferType, data.Length);
+            return new IndexBuffer(name, Handle, bufferType, data.Length, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<short> data, BufferFlags flags)
@@ -238,7 +260,7 @@ namespace AerialRace.RenderData
             BufferStorageFlags glFlags = ToGLStorageFlags(flags);
             GL.NamedBufferStorage(Handle, data.Length * sizeof(short), ref data[0], glFlags);
 
-            return new IndexBuffer(name, Handle, bufferType, data.Length);
+            return new IndexBuffer(name, Handle, bufferType, data.Length, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<int> data, BufferFlags flags)
@@ -253,7 +275,22 @@ namespace AerialRace.RenderData
             BufferStorageFlags glFlags = ToGLStorageFlags(flags);
             GL.NamedBufferStorage(Handle, data.Length * sizeof(uint), ref data[0], glFlags);
 
-            return new IndexBuffer(name, Handle, bufferType, data.Length);
+            return new IndexBuffer(name, Handle, bufferType, data.Length, flags);
+        }
+
+        public static IndexBuffer CreateIndexBuffer<T>(string name, int elements, BufferFlags flags) where T : unmanaged
+        {
+            GLUtil.CreateBuffer(name, out int Handle);
+
+            IndexBufferType bufferType = GetAssiciatedIndexBufferType<T>();
+
+            Debug.Assert(SizeInBytes(bufferType) == Unsafe.SizeOf<T>());
+
+            // GLEXT: ARB_direct_access
+            BufferStorageFlags glFlags = ToGLStorageFlags(flags);
+            GL.NamedBufferStorage(Handle, elements * Unsafe.SizeOf<T>(), IntPtr.Zero, glFlags);
+
+            return new IndexBuffer(name, Handle, bufferType, elements, flags);
         }
 
         public static Framebuffer CreateEmptyFramebuffer(string name)
@@ -468,6 +505,39 @@ namespace AerialRace.RenderData
 
         #endregion
 
+        public static void ReallocBuffer(ref Buffer buffer, int newSize)
+        {
+            GL.DeleteBuffer(buffer.Handle);
+            GLUtil.CreateBuffer(buffer.Name, out buffer.Handle);
+
+            BufferStorageFlags glFlags = ToGLStorageFlags(buffer.Flags);
+            // GLEXT: ARB_direct_access
+            GL.NamedBufferStorage(buffer.Handle, newSize * buffer.ElementSize, IntPtr.Zero, glFlags);
+            buffer.Elements = newSize;
+        }
+
+        public static void ReallocBuffer(ref IndexBuffer buffer, int newSize)
+        {
+            GL.DeleteBuffer(buffer.Handle);
+            GLUtil.CreateElementBuffer(buffer.Name, out buffer.Handle);
+
+            BufferStorageFlags glFlags = ToGLStorageFlags(buffer.Flags);
+            // GLEXT: ARB_direct_access
+            GL.NamedBufferStorage(buffer.Handle, newSize * SizeInBytes(buffer.IndexType), IntPtr.Zero, glFlags);
+            buffer.Elements = newSize;
+        }
+
+        #region Deletion
+
+        // Deletes the buffer and resets it's contents
+        public static void DeleteBuffer(ref Buffer? buffer)
+        {
+            GL.DeleteBuffer(buffer?.Handle ?? 0);
+            buffer = default;
+        }
+
+        #endregion
+
         #region Attributes
 
         public struct VertexAttribute
@@ -555,13 +625,13 @@ namespace AerialRace.RenderData
         {
             if (AttributeBuffers[index] != buffer)
             {
-                GL.BindVertexBuffer(index, buffer!.Handle, IntPtr.Zero, SizeInBytes(buffer.DataType));
+                GL.BindVertexBuffer(index, buffer!.Handle, IntPtr.Zero, buffer.ElementSize);
 
                 AttributeBuffers[index] = buffer;
             }
         }
 
-        public static void BindVertexAttribBuffer(int index)
+        public static void ClearVertexAttribBuffer(int index)
         {
             if (AttributeBuffers[index] != null)
             {
@@ -659,6 +729,14 @@ namespace AerialRace.RenderData
             var location = GetUniformLocation(uniformName, prog);
 
             GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
+        }
+
+        public static void Uniform1(string uniformName, ShaderStage stage, int i)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniform1(prog.Handle, location, i);
         }
 
         #endregion

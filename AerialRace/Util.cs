@@ -6,6 +6,11 @@ namespace AerialRace
 {
     static class Util
     {
+        public const float D2R = (float)(Math.PI / 180);
+        public const float R2D = (float)(180 / Math.PI);
+
+        public const float Sqrt3 = 1.73205080757f;
+
         public static float ParseFloatFast(string str)
         {
             return ParseFloatFast(str, 0, str.Length);

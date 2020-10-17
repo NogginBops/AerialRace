@@ -17,13 +17,15 @@ namespace AerialRace.RenderData
         public int Handle;
         public IndexBufferType IndexType;
         public int Elements;
+        public BufferFlags Flags;
 
-        public IndexBuffer(string name, int handle, IndexBufferType indexType, int elements)
+        public IndexBuffer(string name, int handle, IndexBufferType indexType, int elements, BufferFlags flags)
         {
             Name = name;
             Handle = handle;
             IndexType = indexType;
             Elements = elements;
+            Flags = flags;
         }
     }
 }

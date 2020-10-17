@@ -1,5 +1,7 @@
-﻿using AerialRace.Loading;
+﻿using AerialRace.DebugGui;
+using AerialRace.Loading;
 using AerialRace.RenderData;
+using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -22,14 +24,19 @@ namespace AerialRace
             Title += ": OpenGL Version: " + GL.GetString(StringName.Version);
         }
 
+        ImGuiController imGuiController;
+
         Material Material;
         Mesh Mesh;
 
         Mesh QuadMesh;
         Transform QuadTransform;
 
+        Transform ChildTransform;
+
+        Transform FloorTransform;
+
         Camera Camera;
-        Transform CameraTransform;
 
         Texture TestTexture;
         Sampler DebugSampler;
@@ -64,7 +71,7 @@ namespace AerialRace
 
             var (Width, Height) = Size;
             Camera = new Camera(90, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
-            CameraTransform = new Transform();
+            //Camera.Transform.Position = new Vector3(0, 0, 2);
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
@@ -101,7 +108,18 @@ namespace AerialRace
                 null);
             QuadMesh.VertexColors = StaticGeometry.UnitQuadDebugColorsBuffer;
 
-            QuadTransform = new Transform(new Vector3(0f, 0f, -2f));
+            QuadTransform = new Transform(new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
+
+            ChildTransform = new Transform(new Vector3(1f, 1f, 0f));
+
+            QuadTransform.Children = new List<Transform>();
+            QuadTransform.Children.Add(ChildTransform);
+            ChildTransform.Parent = QuadTransform;
+
+            //QuadTransform.Children.Add(Camera.Transform);
+            //Camera.Transform.Parent = QuadTransform;
+
+            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 5);
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
 
@@ -116,6 +134,8 @@ namespace AerialRace
                 new AttributeSpecification("VertexColor1", 4, RenderData.AttributeType.Float, false),
             };
 
+            imGuiController = new ImGuiController(Width, Height);
+
             // Setup an always bound VAO
             RenderDataUtil.SetupGlobalVAO();
         }
@@ -123,6 +143,31 @@ namespace AerialRace
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             base.OnRenderFrame(args);
+
+            imGuiController.Update(this, (float)args.Time);
+            // Update above calls ImGui.NewFrame()...
+            //ImGui.NewFrame();
+
+            if (ImGui.Begin("Mouse Move Debug"))
+            {
+                ImGui.LabelText("Mouse rot", "");
+                ImGui.Text($"x: {Camera.RotationX}, y: {Camera.RotationY}");
+                ImGui.Text($"Quat: { Camera.Transform.Rotation}");
+
+                ImGui.Text($"Position: { Camera.Transform.Position}");
+                ImGui.Text($"World Position: { Transformations.MultPosition(Vector3.Zero, ref Camera.Transform.WorldToLocal) }");
+
+                ImGui.End();
+            }
+
+            //Transformations.LinearizeTransformations(Transform.Roots, )
+
+            QuadTransform.UpdateMatrices();
+            ChildTransform.UpdateMatrices();
+            Camera.Transform.UpdateMatrices();
+            FloorTransform.UpdateMatrices();
+
+            //Debug.WriteLine($"Camera pos: {Camera.Transform.Position}, Camera left: {-Camera.Transform.Right}");
 
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -143,25 +188,23 @@ namespace AerialRace
             GL.BindSampler(0, DebugSampler.Handle);
 
             QuadTransform.GetTransformationMatrix(out var transformMat4x3);
-            var transformMat = new Matrix4(
-                new Vector4(transformMat4x3.Row0, 0),
-                new Vector4(transformMat4x3.Row1, 0),
-                new Vector4(transformMat4x3.Row2, 0),
-                new Vector4(transformMat4x3.Row3, 1));
+
+            //Camera.Transform.GetTransformationMatrix(out var viewMatrix4x3);
+            //viewMatrix4x3.Invert();
+            var viewMatrix4x3 = Camera.Transform.WorldToLocal;
 
             Camera.CalcProjectionMatrix(out var proj);
 
-            Camera.Transform.GetTransformationMatrix(out var viewMatrix4x3);
-            viewMatrix4x3.Invert();
-            var viewMatrix = new Matrix4(
-                new Vector4(viewMatrix4x3.Row0, 0),
-                new Vector4(viewMatrix4x3.Row1, 0),
-                new Vector4(viewMatrix4x3.Row2, 0),
-                new Vector4(viewMatrix4x3.Row3, 1));
+            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out var mvp);
+            
+            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
-            var mvp = transformMat * viewMatrix * proj;
-            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
-            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
+            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
+
+            FloorTransform.GetTransformationMatrix(out transformMat4x3);
+            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out mvp);
+
+            //Debug.WriteLine($"Equal: {Camera.Transform.Forward == Camera.Transform.Forward2}, Diff: {Camera.Transform.Forward - Camera.Transform.Forward2}");
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
@@ -175,33 +218,33 @@ namespace AerialRace
 
             RenderDataUtil.BindIndexBuffer(Mesh.Indices!);
 
-            var transform = new Transform();
-            transform.Position = new Vector3(0f, 1f, -2f);
-            //transform.Rotation = Quaternion.FromAxisAngle(new Vector3(0, 1, 0), (MathF.PI * 3) / 4 );
-            transform.GetTransformationMatrix(out transformMat4x3);
-            transformMat = new Matrix4(
-                new Vector4(transformMat4x3.Row0, 0),
-                new Vector4(transformMat4x3.Row1, 0),
-                new Vector4(transformMat4x3.Row2, 0),
-                new Vector4(transformMat4x3.Row3, 1));
+            ChildTransform.GetTransformationMatrix(out transformMat4x3);
+
+            //Camera.Transform.GetTransformationMatrix(out viewMatrix4x3);
+            //viewMatrix4x3.Invert();
+            viewMatrix4x3 = Camera.Transform.WorldToLocal;
 
             Camera.CalcProjectionMatrix(out proj);
 
-            Camera.Transform.GetTransformationMatrix(out viewMatrix4x3);
-            viewMatrix4x3.Invert();
-            viewMatrix = new Matrix4(
-                new Vector4(viewMatrix4x3.Row0, 0),
-                new Vector4(viewMatrix4x3.Row1, 0),
-                new Vector4(viewMatrix4x3.Row2, 0),
-                new Vector4(viewMatrix4x3.Row3, 1));
-
-            mvp = transformMat * viewMatrix * proj;
-            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 1, true, ref proj);
-            //GL.ProgramUniformMatrix4(Material.Pipeline.VertexProgram!.Handle, 0, true, ref transformMat);
+            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out mvp);
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
             GL.DrawElements(PrimitiveType.Triangles, Mesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(Mesh.Indices.IndexType), 0);
+
+            ImGui.ShowDemoWindow();
+
+            ImGui.EndFrame();
+            imGuiController.Render();
+
+            // The blend mode is changed to this after imgui
+            //GL.BlendEquation(BlendEquationMode.FuncAdd);
+            //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            //GL.Enable(EnableCap.CullFace);
+            GL.Enable(EnableCap.DepthTest);
+
+            // FIXME: Reset gl state!
 
             SwapBuffers();
         }
@@ -210,9 +253,14 @@ namespace AerialRace
         {
             base.OnUpdateFrame(args);
 
-            QuadTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
+            //QuadTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 2 * MathF.PI * (float)args.Time);
+
+            //ChildTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)args.Time);
+
+            //Camera.Transform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
 
             HandleKeyboard(KeyboardState, (float)args.Time);
+            HandleMouse(MouseState, (float)args.Time);
         }
 
         public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
@@ -251,6 +299,53 @@ namespace AerialRace
             {
                 Camera.Transform.Position += new Vector3(0f, -1f, 0f) * deltaTime;
             }
+        }
+
+        public float MouseSpeedX = 0.2f;
+        public float MouseSpeedY = 0.2f;
+        public float CameraMinY = -75f;
+        public float CameraMaxY =  75f;
+        Matrix3 MatPitch;
+        Matrix3 MatYaw;
+        public void HandleMouse(MouseState mouse, float deltaTime)
+        {
+            // Move the camera
+            if (mouse.IsButtonDown(MouseButton.Right))
+            {
+                var delta = mouse.Delta;
+
+                Camera.RotationX += -delta.X * MouseSpeedX * deltaTime;
+                Camera.RotationY += -delta.Y * MouseSpeedY * deltaTime;
+                Camera.RotationY = MathHelper.Clamp(Camera.RotationY, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
+
+                MatPitch = Matrix3.CreateFromAxisAngle(Vector3.UnitX, Camera.RotationY);
+                MatYaw = Matrix3.CreateFromAxisAngle(Vector3.UnitY, Camera.RotationX);
+
+                Camera.Transform.Rotation = Quaternion.FromMatrix(Matrix3.Transpose(MatPitch * MatYaw));   
+            }
+        }
+
+        protected override void OnMouseWheel(MouseWheelEventArgs e)
+        {
+            base.OnMouseWheel(e);
+
+            imGuiController.MouseScroll(e.Offset);
+        }
+
+        protected override void OnResize(ResizeEventArgs e)
+        {
+            base.OnResize(e);
+
+            imGuiController.WindowResized(e.Width, e.Height);
+
+            // FIXME: Adjust things that need to be adjusted
+        }
+
+        protected override void OnTextInput(TextInputEventArgs e)
+        {
+            base.OnTextInput(e);
+
+            imGuiController.PressChar((char)e.Unicode);
         }
 
         private static void Window_DebugProc(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)

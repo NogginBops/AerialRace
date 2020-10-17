@@ -16,6 +16,11 @@ namespace AerialRace
         public float NearPlane;
         public float FarPlane;
 
+
+        // Used by the mouse controls for cameras
+        // We can remove this later
+        public float RotationX, RotationY;
+
         public Camera(float fov, float aspect, float near, float far, Color4 clear)
         {
             Transform = new Transform();

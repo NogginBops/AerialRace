@@ -11,10 +11,13 @@ namespace AerialRace.RenderData
         MapRead = 1,
         MapWrite = 2,
         MapPersistent = 3,
+        Dynamic = 4,
     }
 
     enum BufferDataType : int
     {
+        Custom = 0,
+
         UInt8  = 1,
         UInt16 = 2,
         UInt32 = 3,
@@ -36,14 +39,18 @@ namespace AerialRace.RenderData
         public string Name;
         public int Handle;
         public BufferDataType DataType;
+        public int ElementSize;
         public int Elements;
+        public BufferFlags Flags;
 
-        public Buffer(string name, int handle, BufferDataType dataType, int elements)
+        public Buffer(string name, int handle, BufferDataType dataType, int elementSize, int elements, BufferFlags flags)
         {
             Name = name;
             Handle = handle;
             DataType = dataType;
+            ElementSize = elementSize;
             Elements = elements;
+            Flags = flags;
         }
     }
 }
