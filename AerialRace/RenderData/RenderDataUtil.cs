@@ -15,6 +15,15 @@ namespace AerialRace.RenderData
 {
     static class RenderDataUtil
     {
+        public static float MaxAnisoLevel { get; private set; }
+
+        public static void QueryLimits()
+        {
+            MaxAnisoLevel = GL.GetFloat((GetPName)All.MaxTextureMaxAnisotropy);
+        }
+
+        #region MISC
+
         public static int SizeInBytes(BufferDataType type) => type switch
         {
             BufferDataType.UInt8  => sizeof(byte),
@@ -196,6 +205,8 @@ namespace AerialRace.RenderData
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BufferSize(IndexBuffer buffer) => buffer.Elements * SizeInBytes(buffer.IndexType);
+
+        #endregion
 
         #region Creation 
 
@@ -490,7 +501,7 @@ namespace AerialRace.RenderData
             }
         }
 
-        public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, WrapMode xAxisWrap, WrapMode yAxisWrap)
+        public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
         {
             GLUtil.CreateSampler(name, out int sampler);
             
@@ -499,6 +510,8 @@ namespace AerialRace.RenderData
 
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMaxAnisotropyExt, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
 
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
         }

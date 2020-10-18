@@ -69,9 +69,11 @@ namespace AerialRace
             GL.Enable(EnableCap.DepthTest);
             GL.DepthFunc(DepthFunction.Lequal);
 
+            RenderDataUtil.QueryLimits();
+
             var (Width, Height) = Size;
             Camera = new Camera(90, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
-            //Camera.Transform.Position = new Vector3(0, 0, 2);
+            Camera.Transform.LocalPosition = new Vector3(0, 1f, 0);
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
@@ -123,7 +125,7 @@ namespace AerialRace
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
 
-            DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.NearestMipmapLinear, WrapMode.Repeat, WrapMode.Repeat);
+            DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
 
             StandardAttributes = new[]
             {
@@ -146,19 +148,7 @@ namespace AerialRace
 
             imGuiController.Update(this, (float)args.Time);
             // Update above calls ImGui.NewFrame()...
-            //ImGui.NewFrame();
-
-            if (ImGui.Begin("Mouse Move Debug"))
-            {
-                ImGui.LabelText("Mouse rot", "");
-                ImGui.Text($"x: {Camera.RotationX}, y: {Camera.RotationY}");
-                ImGui.Text($"Quat: { Camera.Transform.Rotation}");
-
-                ImGui.Text($"Position: { Camera.Transform.Position}");
-                ImGui.Text($"World Position: { Transformations.MultPosition(Vector3.Zero, ref Camera.Transform.WorldToLocal) }");
-
-                ImGui.End();
-            }
+            // ImGui.NewFrame();
 
             //Transformations.LinearizeTransformations(Transform.Roots, )
 
@@ -166,8 +156,6 @@ namespace AerialRace
             ChildTransform.UpdateMatrices();
             Camera.Transform.UpdateMatrices();
             FloorTransform.UpdateMatrices();
-
-            //Debug.WriteLine($"Camera pos: {Camera.Transform.Position}, Camera left: {-Camera.Transform.Right}");
 
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -187,22 +175,20 @@ namespace AerialRace
             GL.BindTextureUnit(0, TestTexture.Handle);
             GL.BindSampler(0, DebugSampler.Handle);
 
-            QuadTransform.GetTransformationMatrix(out var transformMat4x3);
+            QuadTransform.GetTransformationMatrix(out var transformMatrix);
 
-            //Camera.Transform.GetTransformationMatrix(out var viewMatrix4x3);
-            //viewMatrix4x3.Invert();
-            var viewMatrix4x3 = Camera.Transform.WorldToLocal;
+            var viewMatrix = Camera.Transform.WorldToLocal;
 
             Camera.CalcProjectionMatrix(out var proj);
 
-            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out var mvp);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out var mvp);
             
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
             GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
 
-            FloorTransform.GetTransformationMatrix(out transformMat4x3);
-            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out mvp);
+            FloorTransform.GetTransformationMatrix(out transformMatrix);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mvp);
 
             //Debug.WriteLine($"Equal: {Camera.Transform.Forward == Camera.Transform.Forward2}, Diff: {Camera.Transform.Forward - Camera.Transform.Forward2}");
 
@@ -218,15 +204,13 @@ namespace AerialRace
 
             RenderDataUtil.BindIndexBuffer(Mesh.Indices!);
 
-            ChildTransform.GetTransformationMatrix(out transformMat4x3);
+            ChildTransform.GetTransformationMatrix(out transformMatrix);
 
-            //Camera.Transform.GetTransformationMatrix(out viewMatrix4x3);
-            //viewMatrix4x3.Invert();
-            viewMatrix4x3 = Camera.Transform.WorldToLocal;
+            viewMatrix = Camera.Transform.WorldToLocal;
 
             Camera.CalcProjectionMatrix(out proj);
 
-            Transformations.MultMVP(ref transformMat4x3, ref viewMatrix4x3, ref proj, out mvp);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mvp);
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
@@ -237,6 +221,7 @@ namespace AerialRace
             ImGui.EndFrame();
             imGuiController.Render();
 
+            // FIXME: Reset gl state!
             // The blend mode is changed to this after imgui
             //GL.BlendEquation(BlendEquationMode.FuncAdd);
             //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -244,16 +229,23 @@ namespace AerialRace
             //GL.Enable(EnableCap.CullFace);
             GL.Enable(EnableCap.DepthTest);
 
-            // FIXME: Reset gl state!
-
             SwapBuffers();
         }
 
+        float TotalTime = 0;
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             base.OnUpdateFrame(args);
 
-            //QuadTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 2 * MathF.PI * (float)args.Time);
+            TotalTime += (float)args.Time;
+
+            if (args.Time > 0.17)
+            {
+                Debug.WriteLine($"Long frame time: {args.Time:0.000}");
+            }
+
+            QuadTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 0.1f * MathF.PI * (float)args.Time);
+            QuadTransform.LocalPosition = new Vector3(1, MathF.Sin(TotalTime * MathF.PI * 0.2f), -2);
 
             //ChildTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)args.Time);
 
@@ -272,32 +264,32 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.W))
             {
-                Camera.Transform.Position += Camera.Transform.Forward * deltaTime;
+                Camera.Transform.LocalPosition += Camera.Transform.Forward * deltaTime;
             }
 
             if (IsKeyDown(Keys.S))
             {
-                Camera.Transform.Position += -Camera.Transform.Forward * deltaTime;
+                Camera.Transform.LocalPosition += -Camera.Transform.Forward * deltaTime;
             }
 
             if (IsKeyDown(Keys.A))
             {
-                Camera.Transform.Position += -Camera.Transform.Right * deltaTime;
+                Camera.Transform.LocalPosition += -Camera.Transform.Right * deltaTime;
             }
 
             if (IsKeyDown(Keys.D))
             {
-                Camera.Transform.Position += Camera.Transform.Right * deltaTime;
+                Camera.Transform.LocalPosition += Camera.Transform.Right * deltaTime;
             }
 
             if (IsKeyDown(Keys.Space))
             {
-                Camera.Transform.Position += new Vector3(0f, 1f, 0f) * deltaTime;
+                Camera.Transform.LocalPosition += new Vector3(0f, 1f, 0f) * deltaTime;
             }
 
             if (IsKeyDown(Keys.LeftShift))
             {
-                Camera.Transform.Position += new Vector3(0f, -1f, 0f) * deltaTime;
+                Camera.Transform.LocalPosition += new Vector3(0f, -1f, 0f) * deltaTime;
             }
         }
 
@@ -305,23 +297,24 @@ namespace AerialRace
         public float MouseSpeedY = 0.2f;
         public float CameraMinY = -75f;
         public float CameraMaxY =  75f;
-        Matrix3 MatPitch;
-        Matrix3 MatYaw;
         public void HandleMouse(MouseState mouse, float deltaTime)
         {
+            var io = ImGui.GetIO();
+            if (io.WantCaptureMouse)
+                return;
+
             // Move the camera
             if (mouse.IsButtonDown(MouseButton.Right))
             {
                 var delta = mouse.Delta;
 
-                Camera.RotationX += -delta.X * MouseSpeedX * deltaTime;
-                Camera.RotationY += -delta.Y * MouseSpeedY * deltaTime;
-                Camera.RotationY = MathHelper.Clamp(Camera.RotationY, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
+                Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
+                Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;
+                Camera.XAxisRotation = MathHelper.Clamp(Camera.XAxisRotation, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
 
-                MatPitch = Matrix3.CreateFromAxisAngle(Vector3.UnitX, Camera.RotationY);
-                MatYaw = Matrix3.CreateFromAxisAngle(Vector3.UnitY, Camera.RotationX);
-
-                Camera.Transform.Rotation = Quaternion.FromMatrix(Matrix3.Transpose(MatPitch * MatYaw));   
+                Camera.Transform.LocalRotation =
+                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
             }
         }
 

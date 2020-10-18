@@ -19,7 +19,7 @@ namespace AerialRace
 
         // Used by the mouse controls for cameras
         // We can remove this later
-        public float RotationX, RotationY;
+        public float YAxisRotation, XAxisRotation;
 
         public Camera(float fov, float aspect, float near, float far, Color4 clear)
         {
@@ -31,7 +31,7 @@ namespace AerialRace
             FarPlane = far;
         }
 
-        public void CalcViewMatrix(out Matrix4x3 viewMatrix)
+        public void CalcViewMatrix(out Matrix4 viewMatrix)
         {
             Transform.GetTransformationMatrix(out viewMatrix);
             viewMatrix.Invert();

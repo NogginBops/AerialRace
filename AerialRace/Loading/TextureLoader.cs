@@ -26,10 +26,18 @@ namespace AerialRace.Loading
             GLUtil.CreateTexture(name, OpenTK.Graphics.OpenGL4.TextureTarget.Texture2D, out int texture);
             GL.TextureStorage2D(texture, mipmapLevels, internalFormat, image.Width, image.Height);
 
-            for (int i = 0; i < image.Height; i++)
+            if (image.TryGetSinglePixelSpan(out Span<Rgba32> allData))
             {
-                var row = image.GetPixelRowSpan(i);
-                GL.TextureSubImage2D(texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, ref row[0]);
+                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedByte, ref allData[0]);
+            }
+            else
+            {
+                // Resort to doing this line by line.
+                for (int i = 0; i < image.Height; i++)
+                {
+                    var row = image.GetPixelRowSpan(i);
+                    GL.TextureSubImage2D(texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, ref row[0]);
+                }
             }
 
             if (generateMipmap) GL.GenerateTextureMipmap(texture);

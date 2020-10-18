@@ -125,7 +125,7 @@ void main()
             ImGuiIOPtr io = ImGui.GetIO();
             io.Fonts.GetTexDataAsRGBA32(out IntPtr pixels, out int width, out int height, out int bytesPerPixel);
 
-            _fontSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Linear, MinFilter.Linear, WrapMode.Repeat, WrapMode.Repeat);
+            _fontSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Linear, MinFilter.Linear, 1.0f, WrapMode.Repeat, WrapMode.Repeat);
 
             GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2D, out var glTexture);
 
@@ -201,8 +201,8 @@ void main()
 
             io.MousePos = new System.Numerics.Vector2(MouseState.Position.X, MouseState.Position.Y);
 
-            // In later version of opentk this will be possible
-            //io.MouseWheel = MouseState.Scroll.Y;
+            // This is broken in opentk 4.0.4, will be fixed in 4.0.5
+            //io.MouseWheel = MouseState.ScrollDelta.Y;
             //io.MouseWheelH = MouseState.Scroll.X;
 
             foreach (Keys key in Enum.GetValues(typeof(Keys)))
