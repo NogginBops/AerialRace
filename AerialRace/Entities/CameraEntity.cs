@@ -4,7 +4,7 @@ using System.Text;
 
 namespace AerialRace.Entities
 {
-    struct CameraEntity : IEntity
+    struct CameraEntity : IComponent
     {
         public Transform Transform;
         public Camera Camera;

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace AerialRace.Entities
 {
-    struct ModelEntity : IEntity
+    struct ModelEntity : IComponent
     {
         public Transform Transform;
         public Mesh Mesh;

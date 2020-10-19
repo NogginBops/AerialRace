@@ -1,5 +1,14 @@
 ﻿Aerial racing game
 
+
+
+
+Get a ship doing some basic flying.
+We need to implement a camera follow thing.
+
+
+-----------------------------------------------------------------
+
 Flying machines racing trough a track to get to the finish first.
 We have not decided what type of art-style is fitting for this game.
 

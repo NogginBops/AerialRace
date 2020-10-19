@@ -1,4 +1,6 @@
 ﻿using AerialRace.DebugGui;
+using AerialRace.Entities;
+using AerialRace.Entities.Systems;
 using AerialRace.Loading;
 using AerialRace.RenderData;
 using ImGuiNET;
@@ -47,6 +49,8 @@ namespace AerialRace
 
         AttributeSpecification[] StandardAttributes;
 
+        EntityManager Manager = new EntityManager();
+
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
 #pragma warning disable IDE0052 // Remove unread private members
         private static GCHandle DebugProcGCHandle;
@@ -64,6 +68,15 @@ namespace AerialRace
             // Disables two core driver, we don't want this in a release build
             GL.Enable(EnableCap.DebugOutputSynchronous);
 #endif
+            Manager.RegisterType<Entities.Components.Transform>();
+            Manager.RegisterType<Entities.Components.LocalToWorld>();
+
+            Manager.RegisterSystem(new TransformSystem());
+
+
+            var @ref = Manager.CreateEntity();
+            Manager.AddComponent(@ref, new Entities.Components.Transform() { LocalPosition = new Vector3(0, 1, -2) });
+            Manager.AddComponent(@ref, new Entities.Components.LocalToWorld());
 
             // Enable backface culling
             // FIXME: This should be a per-material setting
@@ -178,6 +191,9 @@ namespace AerialRace
 
             //Transformations.LinearizeTransformations(Transform.Roots, )
 
+            Manager.UpdateSystems();
+            ShowEntityList(Manager);
+
             ShowTransformHierarchy();
 
             QuadTransform.UpdateMatrices();
@@ -282,6 +298,7 @@ namespace AerialRace
             Transformations.MultMVP(ref modelMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
 
             Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(mv)));
+            normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(modelMatrix)));
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
             RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
@@ -369,6 +386,58 @@ namespace AerialRace
 
                     ImGui.TreePop();
                 }
+            }
+        }
+
+        public EntityRef? SelectedEntity;
+        public void ShowEntityList(EntityManager manager)
+        {
+            if (ImGui.Begin("Entities"))
+            {
+                ImGui.Columns(2);
+
+                for (int i = 0; i < manager.EntityCount; i++)
+                {
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+
+                    if (SelectedEntity?.Handle == i)
+                    {
+                        flags |= ImGuiTreeNodeFlags.Selected;
+                    }
+
+                    flags |= ImGuiTreeNodeFlags.Leaf;
+
+                    bool open = ImGui.TreeNodeEx($"Entity #{i}", flags);
+
+                    if (ImGui.IsItemClicked())
+                    {
+                        SelectedEntity = new EntityRef(manager.Entities[i]);
+                    }
+
+                    if (open)
+                    {
+                        ImGui.TreePop();
+                    }
+                    else
+                    {
+
+                    }
+                }
+
+                ImGui.NextColumn();
+
+                if (SelectedEntity != null)
+                {
+                    var sig = manager.GetSignature(SelectedEntity.Value);
+                    ImGui.Text($"Signature field upper: {Convert.ToString((long)sig.ComponentMask.Field2, 2).PadLeft(64, '0')}");
+                    ImGui.Text($"Signature field lower: {Convert.ToString((long)sig.ComponentMask.Field1, 2).PadLeft(64, '0')}");
+                }
+                else
+                {
+                    ImGui.Text("No entity selected");
+                }
+
+                ImGui.End();
             }
         }
 

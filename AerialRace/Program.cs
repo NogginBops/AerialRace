@@ -11,7 +11,7 @@ namespace AerialRace
     class DebugThing : TraceListener
     {
         readonly TextWriter Writer = new StreamWriter(new FileStream("./log.log", FileMode.Create));
-
+        
         public override void Write(string message)
         {
             Writer.Write(message);
