@@ -11,6 +11,17 @@ using System.Text;
 
 namespace AerialRace.Loading
 {
+    struct MeshData
+    {
+        public IndexBufferType IndexType;
+        public int[]? Int32Indices;
+        public short[]? Int16Indices;
+        public byte[]? Int8Indices;
+        public Vector3[] Positions;
+        public Vector2[] UVs;
+        public Vector3[] Normals;
+    }
+
     static class MeshLoader
     {
         public struct Face
@@ -59,17 +70,6 @@ namespace AerialRace.Loading
             {
                 return !(left == right);
             }
-        }
-
-        public struct MeshData
-        {
-            public IndexBufferType IndexType;
-            public int[]? Int32Indices;
-            public short[]? Int16Indices;
-            public byte[]? Int8Indices;
-            public Vector3[] Positions;
-            public Vector2[] UVs;
-            public Vector3[] Normals;
         }
 
         public static MeshData LoadObjMesh(string filename)

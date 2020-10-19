@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK.Mathematics;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -109,5 +110,18 @@ namespace AerialRace
 
             return true;
         }
+
+
+        public static System.Numerics.Vector3 ToNumerics(this Vector3 vec3) =>
+            new System.Numerics.Vector3(vec3.X, vec3.Y, vec3.Z);
+
+        public static Vector3 ToOpenTK(this System.Numerics.Vector3 vec3) =>
+            new Vector3(vec3.X, vec3.Y, vec3.Z);
+
+        public static System.Numerics.Vector4 ToNumerics(this Quaternion quat) =>
+            new System.Numerics.Vector4(quat.X, quat.Y, quat.Z, quat.W);
+
+        public static Quaternion ToOpenTKQuat(this System.Numerics.Vector4 vec4) =>
+            new Quaternion(vec4.X, vec4.Y, vec4.Z, vec4.W);
     }
 }

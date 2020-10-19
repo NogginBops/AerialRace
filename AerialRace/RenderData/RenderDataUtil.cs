@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.GL;
+﻿using AerialRace.Loading;
+using OpenTK.Graphics.GL;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
@@ -7,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Transactions;
 using GLFrameBufferTarget = OpenTK.Graphics.OpenGL4.FramebufferTarget;
@@ -205,6 +207,60 @@ namespace AerialRace.RenderData
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BufferSize(IndexBuffer buffer) => buffer.Elements * SizeInBytes(buffer.IndexType);
+
+        public static SizedInternalFormat ToGLSizedInternalFormat(TextureFormat format) => format switch
+        {
+            TextureFormat.R8 => SizedInternalFormat.R8,
+            TextureFormat.R8Signed => (SizedInternalFormat)All.R8Snorm,
+            TextureFormat.R8I => SizedInternalFormat.R8i,
+            TextureFormat.R8UI => SizedInternalFormat.R8ui,
+            TextureFormat.Rg8 => SizedInternalFormat.Rg8,
+            TextureFormat.Rg8Signed => (SizedInternalFormat)All.Rg8Snorm,
+            TextureFormat.Rg8I => SizedInternalFormat.Rg8i,
+            TextureFormat.Rg8UI => SizedInternalFormat.Rg8ui,
+            TextureFormat.Rgb8 => (SizedInternalFormat)All.Rgb8,
+            TextureFormat.Rgb8Signed => (SizedInternalFormat)All.Rgb8Snorm,
+            TextureFormat.Rgb8I => SizedInternalFormat.Rgba8i,
+            TextureFormat.Rgb8UI => SizedInternalFormat.Rgba8ui,
+            TextureFormat.Rgba8 => SizedInternalFormat.Rgba8,
+            TextureFormat.Rgba8Signed => (SizedInternalFormat)All.Rgba8Snorm,
+            TextureFormat.Rgba8I => SizedInternalFormat.Rgba8i,
+            TextureFormat.Rgba8UI => SizedInternalFormat.Rgba8ui,
+            TextureFormat.sRgb8 => (SizedInternalFormat)All.Srgb8,
+            TextureFormat.sRgba8 => (SizedInternalFormat)All.Srgb8Alpha8,
+            TextureFormat.R16 => SizedInternalFormat.R16,
+            TextureFormat.R16Signed => (SizedInternalFormat)All.R16Snorm,
+            TextureFormat.R16F => SizedInternalFormat.R16f,
+            TextureFormat.R16I => SizedInternalFormat.R16i,
+            TextureFormat.R16UI => SizedInternalFormat.R16ui,
+            TextureFormat.Rg16 => SizedInternalFormat.Rg16,
+            TextureFormat.Rg16Signed => (SizedInternalFormat)All.Rg16Snorm,
+            TextureFormat.Rg16F => SizedInternalFormat.Rg16f,
+            TextureFormat.Rg16I => SizedInternalFormat.Rg16i,
+            TextureFormat.Rg16UI => SizedInternalFormat.Rg16ui,
+            TextureFormat.Rgb16Signed => (SizedInternalFormat)All.Rgb16Snorm,
+            TextureFormat.Rgb16F => (SizedInternalFormat)All.Rgb16f,
+            TextureFormat.Rgb16I => (SizedInternalFormat)All.Rgb16i,
+            TextureFormat.Rgb16UI => (SizedInternalFormat)All.Rgb16ui,
+            TextureFormat.Rgba16 => SizedInternalFormat.Rgba16,
+            TextureFormat.Rgba16F => SizedInternalFormat.Rgba16f,
+            TextureFormat.Rgba16I => SizedInternalFormat.Rgba16i,
+            TextureFormat.Rgba16UI => SizedInternalFormat.Rgba16ui,
+            TextureFormat.R32F => SizedInternalFormat.R32f,
+            TextureFormat.R32I => SizedInternalFormat.R32i,
+            TextureFormat.R32UI => SizedInternalFormat.R32ui,
+            TextureFormat.Rg32F => SizedInternalFormat.Rg32f,
+            TextureFormat.Rg32I => SizedInternalFormat.Rg32i,
+            TextureFormat.Rg32UI => SizedInternalFormat.Rg32ui,
+            TextureFormat.Rgb32F => (SizedInternalFormat)All.Rgb32f,
+            TextureFormat.Rgb32I => (SizedInternalFormat)All.Rgb32i,
+            TextureFormat.Rgb32UI => (SizedInternalFormat)All.Rgb32ui,
+            TextureFormat.Rgba32F => SizedInternalFormat.Rgba32f,
+            TextureFormat.Rgba32I => SizedInternalFormat.Rgba32i,
+            TextureFormat.Rgba32UI => SizedInternalFormat.Rgba32ui,
+            TextureFormat.Rgb9_E5 => (SizedInternalFormat)All.Rgb9E5,
+            _ => throw new InvalidEnumArgumentException(nameof(format), (int)format, typeof(TextureFormat)),
+        };
 
         #endregion
 
@@ -516,6 +572,37 @@ namespace AerialRace.RenderData
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
         }
 
+        public static Mesh CreateMesh(string name, MeshData data)
+        {
+            var indexbuffer = data.IndexType switch
+            {
+                IndexBufferType.UInt8 =>  CreateIndexBuffer(name, data.Int8Indices,  BufferFlags.None),
+                IndexBufferType.UInt16 => CreateIndexBuffer(name, data.Int16Indices, BufferFlags.None),
+                IndexBufferType.UInt32 => CreateIndexBuffer(name, data.Int32Indices, BufferFlags.None),
+                _ => throw new Exception($"Unknown index type '{data.IndexType}'"),
+            };
+            
+            var posbuffer =    CreateDataBuffer<Vector3>($"{name}: Position", data.Positions, BufferFlags.None);
+            var uvbuffer =     CreateDataBuffer<Vector2>($"{name}: UV", data.UVs, BufferFlags.None);
+            var normalbuffer = CreateDataBuffer<Vector3>($"{name}: Normal", data.Normals, BufferFlags.None);
+
+            return new Mesh(name, indexbuffer, posbuffer, uvbuffer, normalbuffer, null);
+        }
+
+        public static Texture Create1PixelTexture(string name, Color4 color)
+        {
+            GLUtil.CreateTexture(name, TextureTarget.Texture2D, out int texture);
+
+            var format = TextureFormat.Rgba32F;
+            GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), 1, 1);
+
+            GL.TextureSubImage2D(texture, 0, 0, 0, 1, 1, PixelFormat.Rgba, PixelType.Float, ref color);
+
+            GL.GenerateTextureMipmap(texture);
+
+            return new Texture(name, texture, TextureType.Texture2D, format, 1, 1, 1, 0, 0, 1);
+        }
+
         #endregion
 
         public static void ReallocBuffer(ref Buffer buffer, int newSize)
@@ -742,6 +829,14 @@ namespace AerialRace.RenderData
             var location = GetUniformLocation(uniformName, prog);
 
             GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
+        }
+
+        public static void UniformMatrix3(string uniformName, ShaderStage stage, bool transpose, ref Matrix3 matrix)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniformMatrix3(prog.Handle, location, transpose, ref matrix);
         }
 
         public static void Uniform1(string uniformName, ShaderStage stage, int i)

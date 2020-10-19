@@ -87,21 +87,24 @@ namespace AerialRace
             }
         }
 
-        public static void MultMVP(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection, out Matrix4 mvp)
+        public static void MultMVP(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection, out Matrix4 mv, out Matrix4 mvp)
         {
-            Matrix4.Mult(model, view, out var mv);
+            Matrix4.Mult(model, view, out mv);
             Matrix4.Mult(mv, projection, out mvp);
         }
     }
 
     class Transform
     {
-        public static List<Transform> Roots = new List<Transform>();
+        // FIXME: We want a good way to Create and Delete entities
+        public static List<Transform> Transforms = new List<Transform>();
+
+        public string Name = "Default Name";
 
         public int LinearizedIndex = 0;
-        public Vector3 LocalPosition;
-        public Vector3 LocalScale;
-        public Quaternion LocalRotation;
+        public Vector3 LocalPosition = Vector3.Zero;
+        public Vector3 LocalScale = Vector3.One;
+        public Quaternion LocalRotation = Quaternion.Identity;
 
         public Vector3 WorldPosition {
             get => Vector3.TransformPosition(LocalPosition, LocalToWorld); //Transformations.MultPosition(LocalPosition, ref LocalToWorld);
@@ -121,27 +124,54 @@ namespace AerialRace
 
         public Transform()
         {
-            LocalPosition = Vector3.Zero;
-            LocalScale = Vector3.One;
-            LocalRotation = Quaternion.Identity;
+            AddTransform(this);
         }
 
-        public Transform(Vector3 position)
+        public Transform(string name) : this()
+        {
+            Name = name;
+        }
+
+        public Transform(Vector3 position) : this()
         {
             LocalPosition = position;
             LocalScale = Vector3.One;
             LocalRotation = Quaternion.Identity;
         }
 
-        public Transform(Vector3 position, Quaternion rotation)
+        public Transform(string name, Vector3 position) : this()
+        {
+            Name = name;
+            LocalPosition = position;
+            LocalScale = Vector3.One;
+            LocalRotation = Quaternion.Identity;
+        }
+
+        public Transform(Vector3 position, Quaternion rotation) : this()
         {
             LocalPosition = position;
             LocalScale = Vector3.One;
             LocalRotation = rotation;
         }
 
-        public Transform(Vector3 position, Quaternion rotation, Vector3 scale)
+        public Transform(string name, Vector3 position, Quaternion rotation) : this()
         {
+            Name = name;
+            LocalPosition = position;
+            LocalScale = Vector3.One;
+            LocalRotation = rotation;
+        }
+
+        public Transform(Vector3 position, Quaternion rotation, Vector3 scale) : this()
+        {
+            LocalPosition = position;
+            LocalScale = scale;
+            LocalRotation = rotation;
+        }
+
+        public Transform(string name, Vector3 position, Quaternion rotation, Vector3 scale) : this()
+        {
+            Name = name;
             LocalPosition = position;
             LocalScale = scale;
             LocalRotation = rotation;
@@ -149,7 +179,7 @@ namespace AerialRace
 
         public static void AddTransform(Transform transform)
         {
-            Roots.Add(transform);
+            Transforms.Add(transform);
         }
 
         public void UpdateMatrices()

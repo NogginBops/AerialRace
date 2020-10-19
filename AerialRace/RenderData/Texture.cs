@@ -61,7 +61,7 @@ namespace AerialRace.RenderData
         Rg16I      = 27,
         Rg16UI     = 28,
 
-        Rgb16       = 29,
+        //Rgb16       = 29,
         Rgb16Signed = 30,
         Rgb16F      = 31,
         Rgb16I      = 32,
@@ -73,25 +73,29 @@ namespace AerialRace.RenderData
         Rgba16I  = 36,
         Rgba16UI = 37,
 
-        R32       = 38,
-        R32Signed = 39,
+        //R32       = 38,
+        //R32Signed = 39,
         R32F      = 40,
         R32I      = 41,
         R32UI     = 42,
 
-        Rg32       = 43,
-        Rg32Signed = 44,
+        //Rg32       = 43,
+        //Rg32Signed = 44,
         Rg32F      = 45,
         Rg32I      = 46,
         Rg32UI     = 47,
 
-        Rgb32       = 48,
-        Rgb32Signed = 49,
+        //Rgb32       = 48,
+        //Rgb32Signed = 49,
         Rgb32F      = 50,
         Rgb32I      = 51,
         Rgb32UI     = 52,
 
-        Rgb9_E5 = 53,
+        Rgba32F = 53,
+        Rgba32I = 54,
+        Rgba32UI = 55,
+
+        Rgb9_E5 = 56,
     }
 
     class Texture

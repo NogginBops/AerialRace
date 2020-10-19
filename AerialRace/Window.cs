@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -40,6 +41,9 @@ namespace AerialRace
 
         Texture TestTexture;
         Sampler DebugSampler;
+
+        Ship Player;
+        Texture ShipTexture;
 
         AttributeSpecification[] StandardAttributes;
 
@@ -70,12 +74,16 @@ namespace AerialRace
             GL.DepthFunc(DepthFunction.Lequal);
 
             RenderDataUtil.QueryLimits();
+            BuiltIn.StaticCtorTrigger();
 
             var (Width, Height) = Size;
             Camera = new Camera(90, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
+            Camera.Transform.Name = "Camera";
             Camera.Transform.LocalPosition = new Vector3(0, 1f, 0);
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
+
+            Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
             var indexbuffer = RenderDataUtil.CreateIndexBuffer("pickaxe02.obj", meshData.Int32Indices, BufferFlags.None);
 
@@ -111,8 +119,11 @@ namespace AerialRace
             QuadMesh.VertexColors = StaticGeometry.UnitQuadDebugColorsBuffer;
 
             QuadTransform = new Transform(new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
+            QuadTransform.Name = "Quad";
+
 
             ChildTransform = new Transform(new Vector3(1f, 1f, 0f));
+            ChildTransform.Name = "Child";
 
             QuadTransform.Children = new List<Transform>();
             QuadTransform.Children.Add(ChildTransform);
@@ -122,10 +133,25 @@ namespace AerialRace
             //Camera.Transform.Parent = QuadTransform;
 
             FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 5);
+            FloorTransform.Name = "Floor";
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
 
             DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
+
+            Mesh shipMesh = RenderDataUtil.CreateMesh("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"));
+
+            RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
+            RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
+
+            var shipPipeline = RenderDataUtil.CreateEmptyPipeline("Ship Shader");
+            RenderDataUtil.AssembleProgramPipeline(shipPipeline, shipVertex, null, shipFragment);
+
+            Material shipMaterial = new Material("Ship", shipPipeline, null);
+
+            ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, false);
+
+            Player = new Ship(shipMesh, shipMaterial);
 
             StandardAttributes = new[]
             {
@@ -152,10 +178,13 @@ namespace AerialRace
 
             //Transformations.LinearizeTransformations(Transform.Roots, )
 
+            ShowTransformHierarchy();
+
             QuadTransform.UpdateMatrices();
             ChildTransform.UpdateMatrices();
             Camera.Transform.UpdateMatrices();
             FloorTransform.UpdateMatrices();
+            Player.Transform.UpdateMatrices();
 
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -181,14 +210,14 @@ namespace AerialRace
 
             Camera.CalcProjectionMatrix(out var proj);
 
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out var mvp);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
             
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
             GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
 
             FloorTransform.GetTransformationMatrix(out transformMatrix);
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mvp);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mv, out mvp);
 
             //Debug.WriteLine($"Equal: {Camera.Transform.Forward == Camera.Transform.Forward2}, Diff: {Camera.Transform.Forward - Camera.Transform.Forward2}");
 
@@ -210,11 +239,13 @@ namespace AerialRace
 
             Camera.CalcProjectionMatrix(out proj);
 
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mvp);
+            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mv, out mvp);
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
 
             GL.DrawElements(PrimitiveType.Triangles, Mesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(Mesh.Indices.IndexType), 0);
+
+            RenderPlayerShip(Camera, Player);
 
             ImGui.ShowDemoWindow();
 
@@ -230,6 +261,115 @@ namespace AerialRace
             GL.Enable(EnableCap.DepthTest);
 
             SwapBuffers();
+        }
+
+        public void RenderPlayerShip(Camera camera, Ship ship)
+        {
+            RenderDataUtil.SetAndEnableVertexAttributes(StandardAttributes, 0);
+
+            RenderDataUtil.BindVertexAttribBuffer(0, ship.Model.Positions!);
+            RenderDataUtil.BindVertexAttribBuffer(1, ship.Model.UVs!);
+            RenderDataUtil.BindVertexAttribBuffer(2, ship.Model.Normals!);
+            RenderDataUtil.DisableVertexAttribute(3);
+
+            RenderDataUtil.BindIndexBuffer(ship.Model.Indices!);
+
+            RenderDataUtil.UsePipeline(ship.Material.Pipeline);
+
+            var modelMatrix = ship.Transform.LocalToWorld;
+            var viewMatrix = camera.Transform.WorldToLocal;
+            camera.CalcProjectionMatrix(out var proj);
+            Transformations.MultMVP(ref modelMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
+
+            Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(mv)));
+
+            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
+            RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
+
+            GL.BindTextureUnit(0, ShipTexture.Handle);
+
+            GL.DrawElements(PrimitiveType.Triangles, ship.Model.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(ship.Model.Indices.IndexType), 0);
+        }
+
+        public static Transform? SelectedTransform;
+        public void ShowTransformHierarchy()
+        {
+            if (ImGui.Begin("Hierarchy"))
+            {
+                ImGui.Columns(2);
+
+                var roots = Transform.Transforms.Where(t => t.Parent == null).ToArray();
+
+                for (int i = 0; i < roots.Length; i++)
+                {
+                    ShowTransform(roots[i]);
+                }
+
+                ImGui.NextColumn();
+
+                if (SelectedTransform != null)
+                {
+                    System.Numerics.Vector3 pos = SelectedTransform.LocalPosition.ToNumerics();
+                    if (ImGui.DragFloat3("Position", ref pos, 0.1f))
+                        SelectedTransform.LocalPosition = pos.ToOpenTK();
+
+                    // FIXME: Display euler angles
+                    //System.Numerics.Vector4 rot = SelectedTransform.LocalRotation.ToNumerics();
+                    //if (ImGui.DragFloat4("Rotation", ref rot, 0.1f))
+                    //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
+
+                    System.Numerics.Vector3 scale = SelectedTransform.LocalScale.ToNumerics();
+                    if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
+                        SelectedTransform.LocalScale = scale.ToOpenTK();
+                }
+                else
+                {
+                    ImGui.Text("No transform selected");
+                }
+
+                ImGui.End();
+            }
+
+            static void ShowTransform(Transform transform)
+            {
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                if (SelectedTransform == transform)
+                {
+                    flags |= ImGuiTreeNodeFlags.Selected;
+                }
+                
+                if (transform.Children?.Count > 0)
+                {
+                    bool open = ImGui.TreeNodeEx(transform.Name, flags);
+
+                    if (ImGui.IsItemClicked())
+                    {
+                        SelectedTransform = transform;
+                    }
+
+                    if (open)
+                    {
+                        for (int i = 0; i < transform.Children.Count; i++)
+                        {
+                            ShowTransform(transform.Children[i]);
+                        }
+
+                        ImGui.TreePop();
+                    }
+                }
+                else
+                {
+                    flags |= ImGuiTreeNodeFlags.Leaf;
+                    ImGui.TreeNodeEx(transform.Name, flags);
+
+                    if (ImGui.IsItemClicked())
+                    {
+                        SelectedTransform = transform;
+                    }
+
+                    ImGui.TreePop();
+                }
+            }
         }
 
         float TotalTime = 0;
@@ -261,6 +401,13 @@ namespace AerialRace
             {
                 Close();
             }
+
+            var io = ImGui.GetIO();
+            if (io.WantCaptureKeyboard)
+            {
+                return;
+            }
+
 
             if (IsKeyDown(Keys.W))
             {
