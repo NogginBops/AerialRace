@@ -26,6 +26,8 @@ namespace AerialRace
             Transform = new Transform("Ship");
             Model = mesh;
             Material = material;
+
+            Velocity = -Vector3.UnitZ;
         }
 
         // This is done per frame to update the ships position and stuff
@@ -34,7 +36,7 @@ namespace AerialRace
             // For now only the player ship is updated
             if (IsPlayerShip == false) return;
 
-            Transform.LocalPosition += Velocity * deltaTime;
+            Transform.LocalPosition += Transform.Forward * CurrentSpeed * deltaTime;
         }
     }
 }

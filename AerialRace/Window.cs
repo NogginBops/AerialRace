@@ -90,9 +90,9 @@ namespace AerialRace
             BuiltIn.StaticCtorTrigger();
 
             var (Width, Height) = Size;
-            Camera = new Camera(90, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
+            Camera = new Camera(100, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
             Camera.Transform.Name = "Camera";
-            Camera.Transform.LocalPosition = new Vector3(0, 1f, 0);
+            Camera.Transform.LocalPosition = new Vector3(0, 5f, 10f);
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
@@ -139,13 +139,12 @@ namespace AerialRace
             ChildTransform.Name = "Child";
 
             QuadTransform.Children = new List<Transform>();
-            QuadTransform.Children.Add(ChildTransform);
-            ChildTransform.Parent = QuadTransform;
+            ChildTransform.SetParent(QuadTransform);
 
             //QuadTransform.Children.Add(Camera.Transform);
             //Camera.Transform.Parent = QuadTransform;
 
-            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 5);
+            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 500);
             FloorTransform.Name = "Floor";
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
@@ -165,6 +164,9 @@ namespace AerialRace
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, false);
 
             Player = new Ship(shipMesh, shipMaterial);
+            Player.IsPlayerShip = true;
+
+            Camera.Transform.SetParent(Player.Transform);
 
             StandardAttributes = new[]
             {
@@ -185,22 +187,23 @@ namespace AerialRace
         {
             base.OnRenderFrame(args);
 
+            float deltaTime = (float)args.Time;
+
             imGuiController.Update(this, (float)args.Time);
             // Update above calls ImGui.NewFrame()...
             // ImGui.NewFrame();
 
-            //Transformations.LinearizeTransformations(Transform.Roots, )
-
-            Manager.UpdateSystems();
-            ShowEntityList(Manager);
+            //Manager.UpdateSystems();
+            //ShowEntityList(Manager);
 
             ShowTransformHierarchy();
 
-            QuadTransform.UpdateMatrices();
-            ChildTransform.UpdateMatrices();
-            Camera.Transform.UpdateMatrices();
-            FloorTransform.UpdateMatrices();
-            Player.Transform.UpdateMatrices();
+            Player.Update(deltaTime);
+
+            for (int i = 0; i < Transform.Transforms.Count; i++)
+            {
+                Transform.Transforms[i].UpdateMatrices();
+            }
 
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -302,6 +305,8 @@ namespace AerialRace
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
             RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
+
+            RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, camera.Transform.WorldPosition);
 
             GL.BindTextureUnit(0, ShipTexture.Handle);
 
@@ -477,7 +482,56 @@ namespace AerialRace
                 return;
             }
 
+            if (IsKeyDown(Keys.A))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
+            }
 
+            if (IsKeyDown(Keys.D))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
+            }
+
+            if (IsKeyDown(Keys.W))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
+            }
+
+            if (IsKeyDown(Keys.S))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
+            }
+
+            if (IsKeyDown(Keys.Up))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.6f, 0, 0);
+            }
+
+            if (IsKeyDown(Keys.Down))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.6f, 0, 0);
+            }
+
+            if (IsKeyDown(Keys.Q))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
+            }
+
+            if (IsKeyDown(Keys.E))
+            {
+                Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
+            }
+
+            if (IsKeyDown(Keys.Space))
+            {
+                Player.CurrentSpeed = 60f;
+            }
+            else
+            {
+                Player.CurrentSpeed = 0f;
+            }
+
+            /*
             if (IsKeyDown(Keys.W))
             {
                 Camera.Transform.LocalPosition += Camera.Transform.Forward * deltaTime;
@@ -506,7 +560,7 @@ namespace AerialRace
             if (IsKeyDown(Keys.LeftShift))
             {
                 Camera.Transform.LocalPosition += new Vector3(0f, -1f, 0f) * deltaTime;
-            }
+            }*/
         }
 
         public float MouseSpeedX = 0.2f;

@@ -839,6 +839,14 @@ namespace AerialRace.RenderData
             GL.ProgramUniformMatrix3(prog.Handle, location, transpose, ref matrix);
         }
 
+        public static void UniformVector3(string uniformName, ShaderStage stage, Vector3 vec3)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniform3(prog.Handle, location, vec3);
+        }
+
         public static void Uniform1(string uniformName, ShaderStage stage, int i)
         {
             var prog = GetPipelineStage(stage);

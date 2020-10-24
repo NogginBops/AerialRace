@@ -182,6 +182,29 @@ namespace AerialRace
             Transforms.Add(transform);
         }
 
+        public void SetParent(Transform parent)
+        {
+            if (Parent != null)
+                Parent.RemoveChildInternal(this);
+
+            Parent = parent;
+            Parent.AddChildInternal(this);
+        }
+
+        public void AddChildInternal(Transform child)
+        {
+            if (Children == null)
+                Children = new List<Transform>();
+
+            Children.Add(child);
+        }
+
+        public void RemoveChildInternal(Transform child)
+        {
+            if (Children != null)
+                Children.Remove(child);
+        }
+
         public void UpdateMatrices()
         {
             GetTransformationMatrix(out LocalToWorld);
