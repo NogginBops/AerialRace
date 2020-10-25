@@ -1,4 +1,5 @@
-﻿using AerialRace.DebugGui;
+﻿using AerialRace.Debugging;
+using AerialRace.DebugGui;
 using AerialRace.Entities;
 using AerialRace.Entities.Systems;
 using AerialRace.Loading;
@@ -11,7 +12,7 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+//using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -26,6 +27,9 @@ namespace AerialRace
         {
             Title += ": OpenGL Version: " + GL.GetString(StringName.Version);
         }
+
+        public int Width => Size.X;
+        public int Height => Size.Y;
 
         ImGuiController imGuiController;
 
@@ -88,11 +92,11 @@ namespace AerialRace
 
             RenderDataUtil.QueryLimits();
             BuiltIn.StaticCtorTrigger();
+            Debug.Init(Width, Height);
 
-            var (Width, Height) = Size;
-            Camera = new Camera(100, Width / (float)Height, 0.1f, 1000f, Color4.DarkBlue);
+            Camera = new Camera(100, Width / (float)Height, 0.1f, 10000f, Color4.DarkBlue);
             Camera.Transform.Name = "Camera";
-            Camera.Transform.LocalPosition = new Vector3(0, 5f, 10f);
+            Camera.Transform.LocalPosition = new Vector3(0, 8f, 14f);
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
@@ -166,7 +170,7 @@ namespace AerialRace
             Player = new Ship(shipMesh, shipMaterial);
             Player.IsPlayerShip = true;
 
-            Camera.Transform.SetParent(Player.Transform);
+            //Camera.Transform.SetParent(Player.Transform);
 
             StandardAttributes = new[]
             {
@@ -188,6 +192,8 @@ namespace AerialRace
             base.OnRenderFrame(args);
 
             float deltaTime = (float)args.Time;
+
+            Debug.NewFrame(Width, Height);
 
             imGuiController.Update(this, (float)args.Time);
             // Update above calls ImGui.NewFrame()...
@@ -277,9 +283,89 @@ namespace AerialRace
             //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             //GL.Enable(EnableCap.CullFace);
+
+            // Draw debug stuff
+            GL.Disable(EnableCap.DepthTest);
+
+            viewMatrix = Camera.Transform.WorldToLocal;
+            Camera.CalcProjectionMatrix(out proj);
+
+            RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
+            
             GL.Enable(EnableCap.DepthTest);
 
             SwapBuffers();
+        }
+
+        void RenderDrawList(DrawList list, ShaderPipeline pipeline, ref Matrix4 projection, ref Matrix4 view)
+        {
+            // Upload draw list data to gpu
+            list.UploadData();
+
+            RenderDataUtil.SetAndEnableVertexAttributes(Debug.DebugAttributes, 0);
+
+            RenderDataUtil.BindVertexAttribBuffer(0, list.VertexBuffer, 0);
+            RenderDataUtil.BindVertexAttribBuffer(1, list.VertexBuffer, 12);
+            RenderDataUtil.BindVertexAttribBuffer(2, list.VertexBuffer, 20);
+            RenderDataUtil.BindIndexBuffer(list.IndexBuffer);
+
+            RenderDataUtil.UsePipeline(pipeline);
+
+            RenderDataUtil.UniformMatrix4("projection", ShaderStage.Vertex, true, ref projection);
+            RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref view);
+
+            Matrix4 vp = view * projection;
+            RenderDataUtil.UniformMatrix4("vp", ShaderStage.Vertex, true, ref vp);
+
+            GL.BindSampler(0, DebugSampler.Handle);
+
+            // Reset the scissor area
+            GL.Scissor(0, 0, Width, Height);
+
+            int indexBufferOffset = 0;
+            foreach (var command in list.Commands)
+            {
+                switch (command.Command)
+                {
+                    case DrawCommandType.Points:
+                    case DrawCommandType.Lines:
+                    case DrawCommandType.LineLoop:
+                    case DrawCommandType.LineStrip:
+                    case DrawCommandType.Triangles:
+                    case DrawCommandType.TriangleStrip:
+                    case DrawCommandType.TriangleFan:
+                        {
+                            // Do normal rendering
+                            //Material material = command.Material ?? DefaultMaterial;
+                            //material.UseMaterial();
+
+                            //int unit = TextureBinder.BindTexture(command.TextureHandle);
+                            //material.Shader.SetTexture("tex", unit);
+
+                            // FIXME: Texture!!
+                            GL.BindTextureUnit(0, command.TextureHandle);
+
+                            GL.DrawElements((PrimitiveType)command.Command, command.ElementCount, DrawElementsType.UnsignedInt, indexBufferOffset * sizeof(uint));
+
+                            indexBufferOffset += command.ElementCount;
+
+                            //TextureBinder.ReleaseTexture(command.TextureHandle);
+                        }
+                        break;
+                    case DrawCommandType.SetScissor:
+                        // Set the scissor area
+                        // FIXME: Figure out what to do for rounding...
+                        var scissor = command.Scissor;
+                        GL.Scissor(
+                            (int)scissor.X,
+                            (int)(Height - (scissor.Y + scissor.Height)),
+                            (int)scissor.Width,
+                            (int)scissor.Height);
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
 
         public void RenderPlayerShip(Camera camera, Ship ship)
@@ -300,8 +386,8 @@ namespace AerialRace
             camera.CalcProjectionMatrix(out var proj);
             Transformations.MultMVP(ref modelMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
 
-            Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(mv)));
-            normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(modelMatrix)));
+            //Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(mv)));
+            Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(modelMatrix)));
 
             RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
             RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
@@ -504,12 +590,12 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.Up))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.6f, 0, 0);
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.8f, 0, 0);
             }
 
             if (IsKeyDown(Keys.Down))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.6f, 0, 0);
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.8f, 0, 0);
             }
 
             if (IsKeyDown(Keys.Q))
@@ -524,11 +610,11 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.Space))
             {
-                Player.CurrentSpeed = 60f;
+                Player.CurrentAcceleration = 60f;
             }
             else
             {
-                Player.CurrentSpeed = 0f;
+                Player.CurrentAcceleration = 0f;
             }
 
             /*
@@ -645,7 +731,7 @@ namespace AerialRace
                         break;
                     case DebugSeverity.DebugSeverityHigh:
                         Debug.Print($"[Error] [{source}] {message}");
-                        Debugger.Break();
+                        Debug.Break();
                         break;
                     case DebugSeverity.DebugSeverityMedium:
                         Debug.Print($"[Warning] [{source}] {message}");

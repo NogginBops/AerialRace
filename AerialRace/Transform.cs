@@ -94,7 +94,7 @@ namespace AerialRace
         }
     }
 
-    class Transform
+    public class Transform
     {
         // FIXME: We want a good way to Create and Delete entities
         public static List<Transform> Transforms = new List<Transform>();

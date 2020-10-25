@@ -43,6 +43,8 @@ namespace AerialRace.RenderData
         public int Elements;
         public BufferFlags Flags;
 
+        public int SizeInBytes => ElementSize * Elements;
+
         public Buffer(string name, int handle, BufferDataType dataType, int elementSize, int elements, BufferFlags flags)
         {
             Name = name;

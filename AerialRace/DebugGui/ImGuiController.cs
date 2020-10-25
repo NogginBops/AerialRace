@@ -279,7 +279,7 @@ void main()
                     int newSize = (int)Math.Max(VertexBuffer.Elements * 1.5f, vertexSize);
                     RenderDataUtil.ReallocBuffer(ref VertexBuffer, newSize);
 
-                    Console.WriteLine($"Resized dear imgui vertex buffer to new size {RenderDataUtil.BufferSize(VertexBuffer)}");
+                    Console.WriteLine($"Resized dear imgui vertex buffer to new size {VertexBuffer.SizeInBytes}");
                 }
 
                 int indexSize = cmd_list.IdxBuffer.Size;
@@ -288,7 +288,7 @@ void main()
                     int newSize = (int)Math.Max(IndexBuffer.Elements * 1.5f, indexSize);
                     RenderDataUtil.ReallocBuffer(ref IndexBuffer, newSize);
 
-                    Console.WriteLine($"Resized dear imgui index buffer to new size {RenderDataUtil.BufferSize(IndexBuffer)}");
+                    Console.WriteLine($"Resized dear imgui index buffer to new size {IndexBuffer.SizeInBytes}");
                 }
             }
 

@@ -30,12 +30,13 @@ uniform sampler2D testTex;
 
 void main(void)
 {
-    float f = dot(ViewPos, fragNormal);
+    float f = -dot(ViewPos, fragNormal);
     f = f < 0f ? 0f : f;
     vec2 uv = fragUV.xy;
     uv.y = 1- uv.y;
-    Color = vec4(texture(testTex, uv).rgb * f, 1);
-    Color = vec4(fragNormal, 1);
+    Color = vec4(texture(testTex, uv).rgb, 1);
+    //Color = vec4(fragNormal, 1);
+    //f = pow(f, 2f);
     //Color = vec4(f, f, f, 1);
 }
 

@@ -16,14 +16,18 @@ namespace AerialRace.RenderData
         public string Name;
         public int Handle;
         public IndexBufferType IndexType;
+        public int ElementSize;
         public int Elements;
         public BufferFlags Flags;
 
-        public IndexBuffer(string name, int handle, IndexBufferType indexType, int elements, BufferFlags flags)
+        public int SizeInBytes => ElementSize * Elements;
+
+        public IndexBuffer(string name, int handle, IndexBufferType indexType, int elementSize, int elements, BufferFlags flags)
         {
             Name = name;
             Handle = handle;
             IndexType = indexType;
+            ElementSize = elementSize;
             Elements = elements;
             Flags = flags;
         }
