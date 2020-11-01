@@ -2,6 +2,7 @@
 using OpenTK.Graphics.OpenGL4;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -28,6 +29,7 @@ namespace AerialRace.Loading
 
             if (image.TryGetSinglePixelSpan(out Span<Rgba32> allData))
             {
+                image.Mutate(x => x.Flip(FlipMode.Vertical));
                 GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedByte, ref allData[0]);
             }
             else

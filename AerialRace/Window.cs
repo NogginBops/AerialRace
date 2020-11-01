@@ -43,6 +43,10 @@ namespace AerialRace
 
         Transform FloorTransform;
 
+        MeshRenderer QuadRenderer;
+        MeshRenderer ChildRenderer;
+        MeshRenderer FloorRenderer;
+
         Camera Camera;
 
         Texture TestTexture;
@@ -50,8 +54,6 @@ namespace AerialRace
 
         Ship Player;
         Texture ShipTexture;
-
-        AttributeSpecification[] StandardAttributes;
 
         EntityManager Manager = new EntityManager();
 
@@ -96,19 +98,11 @@ namespace AerialRace
 
             Camera = new Camera(100, Width / (float)Height, 0.1f, 10000f, Color4.DarkBlue);
             Camera.Transform.Name = "Camera";
-            Camera.Transform.LocalPosition = new Vector3(0, 8f, 14f);
+            Camera.Transform.LocalPosition = CameraOffset;
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
-
-            var indexbuffer = RenderDataUtil.CreateIndexBuffer("pickaxe02.obj", meshData.Int32Indices, BufferFlags.None);
-
-            var posbuffer    = RenderDataUtil.CreateDataBuffer<Vector3>("pixaxe02.obj: Position", meshData.Positions, BufferFlags.None);
-            var uvbuffer     = RenderDataUtil.CreateDataBuffer<Vector2>("pixaxe02.obj: UV",       meshData.UVs,       BufferFlags.None);
-            var normalbuffer = RenderDataUtil.CreateDataBuffer<Vector3>("pixaxe02.obj: Normal",   meshData.Normals,   BufferFlags.None);
-
-            Mesh = new Mesh("pickaxe02.obj", indexbuffer, posbuffer, uvbuffer, normalbuffer, null);
 
             RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/StandardVertex.vert") }, out ShaderProgram? vertexProgram);
             RenderDataUtil.CreateShaderProgram("UV Debug Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Debug.frag") }, out ShaderProgram? fragmentProgram);
@@ -122,22 +116,29 @@ namespace AerialRace
             var debugShader = RenderDataUtil.CreateEmptyPipeline("Debug Shader");
             RenderDataUtil.AssembleProgramPipeline(debugShader, debugVertex, null, debugFragment);
 
+            TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
+
+            DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
+
             //Material = new Material("First Material", firstShader, null);
             Material = new Material("Debug Material", debugShader, null);
+            Material.Properties.SetTexture("testTex", TestTexture, DebugSampler);
 
-            StaticGeometry.InitBuffers();
+            // This should be the first refernce to StaticGeometry.
+            StaticGeometry.Init();
 
             QuadMesh = new Mesh("Unit Quad",
                 StaticGeometry.UnitQuadIndexBuffer,
-                StaticGeometry.CenteredUnitQuadPositionsBuffer,
-                StaticGeometry.UnitQuadUVsBuffer,
-                StaticGeometry.UnitQuadNormalsBuffer,
-                null);
-            QuadMesh.VertexColors = StaticGeometry.UnitQuadDebugColorsBuffer;
+                StaticGeometry.CenteredUnitQuadBuffer,
+                BuiltIn.StandardAttributes);
+            // Add the debug colors as a separate buffer and attribute
+            QuadMesh.AddBuffer(StaticGeometry.UnitQuadDebugColorsBuffer);
+            QuadMesh.AddAttribute(new AttributeSpecification("Color", 4, RenderData.AttributeType.Float, false, 0));
+            // FIXME: Magic numbers
+            QuadMesh.AddLink(3, 1);
 
             QuadTransform = new Transform(new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
             QuadTransform.Name = "Quad";
-
 
             ChildTransform = new Transform(new Vector3(1f, 1f, 0f));
             ChildTransform.Name = "Child";
@@ -145,15 +146,16 @@ namespace AerialRace
             QuadTransform.Children = new List<Transform>();
             ChildTransform.SetParent(QuadTransform);
 
-            //QuadTransform.Children.Add(Camera.Transform);
-            //Camera.Transform.Parent = QuadTransform;
+            QuadRenderer = new MeshRenderer(QuadTransform, QuadMesh, Material);
+            ChildRenderer = new MeshRenderer(ChildTransform, Mesh, Material);
 
             FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 500);
             FloorTransform.Name = "Floor";
 
-            TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
+            var floorMat = new Material("Floor Mat", debugShader, null);
+            floorMat.Properties.SetTexture("testTex", TestTexture, DebugSampler);
 
-            DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
+            FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
 
             Mesh shipMesh = RenderDataUtil.CreateMesh("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"));
 
@@ -163,23 +165,15 @@ namespace AerialRace
             var shipPipeline = RenderDataUtil.CreateEmptyPipeline("Ship Shader");
             RenderDataUtil.AssembleProgramPipeline(shipPipeline, shipVertex, null, shipFragment);
 
-            Material shipMaterial = new Material("Ship", shipPipeline, null);
-
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, false);
+
+            Material shipMaterial = new Material("Ship", shipPipeline, null);
+            shipMaterial.Properties.SetTexture("testTex", ShipTexture, DebugSampler);
 
             Player = new Ship(shipMesh, shipMaterial);
             Player.IsPlayerShip = true;
 
             //Camera.Transform.SetParent(Player.Transform);
-
-            StandardAttributes = new[]
-            {
-                // Position
-                new AttributeSpecification("Position",     3, RenderData.AttributeType.Float, false),
-                new AttributeSpecification("UV",           2, RenderData.AttributeType.Float, false),
-                new AttributeSpecification("Normal",       3, RenderData.AttributeType.Float, false),
-                new AttributeSpecification("VertexColor1", 4, RenderData.AttributeType.Float, false),
-            };
 
             imGuiController = new ImGuiController(Width, Height);
 
@@ -211,66 +205,14 @@ namespace AerialRace
                 Transform.Transforms[i].UpdateMatrices();
             }
 
+            UpdateCamera(deltaTime);
+
+            Camera.Transform.UpdateMatrices();
+
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            RenderDataUtil.SetAndEnableVertexAttributes(StandardAttributes, 0);
-
-            RenderDataUtil.BindVertexAttribBuffer(0, QuadMesh.Positions!);
-            RenderDataUtil.BindVertexAttribBuffer(1, QuadMesh.UVs!);
-            RenderDataUtil.BindVertexAttribBuffer(2, QuadMesh.Normals!);
-            RenderDataUtil.BindVertexAttribBuffer(3, QuadMesh.VertexColors!);
-
-            RenderDataUtil.BindIndexBuffer(QuadMesh.Indices!);
-
-            GL.UseProgram(0);
-            RenderDataUtil.UsePipeline(Material.Pipeline);
-
-            GL.BindTextureUnit(0, TestTexture.Handle);
-            GL.BindSampler(0, DebugSampler.Handle);
-
-            QuadTransform.GetTransformationMatrix(out var transformMatrix);
-
-            var viewMatrix = Camera.Transform.WorldToLocal;
-
-            Camera.CalcProjectionMatrix(out var proj);
-
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
-            
-            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
-
-            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
-
-            FloorTransform.GetTransformationMatrix(out transformMatrix);
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mv, out mvp);
-
-            //Debug.WriteLine($"Equal: {Camera.Transform.Forward == Camera.Transform.Forward2}, Diff: {Camera.Transform.Forward - Camera.Transform.Forward2}");
-
-            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
-
-            GL.DrawElements(PrimitiveType.Triangles, QuadMesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(QuadMesh.Indices.IndexType), 0);
-
-            RenderDataUtil.BindVertexAttribBuffer(0, Mesh.Positions!);
-            RenderDataUtil.BindVertexAttribBuffer(1, Mesh.UVs!);
-            RenderDataUtil.BindVertexAttribBuffer(2, Mesh.Normals!);
-            // RenderDataUtil.BindVertexAttribBuffer(3, Mesh.VertexColors!);
-            RenderDataUtil.DisableVertexAttribute(3);
-
-            RenderDataUtil.BindIndexBuffer(Mesh.Indices!);
-
-            ChildTransform.GetTransformationMatrix(out transformMatrix);
-
-            viewMatrix = Camera.Transform.WorldToLocal;
-
-            Camera.CalcProjectionMatrix(out proj);
-
-            Transformations.MultMVP(ref transformMatrix, ref viewMatrix, ref proj, out mv, out mvp);
-
-            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
-
-            GL.DrawElements(PrimitiveType.Triangles, Mesh.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(Mesh.Indices.IndexType), 0);
-
-            RenderPlayerShip(Camera, Player);
+            MeshRenderer.Render(Camera);
 
             ImGui.ShowDemoWindow();
 
@@ -287,8 +229,8 @@ namespace AerialRace
             // Draw debug stuff
             GL.Disable(EnableCap.DepthTest);
 
-            viewMatrix = Camera.Transform.WorldToLocal;
-            Camera.CalcProjectionMatrix(out proj);
+            Matrix4 viewMatrix = Camera.Transform.WorldToLocal;
+            Camera.CalcProjectionMatrix(out var proj);
 
             RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
             
@@ -297,17 +239,31 @@ namespace AerialRace
             SwapBuffers();
         }
 
+        public Vector3 CameraOffset = new Vector3(0, 8f, 14f);
+        void UpdateCamera(float deltaTime)
+        {
+            var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
+            //targetPos = new Vector3(0f, Player.Transform.LocalPosition.Y + CameraOffset.Y, 0) + new Vector3(targetPos.X, 0, targetPos.Z);
+            //Camera.Transform.LocalPosition = Player.Transform.WorldPosition + new Vector3(0, 6f, 0);
+            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 10f * deltaTime);
+
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, Player.Transform.LocalRotation, 3f * deltaTime);
+
+            Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
+        }
+
         void RenderDrawList(DrawList list, ShaderPipeline pipeline, ref Matrix4 projection, ref Matrix4 view)
         {
             // Upload draw list data to gpu
             list.UploadData();
 
-            RenderDataUtil.SetAndEnableVertexAttributes(Debug.DebugAttributes, 0);
+            RenderDataUtil.BindIndexBuffer(list.IndexBuffer);
 
             RenderDataUtil.BindVertexAttribBuffer(0, list.VertexBuffer, 0);
-            RenderDataUtil.BindVertexAttribBuffer(1, list.VertexBuffer, 12);
-            RenderDataUtil.BindVertexAttribBuffer(2, list.VertexBuffer, 20);
-            RenderDataUtil.BindIndexBuffer(list.IndexBuffer);
+            RenderDataUtil.SetAndEnableVertexAttributes(Debug.DebugAttributes);
+            RenderDataUtil.LinkAttributeBuffer(0, 0);
+            RenderDataUtil.LinkAttributeBuffer(1, 0);
+            RenderDataUtil.LinkAttributeBuffer(2, 0);
 
             RenderDataUtil.UsePipeline(pipeline);
 
@@ -343,7 +299,7 @@ namespace AerialRace
                             //material.Shader.SetTexture("tex", unit);
 
                             // FIXME: Texture!!
-                            GL.BindTextureUnit(0, command.TextureHandle);
+                            RenderDataUtil.BindTextureUnsafe(0, command.TextureHandle);
 
                             GL.DrawElements((PrimitiveType)command.Command, command.ElementCount, DrawElementsType.UnsignedInt, indexBufferOffset * sizeof(uint));
 
@@ -366,37 +322,6 @@ namespace AerialRace
                         break;
                 }
             }
-        }
-
-        public void RenderPlayerShip(Camera camera, Ship ship)
-        {
-            RenderDataUtil.SetAndEnableVertexAttributes(StandardAttributes, 0);
-
-            RenderDataUtil.BindVertexAttribBuffer(0, ship.Model.Positions!);
-            RenderDataUtil.BindVertexAttribBuffer(1, ship.Model.UVs!);
-            RenderDataUtil.BindVertexAttribBuffer(2, ship.Model.Normals!);
-            RenderDataUtil.DisableVertexAttribute(3);
-
-            RenderDataUtil.BindIndexBuffer(ship.Model.Indices!);
-
-            RenderDataUtil.UsePipeline(ship.Material.Pipeline);
-
-            var modelMatrix = ship.Transform.LocalToWorld;
-            var viewMatrix = camera.Transform.WorldToLocal;
-            camera.CalcProjectionMatrix(out var proj);
-            Transformations.MultMVP(ref modelMatrix, ref viewMatrix, ref proj, out var mv, out var mvp);
-
-            //Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(mv)));
-            Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(modelMatrix)));
-
-            RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
-            RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
-
-            RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, camera.Transform.WorldPosition);
-
-            GL.BindTextureUnit(0, ShipTexture.Handle);
-
-            GL.DrawElements(PrimitiveType.Triangles, ship.Model.Indices!.Elements, RenderDataUtil.ToGLDrawElementsType(ship.Model.Indices.IndexType), 0);
         }
 
         public static Transform? SelectedTransform;

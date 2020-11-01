@@ -14,40 +14,22 @@ namespace AerialRace.Loading
             0, 3, 2,
         };
 
-        public static Buffer CenteredUnitQuadPositionsBuffer;
-        public static readonly Vector3[] CenteredUnitQuadPositions = new Vector3[]
+        public static Buffer CenteredUnitQuadBuffer;
+        public static readonly StandardVertex[] CenteredUnitQuad = new StandardVertex[]
         {
-            new Vector3(-.5f, -.5f, 0f),
-            new Vector3(-.5f,  .5f, 0f),
-            new Vector3( .5f,  .5f, 0f),
-            new Vector3( .5f, -.5f, 0f),
+            new StandardVertex(new Vector3(-.5f, -.5f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(-.5f,  .5f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3( .5f,  .5f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3( .5f, -.5f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, -1f)),
         };
 
-        public static Buffer UnitQuadPositionsBuffer;
-        public static readonly Vector3[] UnitQuadPositions = new Vector3[]
+        public static Buffer UnitQuadBuffer;
+        public static readonly StandardVertex[] UnitQuad = new StandardVertex[]
         {
-            new Vector3(0f, 0f, 0f),
-            new Vector3(0f, 1f, 0f),
-            new Vector3(1f, 1f, 0f),
-            new Vector3(1f, 0f, 0f),
-        };
-
-        public static Buffer UnitQuadUVsBuffer;
-        public static readonly Vector2[] UnitQuadUVs = new Vector2[]
-        {
-            new Vector2(0f, 0f),
-            new Vector2(0f, 1f),
-            new Vector2(1f, 1f),
-            new Vector2(1f, 0f),
-        };
-
-        public static Buffer UnitQuadNormalsBuffer;
-        public static readonly Vector3[] UnitQuadNormals = new Vector3[]
-        {
-            new Vector3(0f, 0f, -1f),
-            new Vector3(0f, 0f, -1f),
-            new Vector3(0f, 0f, -1f),
-            new Vector3(0f, 0f, -1f),
+            new StandardVertex(new Vector3(0f, 0f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(0f, 1f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(1f, 1f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(1f, 0f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, -1f)),
         };
 
         public static Buffer UnitQuadDebugColorsBuffer;
@@ -59,14 +41,15 @@ namespace AerialRace.Loading
             new Color4(0f, 0f, 0f, 1f),
         };
 
-        public static void InitBuffers()
+        // FIXME: Make sure this is only called while there is a GL context current
+        static StaticGeometry()
         {
             UnitQuadIndexBuffer = RenderDataUtil.CreateIndexBuffer("Unit Quad Indices", UnitQuadIndices, BufferFlags.None);
-            CenteredUnitQuadPositionsBuffer = RenderDataUtil.CreateDataBuffer<Vector3>("Centered Unit Quad Positions", CenteredUnitQuadPositions, BufferFlags.None);
-            UnitQuadPositionsBuffer = RenderDataUtil.CreateDataBuffer<Vector3>("Unit Quad Positions", UnitQuadPositions, BufferFlags.None);
-            UnitQuadUVsBuffer = RenderDataUtil.CreateDataBuffer<Vector2>("Unit Quad UVs", UnitQuadUVs, BufferFlags.None);
-            UnitQuadNormalsBuffer = RenderDataUtil.CreateDataBuffer<Vector3>("Unit Quad Normals", UnitQuadNormals, BufferFlags.None);
+            CenteredUnitQuadBuffer = RenderDataUtil.CreateDataBuffer<StandardVertex>("Centered Unit Quad", CenteredUnitQuad, BufferFlags.None);
+            UnitQuadBuffer = RenderDataUtil.CreateDataBuffer<StandardVertex>("Unit Quad", UnitQuad, BufferFlags.None);
             UnitQuadDebugColorsBuffer = RenderDataUtil.CreateDataBuffer<Color4>("Unit Quad Debug Colors", UnitQuadDebugColors, BufferFlags.None);
         }
+
+        public static void Init() { }
     }
 }

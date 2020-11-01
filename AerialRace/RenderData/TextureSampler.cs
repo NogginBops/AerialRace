@@ -7,18 +7,19 @@ namespace AerialRace.RenderData
 {
     enum SamplerType : int
     {
-        Sampler1D   = 1,
-        Sampler2D   = 2,
-        Sampler3D   = 3,
-        SamplerCube = 4,
+        Sampler1D   = TextureType.Texture1D,
+        Sampler2D   = TextureType.Texture2D,
+        Sampler3D   = TextureType.Texture3D,
+        SamplerCube = TextureType.TextureCube,
 
-        Sampler1DArray   = 5,
-        Sampler2DArray   = 6,
-        SamplerCubeArray = 7,
-        SamplerBuffer    = 8,
+        SamplerBuffer    = TextureType.TextureBuffer,
 
-        Sampler2DMultisample      = 9,
-        Sampler2DMultisampleArray = 10,
+        Sampler1DArray   = TextureType.Texture1DArray,
+        Sampler2DArray   = TextureType.Texture2DArray,
+        SamplerCubeArray = TextureType.TextureCubeArray,
+
+        Sampler2DMultisample      = TextureType.Texture2DMultisample,
+        Sampler2DMultisampleArray = TextureType.Texture2DMultisampleArray,
     }
 
     enum SamplerDataType : int

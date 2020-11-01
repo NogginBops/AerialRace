@@ -22,9 +22,6 @@ out VertexOutput
 
 layout(std140) uniform PerVertex
 {
-    mat4 projection;
-    mat4 viewMatrix;
-    mat4 modelMatrix;
     mat4 mvp;
     mat3 normalMatrix;
 };

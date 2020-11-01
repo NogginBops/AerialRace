@@ -108,7 +108,7 @@ namespace AerialRace
 
         public Vector3 WorldPosition {
             get => Vector3.TransformPosition(LocalPosition, LocalToWorld); //Transformations.MultPosition(LocalPosition, ref LocalToWorld);
-            set => LocalPosition = Vector3.TransformPosition(LocalPosition, WorldToLocal); //= Transformations.MultPosition(value, ref WorldToLocal);
+            set => LocalPosition = Vector3.TransformPosition(value, WorldToLocal); //= Transformations.MultPosition(value, ref WorldToLocal);
         }
 
         public Transform? Parent = null;

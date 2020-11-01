@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using AerialRace.RenderData;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -18,6 +19,18 @@ namespace AerialRace
 
     class Camera
     {
+        public static RenderData.Buffer CameraData;
+
+        static Camera()
+        {
+            CameraData = RenderDataUtil.CreateDataBuffer<CameraData>("Camera Uniform Data Buffer", 16, BufferFlags.Dynamic);
+        }
+
+        public static void UpdateCameraData(Camera camera)
+        {
+
+        }
+
         public Transform Transform;
 
         public Color4 ClearColor;

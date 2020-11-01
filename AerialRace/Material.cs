@@ -66,6 +66,7 @@ namespace AerialRace
     {
         public List<(string Name, Property Prop)> Properties = new List<(string, Property)>();
         public List<(string Name, Texture Texture)> Textures = new List<(string, Texture)>();
+        public List<(string Name, Sampler Sampler)> Samplers = new List<(string, Sampler)>();
 
         public MaterialProperties()
         { }
@@ -89,6 +90,12 @@ namespace AerialRace
             }
         }
 
+        public void SetTexture(string name, Texture texture, Sampler sampler)
+        {
+            SetTexture(name, texture);
+            SetSampler(name, sampler);
+        }
+
         public void SetTexture(string name, Texture texture)
         {
             var index = Textures.FindIndex(st => st.Name == name);
@@ -99,6 +106,19 @@ namespace AerialRace
             else
             {
                 Textures[index] = (name, texture);
+            }
+        }
+
+        public void SetSampler(string name, Sampler sampler)
+        {
+            var index = Samplers.FindIndex(st => st.Name == name);
+            if (index == -1)
+            {
+                Samplers.Add((name, sampler));
+            }
+            else
+            {
+                Samplers[index] = (name, sampler);
             }
         }
     }

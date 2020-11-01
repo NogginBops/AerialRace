@@ -8,8 +8,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Text;
+using System.Threading;
 using System.Transactions;
 using GLFrameBufferTarget = OpenTK.Graphics.OpenGL4.FramebufferTarget;
 
@@ -19,12 +21,21 @@ namespace AerialRace.RenderData
     {
         public static float MaxAnisoLevel { get; private set; }
 
+        public static int MaxCombinedTextureUnits { get; private set; }
+
         public static void QueryLimits()
         {
             MaxAnisoLevel = GL.GetFloat((GetPName)All.MaxTextureMaxAnisotropy);
+
+            MaxCombinedTextureUnits = GL.GetInteger(GetPName.MaxCombinedTextureImageUnits);
         }
 
         #region MISC
+
+        public static TextureType ToTextureType(this SamplerType sType)
+        {
+            return (TextureType)sType;
+        }
 
         public static int SizeInBytes(BufferDataType type) => type switch
         {
@@ -140,13 +151,13 @@ namespace AerialRace.RenderData
             TextureType.Texture1D => TextureTarget.Texture1D,
             TextureType.Texture2D => TextureTarget.Texture2D,
             TextureType.Texture3D => TextureTarget.Texture3D,
-            TextureType.TexutreCube => TextureTarget.TextureCubeMap,
+            TextureType.TextureCube => TextureTarget.TextureCubeMap,
 
             TextureType.TextureBuffer => TextureTarget.TextureBuffer,
 
             TextureType.Texture1DArray => TextureTarget.Texture1DArray,
             TextureType.Texture2DArray => TextureTarget.Texture2DArray,
-            TextureType.TexutreCubeArray => TextureTarget.TextureCubeMapArray,
+            TextureType.TextureCubeArray => TextureTarget.TextureCubeMapArray,
 
             TextureType.Texture2DMultisample => TextureTarget.Texture2DMultisample,
             TextureType.Texture2DMultisampleArray => TextureTarget.Texture2DMultisampleArray,
@@ -432,9 +443,10 @@ namespace AerialRace.RenderData
         {
             GLUtil.CreateProgram(name, out int shader);
             GL.ProgramParameter(shader, ProgramParameterName.ProgramSeparable, separable ? 1 : 0);
-            return new ShaderProgram(name, shader, stage, new Dictionary<string, int>(), null);
+            return new ShaderProgram(name, shader, stage, new Dictionary<string, int>(), new Dictionary<string, int>(), null, null);
         }
 
+        // FIXME: Make error handling for shader that don't compile better!
         public static bool CreateShaderProgram(string name, ShaderStage stage, string[] sources, [NotNullWhen(true)] out ShaderProgram? program)
         {
             program = CreateEmptyShaderProgram(name, stage, true);
@@ -507,6 +519,7 @@ namespace AerialRace.RenderData
                 GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniformBlocks, out int uniformBlockCount);
 
                 UniformBlockInfo[] blockInfo = new UniformBlockInfo[uniformBlockCount];
+                program.UniformBlockInfo = blockInfo;
 
                 for (int i = 0; i < uniformBlockCount; i++)
                 {
@@ -606,12 +619,21 @@ namespace AerialRace.RenderData
                 IndexBufferType.UInt32 => CreateIndexBuffer(name, data.Int32Indices, BufferFlags.None),
                 _ => throw new Exception($"Unknown index type '{data.IndexType}'"),
             };
-            
-            var posbuffer =    CreateDataBuffer<Vector3>($"{name}: Position", data.Positions, BufferFlags.None);
-            var uvbuffer =     CreateDataBuffer<Vector2>($"{name}: UV", data.UVs, BufferFlags.None);
-            var normalbuffer = CreateDataBuffer<Vector3>($"{name}: Normal", data.Normals, BufferFlags.None);
 
-            return new Mesh(name, indexbuffer, posbuffer, uvbuffer, normalbuffer, null);
+            var vertbuffer = CreateDataBuffer<StandardVertex>($"{name}: Pos UV Normal", data.Vertices, BufferFlags.None);
+
+            // Create a mesh with no submeshes.
+            var mesh = new Mesh(name, indexbuffer, null);
+
+            // Add the vertex data stream with the standard attribute layout.
+            var stdVertex = mesh.AddBuffer(vertbuffer);
+            mesh.AddAttributes(BuiltIn.StandardAttributes);
+            for (int i = 0; i < BuiltIn.StandardAttributes.Length; i++)
+            {
+                mesh.AddLink(i, stdVertex);
+            }
+
+            return mesh;
         }
 
         public static Texture Create1PixelTexture(string name, Color4 color)
@@ -701,6 +723,8 @@ namespace AerialRace.RenderData
                 Attributes[i].Normalized = false;
             }
 
+
+
             // Positions
             GL.VertexAttribFormat(0, 3, VertexAttribType.Float, false, 0);
             // UVs
@@ -711,7 +735,7 @@ namespace AerialRace.RenderData
             GL.VertexAttribFormat(3, 4, VertexAttribType.Float, false, 0);
         }
 
-        public static void SetAndEnableVertexAttribute(int index, AttributeSpecification spec, int bufferOffset)
+        public static void SetAndEnableVertexAttribute(int index, AttributeSpecification spec)
         {
             ref VertexAttribute attrib = ref Attributes[index];
 
@@ -719,14 +743,14 @@ namespace AerialRace.RenderData
             if (attrib.Size != spec.Size ||
                 attrib.Type != spec.Type ||
                 attrib.Normalized != spec.Normalized ||
-                attrib.Offset != bufferOffset)
+                attrib.Offset != spec.Offset)
             {
-                GL.VertexAttribFormat(index, spec.Size, ToGLAttribType(spec.Type), spec.Normalized, bufferOffset);
+                GL.VertexAttribFormat(index, spec.Size, ToGLAttribType(spec.Type), spec.Normalized, spec.Offset);
 
                 attrib.Size = spec.Size;
                 attrib.Type = spec.Type;
                 attrib.Normalized = spec.Normalized;
-                attrib.Offset = bufferOffset;
+                attrib.Offset = spec.Offset;
             }
             
             if (attrib.Active == false)
@@ -745,11 +769,11 @@ namespace AerialRace.RenderData
             }
         }
 
-        public static void SetAndEnableVertexAttributes(Span<AttributeSpecification> attribs, int bufferOffset)
+        public static void SetAndEnableVertexAttributes(Span<AttributeSpecification> attribs)
         {
             for (int i = 0; i < attribs.Length; i++)
             {
-                SetAndEnableVertexAttribute(i, attribs[i], bufferOffset);
+                SetAndEnableVertexAttribute(i, attribs[i]);
             }
         }
 
@@ -771,6 +795,16 @@ namespace AerialRace.RenderData
 
                 AttributeBuffers[index] = buffer;
             }
+        }
+
+        public static void LinkAttributeBuffer(AttributeBufferLink link)
+        {
+            GL.VertexAttribBinding(link.AttribIndex, link.BufferIndex);
+        }
+
+        public static void LinkAttributeBuffer(int attribIndex, int bufferIndex)
+        {
+            GL.VertexAttribBinding(attribIndex, bufferIndex);
         }
 
         public static void ClearVertexAttribBuffer(int index)
@@ -797,6 +831,26 @@ namespace AerialRace.RenderData
             {
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, 0);
                 CurrentIndexBuffer = null;
+            }
+        }
+
+        public static void BindMeshData(Mesh mesh)
+        {
+            BindIndexBuffer(mesh.Indices!);
+
+            for (int i = 0; i < mesh.DataBuffers.Length; i++)
+            {
+                BindVertexAttribBuffer(i, mesh.DataBuffers[i]);
+            }
+
+            for (int i = 0; i < mesh.Attributes.Length; i++)
+            {
+                SetAndEnableVertexAttribute(i, mesh.Attributes[i]);
+            }
+
+            for (int i = 0; i < mesh.AttributeBufferLinks.Length; i++)
+            {
+                LinkAttributeBuffer(mesh.AttributeBufferLinks[i]);
             }
         }
 
@@ -898,12 +952,84 @@ namespace AerialRace.RenderData
             GL.ProgramUniform1(prog.Handle, location, i);
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        struct CameraData
+        {
+            public Matrix4 Projection;
+            public Matrix4 View;
+            public Matrix4 VP;
+            // X = Fov
+            // Y = Aspect
+            // Z = NearPlane
+            // W = FarPlane
+            public Vector4 Data;
+        }
+
+        /*
+        public static void UniformCameraData(string blockName, ShaderStage stage, ref CameraData data)
+        {
+
+        }*/
+
+        public static void UniformBlock<T>(string blockName, ShaderStage stage, ref T data) where T : unmanaged
+        {
+            var prog = GetPipelineStage(stage);
+            //GL.BindBufferRange(BufferTarget.UniformBuffer, )
+        }
+
         #endregion
 
         #region Texture Binding
 
+        public const int MinTextureUnits = 16;
 
+        public static Texture?[] BoundTextures = new Texture[MinTextureUnits];
+        public static Sampler?[] BoundSamplers = new Sampler[MinTextureUnits];
+
+        public static void BindTexture(int unit, Texture texture, Sampler sampler)
+        {
+            if (BoundTextures[unit]?.Type != sampler.Type.ToTextureType())
+            {
+                Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
+            }
+
+            BindTexture(unit, texture);
+            BindSampler(unit, sampler);
+        }
+
+        public static void BindTexture(int unit, Texture texture)
+        {
+            if (BoundTextures[unit] != texture)
+            {
+                GL.BindTextureUnit(unit, texture.Handle);
+
+                BoundTextures[unit] = texture;
+            }
+        }
+
+        public static void BindTextureUnsafe(int unit, int textureHandle)
+        {
+            GL.BindTextureUnit(unit, textureHandle);
+
+            BoundTextures[unit] = null;
+        }
+
+        public static void BindSampler(int unit, Sampler sampler)
+        {
+            if (BoundSamplers[unit] != sampler)
+            {
+                GL.BindSampler(unit, sampler.Handle);
+
+                BoundSamplers[unit] = sampler;
+            }
+        }
 
         #endregion
+
+        // FIXME: Make our own primitive type enum
+        public static void DrawElements(PrimitiveType type, int elements, IndexBufferType indexType, int offset)
+        {
+            GL.DrawElements(type, elements, ToGLDrawElementsType(indexType), offset);
+        }
     }
 }

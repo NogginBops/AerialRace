@@ -12,9 +12,10 @@ out gl_PerVertex
 
 out VertexOutput
 {
-    vec4 fragColor;
+    vec4 fragPos;
     vec2 fragUV;
     vec3 fragNormal;
+    vec4 fragColor;
 };
 
 uniform mat4 mvp;
@@ -33,6 +34,7 @@ uniform Camera {
 
 void main(void)
 {
+    fragPos = vec4(in_position, 1f) * model;
     gl_Position = vec4(in_position, 1f) * mvp;
     //gl_Position = vec4(in_position, 1f) * model * view * proj;
     

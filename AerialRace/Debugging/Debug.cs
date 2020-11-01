@@ -15,9 +15,9 @@ namespace AerialRace.Debugging
 
         public static AttributeSpecification[] DebugAttributes = 
         {
-            new AttributeSpecification("Pos",   3, AttributeType.Float, false),
-            new AttributeSpecification("UV",    2, AttributeType.Float, false),
-            new AttributeSpecification("Color", 4, AttributeType.Float, false),
+            new AttributeSpecification("Pos",   3, AttributeType.Float, false, 0),
+            new AttributeSpecification("UV",    2, AttributeType.Float, false, 12),
+            new AttributeSpecification("Color", 4, AttributeType.Float, false, 20),
         };
 
         public static DrawList List = new DrawList();

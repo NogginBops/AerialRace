@@ -10,6 +10,8 @@ namespace AerialRace
     {
         public Transform Transform;
 
+        public MeshRenderer MeshRenderer;
+
         public Mesh Model;
 
         public Material Material;
@@ -36,6 +38,8 @@ namespace AerialRace
             Transform = new Transform("Ship");
             Model = mesh;
             Material = material;
+
+            MeshRenderer = new MeshRenderer(Transform, Model, Material);
 
             Velocity = -Vector3.UnitZ;
         }
@@ -64,7 +68,7 @@ namespace AerialRace
 
             Stalling = Vector3.Dot(Transform.Forward, Velocity.Normalized()) < 0.95f;
 
-            Debug.Print($"{Vector3.Dot(Transform.Forward, Velocity.Normalized())}");
+            //Debug.Print($"{Vector3.Dot(Transform.Forward, Velocity.Normalized())}");
 
             // Multiply mass
             Velocity += liftDrag;

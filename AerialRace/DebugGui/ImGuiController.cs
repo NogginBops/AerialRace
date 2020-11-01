@@ -112,9 +112,9 @@ void main()
             _shader = RenderDataUtil.CreateEmptyPipeline("ImGui");
             RenderDataUtil.AssembleProgramPipeline(_shader, vertexShader, null, fragmentShader);
 
-            PositionAttribSpec = new AttributeSpecification("ImGui Position", 2, RenderData.AttributeType.Float, false);
-            UVAttribSpec =       new AttributeSpecification("ImGui UV",       2, RenderData.AttributeType.Float, false);
-            ColorAttribSpec =    new AttributeSpecification("ImGui Color",    4, RenderData.AttributeType.UInt8, true);
+            PositionAttribSpec = new AttributeSpecification("ImGui Position", 2, RenderData.AttributeType.Float, false, 0);
+            UVAttribSpec =       new AttributeSpecification("ImGui UV",       2, RenderData.AttributeType.Float, false, 8);
+            ColorAttribSpec =    new AttributeSpecification("ImGui Color",    4, RenderData.AttributeType.UInt8, true,  16);
         }
 
         /// <summary>
@@ -309,15 +309,17 @@ void main()
 
             // Set up vertex attributes and their buffers plus index buffer
 
-            RenderDataUtil.SetAndEnableVertexAttribute(0, PositionAttribSpec, 0);
-            RenderDataUtil.SetAndEnableVertexAttribute(1, UVAttribSpec, 8);
-            RenderDataUtil.SetAndEnableVertexAttribute(2, ColorAttribSpec, 16);
+            RenderDataUtil.BindIndexBuffer(IndexBuffer);
 
             RenderDataUtil.BindVertexAttribBuffer(0, VertexBuffer);
-            RenderDataUtil.BindVertexAttribBuffer(1, VertexBuffer);
-            RenderDataUtil.BindVertexAttribBuffer(2, VertexBuffer);
 
-            RenderDataUtil.BindIndexBuffer(IndexBuffer);
+            RenderDataUtil.SetAndEnableVertexAttribute(0, PositionAttribSpec);
+            RenderDataUtil.SetAndEnableVertexAttribute(1, UVAttribSpec);
+            RenderDataUtil.SetAndEnableVertexAttribute(2, ColorAttribSpec);
+
+            RenderDataUtil.LinkAttributeBuffer(0, 0);
+            RenderDataUtil.LinkAttributeBuffer(1, 0);
+            RenderDataUtil.LinkAttributeBuffer(2, 0);
 
             draw_data.ScaleClipRects(io.DisplayFramebufferScale);
 

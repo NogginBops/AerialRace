@@ -25,13 +25,15 @@ namespace AerialRace.RenderData
         public int Size;
         public AttributeType Type;
         public bool Normalized;
+        public int Offset;
 
-        public AttributeSpecification(string name, int size, AttributeType type, bool normalized)
+        public AttributeSpecification(string name, int size, AttributeType type, bool normalized, int offset)
         {
             Name = name;
             Size = size;
             Type = type;
             Normalized = normalized;
+            Offset = offset;
         }
     }
 }

@@ -12,16 +12,16 @@ namespace AerialRace.RenderData
         Texture1D = 1,
         Texture2D = 2,
         Texture3D = 3,
-        TexutreCube = 4,
+        TextureCube = 4,
 
         TextureBuffer = 5,
 
         Texture1DArray = 6,
         Texture2DArray = 7,
-        TexutreCubeArray = 9,
+        TextureCubeArray = 8,
 
-        Texture2DMultisample = 10,
-        Texture2DMultisampleArray = 11,
+        Texture2DMultisample = 9,
+        Texture2DMultisampleArray = 10,
     }
 
     enum TextureFormat : int

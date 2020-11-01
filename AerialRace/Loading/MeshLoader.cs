@@ -1,4 +1,5 @@
-﻿using AerialRace.RenderData;
+﻿using AerialRace.Debugging;
+using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -11,15 +12,55 @@ using System.Text;
 
 namespace AerialRace.Loading
 {
+    public struct StandardVertex : IEquatable<StandardVertex>
+    {
+        public Vector3 Position;
+        public Vector2 Uv;
+        public Vector3 Normal;
+
+        public StandardVertex(Vector3 position, Vector2 uv, Vector3 normal)
+        {
+            Position = position;
+            Uv = uv;
+            Normal = normal;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is StandardVertex vertex && Equals(vertex);
+        }
+
+        public bool Equals(StandardVertex other)
+        {
+            return Position.Equals(other.Position) &&
+                   Uv.Equals(other.Uv) &&
+                   Normal.Equals(other.Normal);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Position, Uv, Normal);
+        }
+
+        public static bool operator ==(StandardVertex left, StandardVertex right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(StandardVertex left, StandardVertex right)
+        {
+            return !(left == right);
+        }
+    }
+
     struct MeshData
     {
         public IndexBufferType IndexType;
         public int[]? Int32Indices;
         public short[]? Int16Indices;
         public byte[]? Int8Indices;
-        public Vector3[] Positions;
-        public Vector2[] UVs;
-        public Vector3[] Normals;
+        public StandardVertex[] Vertices;
+        // FIXME: Add support for additional data streams
     }
 
     static class MeshLoader
@@ -29,47 +70,6 @@ namespace AerialRace.Loading
             public int vertex1, vertex2, vertex3;
             public int uv1, uv2, uv3;
             public int normal1, normal2, normal3;
-        }
-
-        public struct Vertex : IEquatable<Vertex>
-        {
-            public Vector3 Position;
-            public Vector2 Uv;
-            public Vector3 Normal;
-
-            public Vertex(Vector3 position, Vector2 uv, Vector3 normal)
-            {
-                Position = position;
-                Uv = uv;
-                Normal = normal;
-            }
-
-            public override bool Equals(object? obj)
-            {
-                return obj is Vertex vertex && Equals(vertex);
-            }
-
-            public bool Equals(Vertex other)
-            {
-                return Position.Equals(other.Position) &&
-                       Uv.Equals(other.Uv) &&
-                       Normal.Equals(other.Normal);
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(Position, Uv, Normal);
-            }
-
-            public static bool operator ==(Vertex left, Vertex right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(Vertex left, Vertex right)
-            {
-                return !(left == right);
-            }
         }
 
         public static MeshData LoadObjMesh(string filename)
@@ -82,7 +82,7 @@ namespace AerialRace.Loading
             List<Vector3> norms = new List<Vector3>();
 
             List<Face> faces = new List<Face>();
-            List<Vertex> vertices = new List<Vertex>();
+            List<StandardVertex> vertices = new List<StandardVertex>();
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -158,7 +158,7 @@ namespace AerialRace.Loading
                 else continue;
             }
 
-            Dictionary<Vertex, int> verticesIndexDict = new Dictionary<Vertex, int>();
+            Dictionary<StandardVertex, int> verticesIndexDict = new Dictionary<StandardVertex, int>();
             List<int> indices = new List<int>();
 
             int dups = 0;
@@ -177,9 +177,9 @@ namespace AerialRace.Loading
                 Vector3 n2 = norms[face.normal2];
                 Vector3 n3 = norms[face.normal3];
 
-                Vertex v1 = new Vertex(p1, uv1, n1);
-                Vertex v2 = new Vertex(p2, uv2, n2);
-                Vertex v3 = new Vertex(p3, uv3, n3);
+                StandardVertex v1 = new StandardVertex(p1, uv1, n1);
+                StandardVertex v2 = new StandardVertex(p2, uv2, n2);
+                StandardVertex v3 = new StandardVertex(p3, uv3, n3);
 
                 if (verticesIndexDict.TryGetValue(v1, out int i1))
                 {
@@ -218,28 +218,15 @@ namespace AerialRace.Loading
                 }
             }
 
-            Vector3[] positionsArray = new Vector3[vertices.Count];
-            Vector2[] uvsArray = new Vector2[vertices.Count];
-            Vector3[] normalsArray = new Vector3[vertices.Count];
-            for (int i = 0; i < vertices.Count; i++)
-            {
-                Vertex vert = vertices[i];
-
-                positionsArray[i] = vert.Position;
-                uvsArray[i] = vert.Uv;
-                normalsArray[i] = vert.Normal;
-            }
-
             return new MeshData()
             {
                 IndexType = IndexBufferType.UInt32,
                 Int32Indices = indices.ToArray(),
-                Positions = positionsArray,
-                UVs = uvsArray,
-                Normals = normalsArray,
+                Vertices = vertices.ToArray(),
             };
         }
 
+        /*
         public static void WriteBinaryMesh(string path, MeshData data)
         {
             using BinaryWriter writer = new BinaryWriter(File.OpenWrite(path));
@@ -367,5 +354,6 @@ namespace AerialRace.Loading
                 Normals = normals,
             };
         }
+        */
     }
 }

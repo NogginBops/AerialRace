@@ -13,15 +13,15 @@ using System.Threading.Tasks;
 
 namespace AerialRace.Debugging
 {
-    struct Vertex
+    struct DrawListVertex
     {
-        public static readonly int SizeInBytes = Marshal.SizeOf(typeof(Vertex));
+        public static readonly int SizeInBytes = Marshal.SizeOf(typeof(DrawListVertex));
 
         public Vector3 Position;
         public Vector2 UV;
         public Color4 Color;
 
-        public Vertex(Vector3 position, Vector2 uv, Color4 color)
+        public DrawListVertex(Vector3 position, Vector2 uv, Color4 color)
         {
             Position = position;
             UV = uv;
@@ -80,7 +80,7 @@ namespace AerialRace.Debugging
     class DrawList : IDisposable
     {
         public RefList<DrawCommand> Commands = new RefList<DrawCommand>();
-        public RefList<Vertex> Vertices = new RefList<Vertex>();
+        public RefList<DrawListVertex> Vertices = new RefList<DrawListVertex>();
         public RefList<int> Indicies = new RefList<int>();
 
         public RenderData.Buffer VertexBuffer;
@@ -88,7 +88,7 @@ namespace AerialRace.Debugging
 
         public DrawList()
         {
-            VertexBuffer = RenderDataUtil.CreateDataBuffer<Vertex>("Debug Vertex Data", 1000, BufferFlags.Dynamic);
+            VertexBuffer = RenderDataUtil.CreateDataBuffer<DrawListVertex>("Debug Vertex Data", 1000, BufferFlags.Dynamic);
             IndexBuffer = RenderDataUtil.CreateIndexBuffer<uint>("Debug Index Buffer", 1000, BufferFlags.Dynamic);
         }
 
@@ -127,20 +127,20 @@ namespace AerialRace.Debugging
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddVertex(Vector2 Pos, Vector2 UV, Color4 Color)
         {
-            Vertices.Add(new Vertex(new Vector3(Pos), UV, Color));
+            Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4 Color)
         {
-            Vertices.Add(new Vertex(new Vector3(Pos), UV, Color));
+            Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));
             AddIndexOfLastVertex();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddVertexWithIndex(Vector3 Pos, Vector2 UV, Color4 Color)
         {
-            Vertices.Add(new Vertex(Pos, UV, Color));
+            Vertices.Add(new DrawListVertex(Pos, UV, Color));
             AddIndexOfLastVertex();
         }
 
