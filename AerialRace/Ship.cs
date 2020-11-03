@@ -41,7 +41,7 @@ namespace AerialRace
 
             MeshRenderer = new MeshRenderer(Transform, Model, Material);
 
-            Velocity = -Vector3.UnitZ;
+            Velocity = Vector3.Zero;// -Vector3.UnitZ;
         }
 
         // This is done per frame to update the ships position and stuff

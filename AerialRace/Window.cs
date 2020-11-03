@@ -3,6 +3,7 @@ using AerialRace.DebugGui;
 using AerialRace.Entities;
 using AerialRace.Entities.Systems;
 using AerialRace.Loading;
+using AerialRace.Physics;
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
@@ -54,6 +55,11 @@ namespace AerialRace
 
         Ship Player;
         Texture ShipTexture;
+
+        StaticCollider FloorCollider;
+        RigidBody TestBox;
+        Transform TestBoxTransform;
+        MeshRenderer TestBoxRenderer;
 
         EntityManager Manager = new EntityManager();
 
@@ -175,6 +181,19 @@ namespace AerialRace
 
             //Camera.Transform.SetParent(Player.Transform);
 
+            Phys.Init();
+
+            var cube = RenderDataUtil.CreateMesh("Test Cube", MeshLoader.LoadObjMesh("./Models/cube.obj"));
+
+            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(100, 1, 100)), new Vector3(0, 0, 0));
+            new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f));
+            new MeshRenderer(new Transform("", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
+
+            TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
+            TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f);
+            
+            TestBoxRenderer = new MeshRenderer(TestBoxTransform, cube, Material);
+
             imGuiController = new ImGuiController(Width, Height);
 
             // Setup an always bound VAO
@@ -186,6 +205,11 @@ namespace AerialRace
             base.OnRenderFrame(args);
 
             float deltaTime = (float)args.Time;
+
+            Phys.Update(deltaTime);
+
+            var ppos = TestBoxTransform.LocalPosition;
+            TestBox.UpdateTransform(TestBoxTransform);
 
             Debug.NewFrame(Width, Height);
 
@@ -213,8 +237,6 @@ namespace AerialRace
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             MeshRenderer.Render(Camera);
-
-            ImGui.ShowDemoWindow();
 
             ImGui.EndFrame();
             imGuiController.Render();
@@ -249,7 +271,7 @@ namespace AerialRace
 
             Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, Player.Transform.LocalRotation, 3f * deltaTime);
 
-            Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
+            //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
 
         void RenderDrawList(DrawList list, ShaderPipeline pipeline, ref Matrix4 projection, ref Matrix4 view)
@@ -515,12 +537,12 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.Up))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.8f, 0, 0);
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 1.2f, 0, 0);
             }
 
             if (IsKeyDown(Keys.Down))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.8f, 0, 0);
+                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 1.2f, 0, 0);
             }
 
             if (IsKeyDown(Keys.Q))

@@ -11,14 +11,15 @@ namespace AerialRace.Physics
     class Phys
     {
         public static Simulation Simulation;
-        public static BufferPool BufferPool;
+        public static BufferPool BufferPool = new BufferPool();
+
+        public static void Init()
+        {
+            Simulation = Simulation.Create(BufferPool, new NarrowPhaseCallbacks(), new PoseIntegratorCallbacks(new Vector3(0, -9.81f, 0)), new PositionLastTimestepper());
+        }
 
         public static void Test()
         {
-            BufferPool = new BufferPool();
-
-            Simulation = Simulation.Create(BufferPool, new NarrowPhaseCallbacks(), new PoseIntegratorCallbacks(), new PositionLastTimestepper());
-
             var box = new Box(1, 1, 1);
             box.ComputeInertia(1, out var shpereInertia);
             var b = Simulation.Bodies.Add(
