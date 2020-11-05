@@ -231,5 +231,15 @@ namespace AerialRace
                 //Transformations.Mult4x3(ref matrix, ref parentMatrix, out matrix);
             }
         }
+
+        public Vector3 LocalDirectionToWorld(Vector3 localDir)
+        {
+            return Vector3.TransformVector(localDir, LocalToWorld);
+        }
+
+        public Vector3 WorldDirectionToLocal(Vector3 worldDir)
+        {
+            return Vector3.TransformVector(worldDir, WorldToLocal);
+        }
     }
 }

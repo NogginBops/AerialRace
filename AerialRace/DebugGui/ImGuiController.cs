@@ -351,8 +351,7 @@ void main()
                     }
                     else
                     {
-                        GL.ActiveTexture(TextureUnit.Texture0);
-                        GL.BindTexture(TextureTarget.Texture2D, (int)pcmd.TextureId);
+                        RenderDataUtil.BindTextureUnsafe(0, (int)pcmd.TextureId);
                         
                         // We do _windowHeight - (int)clip.W instead of (int)clip.Y because gl has flipped Y when it comes to these coordinates
                         var clip = pcmd.ClipRect;
@@ -373,8 +372,7 @@ void main()
                 vtx_offset += cmd_list.VtxBuffer.Size;
             }
 
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
+            RenderDataUtil.BindTextureUnsafe(0, 0);
 
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.ScissorTest);

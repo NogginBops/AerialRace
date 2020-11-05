@@ -9,18 +9,13 @@ namespace AerialRace.Physics
 {
     class StaticCollider
     {
-        public BoxCollider Shape;
+        public ICollider Shape;
+        public StaticReference Static;
 
-        public StaticCollider(BoxCollider shape, Vector3 position)
+        public StaticCollider(ICollider shape, Vector3 position, SimpleMaterial material)
         {
             Shape = shape;
-
-            Phys.Simulation.Statics.Add(
-                new StaticDescription(
-                    position.ToNumerics(),
-                    shape.BoxShape,
-                    0.1f
-                ));
+            Static = Phys.AddStaticBody(position, shape, 0.1f, material);
         }
     }
 }

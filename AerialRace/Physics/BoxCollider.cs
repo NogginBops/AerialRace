@@ -7,11 +7,16 @@ using System.Text;
 
 namespace AerialRace.Physics
 {
-    class BoxCollider
+    class BoxCollider : ICollider
     {
         // FIXME: We want to update the shape and everything if this value is changed
         public Box Box;
         public TypedIndex BoxShape;
+
+        public IConvexShape Shape => Box;
+        public TypedIndex TypedIndex => BoxShape;
+
+        public Vector3 Center => new Vector3(Box.HalfWidth, Box.HalfHeight, Box.HalfLength);
 
         public BoxCollider(Vector3 size)
         {

@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AerialRace.Debugging;
 
-namespace AerialRace
+namespace AerialRace.Debugging
 {
     interface IShape
     {

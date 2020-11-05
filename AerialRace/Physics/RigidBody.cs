@@ -12,26 +12,21 @@ namespace AerialRace.Physics
         //public List<> Shapes;
 
         // FIXME!!
-        public BoxCollider Shape;
+        public ICollider Shape;
 
         public BodyReference Body;
 
-        public RigidBody(BoxCollider shape, Transform transform, float mass)
+        public RigidBody(ICollider shape, Transform transform, float mass, SimpleMaterial material, SimpleBody bodyProp)
         {
             Shape = shape;
-
-            shape.Box.ComputeInertia(mass, out var inertia);
-
-            var bodyHandle = Phys.Simulation.Bodies.Add(
-                BodyDescription.CreateDynamic(
-                        new RigidPose(transform.LocalPosition.ToNumerics(), transform.LocalRotation.ToNumerics()),
-                        inertia,
-                        new CollidableDescription(shape.BoxShape, 0.1f),
-                        new BodyActivityDescription(0.001f)
-                    )
-                );
-
-            Body = new BodyReference(bodyHandle, Phys.Simulation.Bodies);
+            Body = Phys.AddDynamicBody(
+                new RigidPose(transform.LocalPosition.ToNumerics(), transform.LocalRotation.ToNumerics()),
+                shape,
+                mass,
+                0.1f,
+                new BodyActivityDescription(0.001f),
+                material,
+                bodyProp);
         }
 
         // FIXME: We want to handle scaling in some way.

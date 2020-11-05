@@ -163,8 +163,6 @@ namespace AerialRace
 
             FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
 
-            Mesh shipMesh = RenderDataUtil.CreateMesh("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"));
-
             RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
             RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
 
@@ -176,21 +174,28 @@ namespace AerialRace
             Material shipMaterial = new Material("Ship", shipPipeline, null);
             shipMaterial.Properties.SetTexture("testTex", ShipTexture, DebugSampler);
 
-            Player = new Ship(shipMesh, shipMaterial);
+            Phys.Init();
+
+            Player = new Ship("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"), shipMaterial);
             Player.IsPlayerShip = true;
 
             //Camera.Transform.SetParent(Player.Transform);
 
-            Phys.Init();
-
             var cube = RenderDataUtil.CreateMesh("Test Cube", MeshLoader.LoadObjMesh("./Models/cube.obj"));
 
-            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(100, 1, 100)), new Vector3(0, 0, 0));
-            new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f));
+            SimpleMaterial physMat = new SimpleMaterial()
+            {
+                FrictionCoefficient = 0.5f,
+                MaximumRecoveryVelocity = 2f,
+                SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+            };
+
+            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(100, 1, 100)), new Vector3(0, 0, 0), physMat);
+            new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
             new MeshRenderer(new Transform("", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
 
             TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
-            TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f);
+            TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f, SimpleMaterial.Default, SimpleBody.Default);
             
             TestBoxRenderer = new MeshRenderer(TestBoxTransform, cube, Material);
 
@@ -261,15 +266,15 @@ namespace AerialRace
             SwapBuffers();
         }
 
-        public Vector3 CameraOffset = new Vector3(0, 8f, 14f);
+        public Vector3 CameraOffset = new Vector3(0, 6f, 17f);
+        public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
         void UpdateCamera(float deltaTime)
         {
             var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
-            //targetPos = new Vector3(0f, Player.Transform.LocalPosition.Y + CameraOffset.Y, 0) + new Vector3(targetPos.X, 0, targetPos.Z);
-            //Camera.Transform.LocalPosition = Player.Transform.WorldPosition + new Vector3(0, 6f, 0);
+            
             Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 10f * deltaTime);
 
-            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, Player.Transform.LocalRotation, 3f * deltaTime);
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, Player.Transform.LocalRotation * RotationOffset, 3f * deltaTime);
 
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
@@ -295,7 +300,7 @@ namespace AerialRace
             Matrix4 vp = view * projection;
             RenderDataUtil.UniformMatrix4("vp", ShaderStage.Vertex, true, ref vp);
 
-            GL.BindSampler(0, DebugSampler.Handle);
+            //GL.BindSampler(0, DebugSampler.Handle);
 
             // Reset the scissor area
             GL.Scissor(0, 0, Width, Height);
@@ -527,12 +532,16 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.W))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
+                //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-2 * MathHelper.TwoPi * deltaTime, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
             }
 
             if (IsKeyDown(Keys.S))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
+                //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(2 * MathHelper.TwoPi * deltaTime, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
             }
 
             if (IsKeyDown(Keys.Up))
@@ -547,12 +556,16 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.Q))
             {
-                Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, 2 * MathHelper.TwoPi * deltaTime));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.E))
             {
-                Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -2 * MathHelper.TwoPi * deltaTime));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.Space))

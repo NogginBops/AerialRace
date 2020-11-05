@@ -2,6 +2,7 @@
 using BepuPhysics.Collidables;
 using BepuPhysics.CollisionDetection;
 using BepuPhysics.Constraints;
+using BepuUtilities.Memory;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -11,7 +12,12 @@ namespace AerialRace.Physics
 {
     unsafe struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
     {
-        public SpringSettings ContactSpringiness;
+        public CollidableProperty<SimpleMaterial> Materials;
+
+        public NarrowPhaseCallbacks(CollidableProperty<SimpleMaterial> materials)
+        {
+            Materials = materials;
+        }
 
         /// <summary>
         /// Performs any required initialization logic after the Simulation instance has been constructed.
@@ -19,9 +25,7 @@ namespace AerialRace.Physics
         /// <param name="simulation">Simulation that owns these callbacks.</param>
         public void Initialize(Simulation simulation)
         {
-            if (ContactSpringiness.AngularFrequency == 0 &&
-                ContactSpringiness.TwiceDampingRatio == 0)
-                ContactSpringiness = new SpringSettings(30, 1);
+            Materials.Initialize(simulation);
         }
 
         /// <summary>
@@ -77,12 +81,19 @@ namespace AerialRace.Physics
             //The IContactManifold parameter includes functions for accessing contact data regardless of what the underlying type of the manifold is.
             //If you want to have direct access to the underlying type, you can use the manifold.Convex property and a cast like Unsafe.As<TManifold, ConvexContactManifold or NonconvexContactManifold>(ref manifold).
 
+            var a = Materials[pair.A];
+            var b = Materials[pair.B];
+            pairMaterial.FrictionCoefficient = a.FrictionCoefficient * b.FrictionCoefficient;
+            pairMaterial.MaximumRecoveryVelocity = MathF.Max(a.MaximumRecoveryVelocity, b.MaximumRecoveryVelocity);
+            pairMaterial.SpringSettings = a.MaximumRecoveryVelocity > b.MaximumRecoveryVelocity ? a.SpringSettings : b.SpringSettings;
+            return true;
+
             //The engine does not define any per-body material properties. Instead, all material lookup and blending operations are handled by the callbacks.
             //For the purposes of this demo, we'll use the same settings for all pairs.
             //(Note that there's no bounciness property! See here for more details: https://github.com/bepu/bepuphysics2/issues/3)
             pairMaterial.FrictionCoefficient = 1f;
             pairMaterial.MaximumRecoveryVelocity = 2f;
-            pairMaterial.SpringSettings = ContactSpringiness;
+            //pairMaterial.SpringSettings = ContactSpringiness;
             //For the purposes of the demo, contact constraints are always generated.
             return true;
         }
@@ -108,7 +119,7 @@ namespace AerialRace.Physics
         /// </summary>
         public void Dispose()
         {
-            
+            Materials.Dispose();
         }
     }
 }

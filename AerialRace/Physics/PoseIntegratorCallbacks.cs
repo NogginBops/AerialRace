@@ -1,4 +1,6 @@
 ﻿using BepuPhysics;
+using BepuUtilities;
+using BepuUtilities.Memory;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -9,8 +11,13 @@ namespace AerialRace.Physics
 {
     struct PoseIntegratorCallbacks : IPoseIntegratorCallbacks
     {
+        public Simulation Simulation;
+        public BodyProperty<SimpleBody> BodyProps;
+
         public Vector3 Gravity;
         Vector3 GravityDt;
+
+        float deltaTime;
 
         /// <summary>
         /// Gets how the pose integrator should handle angular velocity integration.
@@ -18,9 +25,17 @@ namespace AerialRace.Physics
         // TODO: Figure out what mode we actually want
         public AngularIntegrationMode AngularIntegrationMode => AngularIntegrationMode.Nonconserving;
 
-        public PoseIntegratorCallbacks(Vector3 gravity) : this()
+        public PoseIntegratorCallbacks(Vector3 gravity, BodyProperty<SimpleBody> bodyProps, float linearDamping = .03f, float angularDamping = .03f) : this()
         {
             Gravity = gravity;
+
+            BodyProps = bodyProps;
+        }
+
+        public void Initialize(Simulation simulation)
+        {
+            Simulation = simulation;
+            BodyProps.Initialize(Simulation);
         }
 
         /// <summary>
@@ -31,6 +46,8 @@ namespace AerialRace.Physics
         {
             // No reason to recalculate gravity * dt for every body; just cache it ahead of time.
             GravityDt = Gravity * dt;
+
+            deltaTime = dt;
         }
 
         /// <summary>
@@ -47,7 +64,17 @@ namespace AerialRace.Physics
             //Note that we avoid accelerating kinematics. Kinematics are any body with an inverse mass of zero (so a mass of ~infinity). No force can move them.
             if (localInertia.InverseMass > 0)
             {
-                velocity.Linear += GravityDt;
+                // Get the gravity vector depending on if this vector is affected by gravity
+                BodyHandle handle = Simulation.Bodies.ActiveSet.IndexToHandle[bodyIndex];
+                SimpleBody body = BodyProps[handle];
+
+                var gravityDt = body.HasGravity ? GravityDt : Vector3.Zero;
+
+                float linearDampingDt = MathF.Pow(MathHelper.Clamp(1 - body.LinearDamping, 0, 1), deltaTime);
+                float angularDampingDt = MathF.Pow(MathHelper.Clamp(1 - body.AngularDamping, 0, 1), deltaTime);
+
+                velocity.Linear = (velocity.Linear + gravityDt) * linearDampingDt;
+                velocity.Angular *= angularDampingDt;
             }
         }
     }
