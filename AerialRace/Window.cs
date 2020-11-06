@@ -155,7 +155,8 @@ namespace AerialRace
             QuadRenderer = new MeshRenderer(QuadTransform, QuadMesh, Material);
             ChildRenderer = new MeshRenderer(ChildTransform, Mesh, Material);
 
-            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2), Vector3.One * 500);
+            // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
+            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
             FloorTransform.Name = "Floor";
 
             var floorMat = new Material("Floor Mat", debugShader, null);
@@ -190,7 +191,7 @@ namespace AerialRace
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
 
-            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(100, 1, 100)), new Vector3(0, 0, 0), physMat);
+            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(500, 1, 500)), new Vector3(0, 0, 0), physMat);
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
             new MeshRenderer(new Transform("", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
 
@@ -522,12 +523,16 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.A))
             {
-                Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
+                //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 2f * MathHelper.TwoPi * deltaTime, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
             }
 
             if (IsKeyDown(Keys.D))
             {
-                Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
+                //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -2f * MathHelper.TwoPi * deltaTime, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
             }
 
             if (IsKeyDown(Keys.W))

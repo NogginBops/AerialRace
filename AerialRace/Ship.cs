@@ -63,7 +63,7 @@ namespace AerialRace
 
             Collider = new MeshCollider(meshData);
             //Collider = new BoxCollider(new Vector3(5f, 1f, 5f));
-            RigidBody = new RigidBody(Collider, Transform, 1f, playerPhysMat, playerBodyProp);
+            RigidBody = new RigidBody(Collider, Transform, 2f, playerPhysMat, playerBodyProp);
 
             // Never let this body go to sleep
             RigidBody.Body.Activity.SleepThreshold = -1;
