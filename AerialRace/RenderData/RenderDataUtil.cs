@@ -264,6 +264,12 @@ namespace AerialRace.RenderData
             TextureFormat.Rgba32I => SizedInternalFormat.Rgba32i,
             TextureFormat.Rgba32UI => SizedInternalFormat.Rgba32ui,
             TextureFormat.Rgb9_E5 => (SizedInternalFormat)All.Rgb9E5,
+            TextureFormat.Depth16 => (SizedInternalFormat)All.DepthComponent16,
+            TextureFormat.Depth24 => (SizedInternalFormat)All.DepthComponent24,
+            TextureFormat.Depth32F => (SizedInternalFormat)All.DepthComponent32f,
+            TextureFormat.Depth24Stencil8 => (SizedInternalFormat)All.Depth24Stencil8,
+            TextureFormat.Depth32FStencil8 => (SizedInternalFormat)All.Depth32fStencil8,
+            TextureFormat.Stencil8 => (SizedInternalFormat)All.StencilIndex8,
             _ => throw new InvalidEnumArgumentException(nameof(format), (int)format, typeof(TextureFormat)),
         };
 
@@ -595,6 +601,43 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static bool CreatePipeline(string name, ShaderProgram? vertex, ShaderProgram? geometry, ShaderProgram? fragment, out ShaderPipeline pipeline)
+        {
+            GLUtil.CreateProgramPipeline(name, out var handle);
+
+            pipeline = new ShaderPipeline(name, handle, null, null, null);
+
+            if (vertex != null)
+                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.VertexShaderBit, vertex.Handle);
+            pipeline.VertexProgram = vertex;
+
+            if (geometry != null)
+                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.GeometryShaderBit, geometry.Handle);
+            pipeline.GeometryProgram = geometry;
+
+            if (fragment != null)
+                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.FragmentShaderBit, fragment.Handle);
+            pipeline.FramgmentProgram = fragment;
+
+            GL.ValidateProgramPipeline(pipeline.Handle);
+            GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.ValidateStatus, out int valid);
+            if (valid == 0)
+            {
+                GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.InfoLogLength, out int logLength);
+                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, out _, out string info);
+
+                Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
+
+                // FIXME: Consider using this for debug!!
+                // GL.DebugMessageInsert()
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
         public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
         {
             GLUtil.CreateSampler(name, out int sampler);
@@ -648,6 +691,15 @@ namespace AerialRace.RenderData
             GL.GenerateTextureMipmap(texture);
 
             return new Texture(name, texture, TextureType.Texture2D, format, 1, 1, 1, 0, 0, 1);
+        }
+
+        public static Texture CreateEmpty2DTexture(string name, TextureFormat format, int width, int height)
+        {
+            GLUtil.CreateTexture(name, TextureTarget.Texture2D, out int texture);
+
+            GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), width, height);
+
+            return new Texture(name, texture, TextureType.Texture2D, format, width, height, 1, 0, 0, 1);
         }
 
         #endregion
@@ -944,6 +996,14 @@ namespace AerialRace.RenderData
             GL.ProgramUniform3(prog.Handle, location, vec3);
         }
 
+        public static void UniformVector3(string uniformName, ShaderStage stage, Color4 color)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniform3(prog.Handle, location, new Vector3(color.R, color.G, color.B));
+        }
+
         public static void Uniform1(string uniformName, ShaderStage stage, int i)
         {
             var prog = GetPipelineStage(stage);
@@ -1021,6 +1081,33 @@ namespace AerialRace.RenderData
                 GL.BindSampler(unit, sampler.Handle);
 
                 BoundSamplers[unit] = sampler;
+            }
+        }
+
+        #endregion
+
+        #region Framebuffer
+
+        public static Framebuffer? DrawBuffer;
+        public static Framebuffer? ReadBuffer;
+
+        public static void BindDrawFramebuffer(Framebuffer? buffer)
+        {
+            // If the buffer is null, bind 0 as the draw buffer, otherwise bind the framebuffer
+            if (DrawBuffer != buffer)
+            {
+                GL.BindFramebuffer(GLFrameBufferTarget.DrawFramebuffer, buffer?.Handle ?? 0);
+                DrawBuffer = buffer;
+            }
+        }
+
+        public static void BindReadFramebuffer(Framebuffer? buffer)
+        {
+            if (ReadBuffer != buffer)
+            {
+                // If the buffer is null, bind 0 as the draw buffer, otherwise bind the framebuffer
+                GL.BindFramebuffer(GLFrameBufferTarget.ReadFramebuffer, buffer?.Handle ?? 0);
+                ReadBuffer = buffer;
             }
         }
 

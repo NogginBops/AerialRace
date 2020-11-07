@@ -96,6 +96,13 @@ namespace AerialRace.RenderData
         Rgba32UI = 55,
 
         Rgb9_E5 = 56,
+
+        Depth16 = 57,
+        Depth24 = 58,
+        Depth32F = 59,
+        Depth24Stencil8 = 60,
+        Depth32FStencil8 = 61,
+        Stencil8 = 62,
     }
 
     class Texture

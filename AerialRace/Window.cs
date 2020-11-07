@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Transactions;
 
 namespace AerialRace
 {
@@ -61,7 +62,10 @@ namespace AerialRace
         Transform TestBoxTransform;
         MeshRenderer TestBoxRenderer;
 
-        EntityManager Manager = new EntityManager();
+        Framebuffer Shadowmap;
+        Framebuffer DepthBuffer;
+
+        //EntityManager Manager = new EntityManager();
 
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
 #pragma warning disable IDE0052 // Remove unread private members
@@ -80,16 +84,7 @@ namespace AerialRace
             // Disables two core driver, we don't want this in a release build
             GL.Enable(EnableCap.DebugOutputSynchronous);
 #endif
-            Manager.RegisterType<Entities.Components.Transform>();
-            Manager.RegisterType<Entities.Components.LocalToWorld>();
-
-            Manager.RegisterSystem(new TransformSystem());
-
-
-            var @ref = Manager.CreateEntity();
-            Manager.AddComponent(@ref, new Entities.Components.Transform() { LocalPosition = new Vector3(0, 1, -2) });
-            Manager.AddComponent(@ref, new Entities.Components.LocalToWorld());
-
+            
             // Enable backface culling
             // FIXME: This should be a per-material setting
             //GL.Enable(EnableCap.CullFace);
@@ -110,6 +105,11 @@ namespace AerialRace
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
+            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.vert") }, out ShaderProgram depthVertProgram);
+            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.frag") }, out ShaderProgram depthFragProgram);
+
+            RenderDataUtil.CreatePipeline("Standard Depth", depthVertProgram, null, depthFragProgram, out var depthPipeline);
+
             RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/StandardVertex.vert") }, out ShaderProgram? vertexProgram);
             RenderDataUtil.CreateShaderProgram("UV Debug Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Debug.frag") }, out ShaderProgram? fragmentProgram);
 
@@ -127,7 +127,7 @@ namespace AerialRace
             DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
 
             //Material = new Material("First Material", firstShader, null);
-            Material = new Material("Debug Material", debugShader, null);
+            Material = new Material("Debug Material", debugShader, depthPipeline);
             Material.Properties.SetTexture("testTex", TestTexture, DebugSampler);
 
             // This should be the first refernce to StaticGeometry.
@@ -159,7 +159,7 @@ namespace AerialRace
             FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
             FloorTransform.Name = "Floor";
 
-            var floorMat = new Material("Floor Mat", debugShader, null);
+            var floorMat = new Material("Floor Mat", debugShader, depthPipeline);
             floorMat.Properties.SetTexture("testTex", TestTexture, DebugSampler);
 
             FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
@@ -172,7 +172,7 @@ namespace AerialRace
 
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, false);
 
-            Material shipMaterial = new Material("Ship", shipPipeline, null);
+            Material shipMaterial = new Material("Ship", shipPipeline, depthPipeline);
             shipMaterial.Properties.SetTexture("testTex", ShipTexture, DebugSampler);
 
             Phys.Init();
@@ -201,6 +201,18 @@ namespace AerialRace
             TestBoxRenderer = new MeshRenderer(TestBoxTransform, cube, Material);
 
             imGuiController = new ImGuiController(Width, Height);
+
+            Shadowmap = RenderDataUtil.CreateEmptyFramebuffer("Shadowmap");
+            DepthBuffer = RenderDataUtil.CreateEmptyFramebuffer("Depth Prepass");
+
+            var depthTex = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, Width, Height);
+            RenderDataUtil.AddDepthAttachment(DepthBuffer, depthTex, 0);
+
+            var status = RenderDataUtil.CheckFramebufferComplete(DepthBuffer, RenderData.FramebufferTarget.Draw);
+            if (status != FramebufferStatus.FramebufferComplete)
+            {
+                Debug.Break();
+            }
 
             // Setup an always bound VAO
             RenderDataUtil.SetupGlobalVAO();
@@ -239,10 +251,65 @@ namespace AerialRace
 
             Camera.Transform.UpdateMatrices();
 
+            // To be able to clear the depth buffer we need to enable writing to it
+            GL.DepthMask(true);
+            GL.ColorMask(true, true, true, true);
+
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            MeshRenderer.Render(Camera);
+            Camera.CalcProjectionMatrix(out var proj);
+
+            RenderPassSettings depthPrePass = new RenderPassSettings()
+            {
+                IsDepthPass = true,
+                View = Camera.Transform.WorldToLocal,
+                Projection = proj,
+                ViewPos = Camera.Transform.WorldPosition,
+
+                DirectionalLight = new DirectionalLight()
+                {
+                    Direction = new Vector3(1, -1, 0),
+                    Color = Color4.White,
+                },
+                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+            };
+
+            //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
+
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+            GL.DepthMask(true);
+            GL.ColorMask(false, false, false, false);
+            GL.DepthFunc(DepthFunction.Lequal);
+
+            MeshRenderer.Render(ref depthPrePass);
+
+            //RenderDataUtil.BindDrawFramebuffer(null);
+
+            // What we want to do here is first render the shadowmaps using all renderers
+            // Then do a z prepass from the normal camera
+            // Then do the final color pass
+
+            RenderPassSettings colorPass = new RenderPassSettings()
+            {
+                IsDepthPass = false,
+                View = Camera.Transform.WorldToLocal,
+                Projection = proj,
+                ViewPos = Camera.Transform.WorldPosition,
+
+                DirectionalLight = new DirectionalLight()
+                {
+                    Direction = new Vector3(1, -1, 0),
+                    Color = Color4.White,
+                },
+                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+            };
+
+            GL.DepthMask(false);
+            GL.ColorMask(true, true, true, true);
+            GL.DepthFunc(DepthFunction.Equal);
+
+            MeshRenderer.Render(ref colorPass);
 
             ImGui.EndFrame();
             imGuiController.Render();
@@ -258,7 +325,7 @@ namespace AerialRace
             GL.Disable(EnableCap.DepthTest);
 
             Matrix4 viewMatrix = Camera.Transform.WorldToLocal;
-            Camera.CalcProjectionMatrix(out var proj);
+            Camera.CalcProjectionMatrix(out proj);
 
             RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
             

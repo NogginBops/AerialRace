@@ -10,6 +10,23 @@ using System.Text;
 
 namespace AerialRace
 {
+    struct DirectionalLight
+    {
+        public Vector3 Direction;
+        public Color4 Color;
+    }
+
+    struct RenderPassSettings
+    {
+        public bool IsDepthPass;
+        public Matrix4 View;
+        public Matrix4 Projection;
+        public Vector3 ViewPos;
+
+        public DirectionalLight DirectionalLight;
+        public Color4 AmbientLight;
+    }
+
     abstract class SelfCollection<TSelf> where TSelf : SelfCollection<TSelf>
     {
         public static List<TSelf> Instances = new List<TSelf>();
@@ -45,7 +62,7 @@ namespace AerialRace
         }
 
         // FIXME: Passes
-        public static void Render(Camera camera)
+        public static void Render(ref RenderPassSettings settings)
         {
             foreach (var instance in Instances)
             {
@@ -54,28 +71,36 @@ namespace AerialRace
                 var material = instance.Material;
 
                 RenderDataUtil.BindMeshData(mesh);
-                RenderDataUtil.UsePipeline(material.Pipeline);
 
-                transform.GetTransformationMatrix(out var model);
-                var view = camera.Transform.WorldToLocal;
-                camera.CalcProjectionMatrix(out var proj);
+                if (settings.IsDepthPass)
+                {
+                    RenderDataUtil.UsePipeline(material.DepthPipeline ?? material.Pipeline);
+                }
+                else
+                {
+                    RenderDataUtil.UsePipeline(material.Pipeline);
+                }
 
-                Transformations.MultMVP(ref model, ref view, ref proj, out var mv, out var mvp);
+                // Because the matrices should all be updated we don't need to calculate it again
+                //transform.GetTransformationMatrix(out var model);
+                var model = transform.LocalToWorld;
+
+                Transformations.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
                 Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
                 RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
-                RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref view);
-                RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref proj);
+                RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
+                RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref settings.Projection);
                 RenderDataUtil.UniformMatrix4("mv", ShaderStage.Vertex, true, ref mv);
                 RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
                 RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
 
-                RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, camera.Transform.WorldPosition);
+                RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 
-                RenderDataUtil.UniformVector3("dirLight.direction", ShaderStage.Fragment, new Vector3(1f, -1, 0).Normalized());
-                RenderDataUtil.UniformVector3("dirLight.color", ShaderStage.Fragment, new Vector3(1f, 1f, 1f));
+                RenderDataUtil.UniformVector3("dirLight.direction", ShaderStage.Fragment, settings.DirectionalLight.Direction.Normalized());
+                RenderDataUtil.UniformVector3("dirLight.color", ShaderStage.Fragment, settings.DirectionalLight.Color);
 
-                RenderDataUtil.UniformVector3("scene.ambientLight", ShaderStage.Fragment, Vector3.One * 0.1f);
+                RenderDataUtil.UniformVector3("scene.ambientLight", ShaderStage.Fragment, settings.AmbientLight);
 
                 NameToTextureUnit.Clear();
 
