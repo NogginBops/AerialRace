@@ -2,6 +2,7 @@
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -62,11 +63,24 @@ namespace AerialRace
         [FieldOffset(4)] public Matrix4 Matrix4Value;
     }
 
+    struct TextureProperty
+    {
+        public string Name;
+        public Texture Texture;
+        public ISampler? Sampler;
+
+        public TextureProperty(string name, Texture texture, ISampler? sampler)
+        {
+            Name = name;
+            Texture = texture;
+            Sampler = sampler;
+        }
+    }
+
     class MaterialProperties
     {
         public List<(string Name, Property Prop)> Properties = new List<(string, Property)>();
-        public List<(string Name, Texture Texture)> Textures = new List<(string, Texture)>();
-        public List<(string Name, Sampler Sampler)> Samplers = new List<(string, Sampler)>();
+        public List<TextureProperty> Textures = new List<TextureProperty>();
 
         public MaterialProperties()
         { }
@@ -74,7 +88,7 @@ namespace AerialRace
         public MaterialProperties(MaterialProperties properties)
         {
             Properties = new List<(string, Property)>(properties.Properties);
-            Textures = new List<(string, Texture)>(properties.Textures);
+            Textures = new List<TextureProperty>(properties.Textures);
         }
 
         public void SetProperty(string name, Property property)
@@ -92,8 +106,15 @@ namespace AerialRace
 
         public void SetTexture(string name, Texture texture, Sampler sampler)
         {
-            SetTexture(name, texture);
-            SetSampler(name, sampler);
+            var index = Textures.FindIndex(st => st.Name == name);
+            if (index == -1)
+            {
+                Textures.Add(new TextureProperty(name, texture, sampler));
+            }
+            else
+            {
+                Textures[index] = new TextureProperty(name, texture, sampler);
+            }
         }
 
         public void SetTexture(string name, Texture texture)
@@ -101,24 +122,11 @@ namespace AerialRace
             var index = Textures.FindIndex(st => st.Name == name);
             if (index == -1)
             {
-                Textures.Add((name, texture));
+                Textures.Add(new TextureProperty(name, texture, null));
             }
             else
             {
-                Textures[index] = (name, texture);
-            }
-        }
-
-        public void SetSampler(string name, Sampler sampler)
-        {
-            var index = Samplers.FindIndex(st => st.Name == name);
-            if (index == -1)
-            {
-                Samplers.Add((name, sampler));
-            }
-            else
-            {
-                Samplers[index] = (name, sampler);
+                Textures[index] = new TextureProperty(name, texture, null);
             }
         }
     }

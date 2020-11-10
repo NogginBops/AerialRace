@@ -329,7 +329,9 @@ void main()
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.Disable(EnableCap.CullFace);
             GL.Disable(EnableCap.DepthTest);
-            
+
+            RenderDataUtil.BindSampler(0, (ISampler?)null);
+
             // Render command lists
             for (int n = 0; n < draw_data.CmdListsCount; n++)
             {

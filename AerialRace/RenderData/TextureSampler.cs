@@ -1,10 +1,14 @@
 ﻿using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace AerialRace.RenderData
 {
+    // ROBUSTNESS: 
+    // We rely on the sampler types having the same values as the corresponding texture type.
+    // - 2020-11-10
     enum SamplerType : int
     {
         Sampler1D   = TextureType.Texture1D,
@@ -29,15 +33,18 @@ namespace AerialRace.RenderData
         Float       = 3,
     }
 
+    // ROBUSTNESS: 
+    // We rely on the sampler types having the same values as the corresponding texture type.
+    // - 2020-11-10
     enum ShadowSamplerType : int
     {
-        Sampler1D   = 1,
-        Sampler2D   = 2,
-        SamplerCube = 3,
+        Sampler1D   = TextureType.Texture1D,
+        Sampler2D   = TextureType.Texture2D,
+        SamplerCube = TextureType.TextureCube,
 
-        Sampler1DArray   = 4,
-        Sampler2DArray   = 5,
-        SamplerCubeArray = 6,
+        Sampler1DArray   = TextureType.Texture1DArray,
+        Sampler2DArray   = TextureType.Texture2DArray,
+        SamplerCubeArray = TextureType.TextureCubeArray,
     }
 
     enum MagFilter : int
@@ -89,10 +96,21 @@ namespace AerialRace.RenderData
         Never = 8,
     }
 
-    class Sampler
+    // We just have this interface so that we can keep an array of sampler and shadow samplers
+    // - 2020-11-10
+    interface ISampler
+    {
+        public string Name { get; }
+        public int Handle { get; }
+    }
+
+    class Sampler : ISampler
     {
         public string Name;
         public int Handle;
+
+        string ISampler.Name => Name;
+        int ISampler.Handle => Handle;
 
         // Sampler objects don't actually have a type, 
         //but it might be usefull to keep track of what it's supposed to be
@@ -134,10 +152,13 @@ namespace AerialRace.RenderData
         }
     }
 
-    class ShadowSampler
+    class ShadowSampler : ISampler
     {
         public string Name;
         public int Handle;
+
+        string ISampler.Name => Name;
+        int ISampler.Handle => Handle;
 
         // Sampler objects don't actually have a type, 
         //but it might be usefull to keep track of what it's supposed to be

@@ -21,10 +21,15 @@ namespace AerialRace
         public bool IsDepthPass;
         public Matrix4 View;
         public Matrix4 Projection;
+        public Matrix4 LightSpace;
         public Vector3 ViewPos;
 
         public DirectionalLight DirectionalLight;
         public Color4 AmbientLight;
+
+        public bool UseShadows;
+        public Texture? ShadowMap;
+        public ShadowSampler? ShadowSampler;
     }
 
     abstract class SelfCollection<TSelf> where TSelf : SelfCollection<TSelf>
@@ -88,12 +93,17 @@ namespace AerialRace
                 Transformations.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
                 Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
+                Matrix4 modelToLightSpace = model * settings.LightSpace;
+
                 RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
                 RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
                 RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref settings.Projection);
                 RenderDataUtil.UniformMatrix4("mv", ShaderStage.Vertex, true, ref mv);
                 RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
                 RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
+
+                RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
+                RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
 
                 RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 
@@ -104,30 +114,33 @@ namespace AerialRace
 
                 NameToTextureUnit.Clear();
 
+                int textureStartIndex = 0;
+
+                RenderDataUtil.Uniform1("UseShadows", ShaderStage.Vertex, settings.UseShadows ? 1 : 0);
+                RenderDataUtil.Uniform1("UseShadows", ShaderStage.Fragment, settings.UseShadows ? 1 : 0);
+                if (settings.UseShadows)
+                {
+                    textureStartIndex = 1;
+
+                    RenderDataUtil.Uniform1("ShadowMap", ShaderStage.Vertex, 0);
+                    RenderDataUtil.Uniform1("ShadowMap", ShaderStage.Fragment, 0);
+                    RenderDataUtil.BindTexture(0, settings.ShadowMap!);
+                    RenderDataUtil.BindSampler(0, settings.ShadowSampler!);
+                    //RenderDataUtil.BindSampler(0, (ISampler?)null);
+                }
+
+                // FIXME!! Make binding texture better!
                 var matProperties = material.Properties;
                 for (int i = 0; i < matProperties.Textures.Count; i++)
                 {
-                    var (name, tex) = matProperties.Textures[i];
+                    var ioff = textureStartIndex + i;
 
-                    RenderDataUtil.Uniform1(name, ShaderStage.Vertex, i);
-                    RenderDataUtil.Uniform1(name, ShaderStage.Fragment, i);
-                    RenderDataUtil.BindTexture(i, tex);
+                    var texProp = matProperties.Textures[i];
+                    var name = texProp.Name;
 
-                    NameToTextureUnit.Add(name, i);
-                }
-
-                for (int i = 0; i < matProperties.Samplers.Count; i++)
-                {
-                    var (name, sampler) = matProperties.Samplers[i];
-
-                    if (NameToTextureUnit.TryGetValue(name, out int unit))
-                    {
-                        RenderDataUtil.BindSampler(unit, sampler);
-                    }
-                    else
-                    {
-                        Debug.Print($"There is no texture for the sampler '{name}'.");
-                    }
+                    RenderDataUtil.Uniform1(name, ShaderStage.Vertex, ioff);
+                    RenderDataUtil.Uniform1(name, ShaderStage.Fragment, ioff);
+                    RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
                 }
 
                 RenderDataUtil.DrawElements(

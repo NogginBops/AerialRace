@@ -52,11 +52,11 @@ namespace AerialRace.Debugging
         public int ElementCount;
         public int TextureHandle;
         // We could change this to be something like a material index instead... and make it
-        public Material Material;
+        public Material? Material;
         public Matrix3 Transform;
         public Rect Scissor;
 
-        public DrawCommand(PrimitiveType primitive, int elementCount, int glTexture = 0, Material material = null)
+        public DrawCommand(PrimitiveType primitive, int elementCount, int glTexture = 0, Material? material = null)
         {
             Command = (DrawCommandType) primitive;
             ElementCount = elementCount;
@@ -114,7 +114,7 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddCommand(PrimitiveType type, int elementCount, int texture, Material material = null)
+        public void AddCommand(PrimitiveType type, int elementCount, int texture, Material? material = null)
         {
             Commands.Add(new DrawCommand(type, elementCount, texture, material));
         }

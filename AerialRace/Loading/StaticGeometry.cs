@@ -17,19 +17,19 @@ namespace AerialRace.Loading
         public static Buffer CenteredUnitQuadBuffer;
         public static readonly StandardVertex[] CenteredUnitQuad = new StandardVertex[]
         {
-            new StandardVertex(new Vector3(-.5f, -.5f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3(-.5f,  .5f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3( .5f,  .5f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3( .5f, -.5f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(-.5f, -.5f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3(-.5f,  .5f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3( .5f,  .5f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3( .5f, -.5f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, 1f)),
         };
 
         public static Buffer UnitQuadBuffer;
         public static readonly StandardVertex[] UnitQuad = new StandardVertex[]
         {
-            new StandardVertex(new Vector3(0f, 0f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3(0f, 1f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3(1f, 1f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, -1f)),
-            new StandardVertex(new Vector3(1f, 0f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, -1f)),
+            new StandardVertex(new Vector3(0f, 0f, 0f), new Vector2(0f, 0f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3(0f, 1f, 0f), new Vector2(0f, 1f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3(1f, 1f, 0f), new Vector2(1f, 1f), new Vector3(0f, 0f, 1f)),
+            new StandardVertex(new Vector3(1f, 0f, 0f), new Vector2(1f, 0f), new Vector3(0f, 0f, 1f)),
         };
 
         public static Buffer UnitQuadDebugColorsBuffer;

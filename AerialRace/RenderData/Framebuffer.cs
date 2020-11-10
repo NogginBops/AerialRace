@@ -22,6 +22,7 @@ namespace AerialRace.RenderData
         }
     }
 
+    // FIXME: Add a size field
     class Framebuffer
     {
         public string Name;

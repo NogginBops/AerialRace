@@ -37,6 +37,11 @@ namespace AerialRace.RenderData
             return (TextureType)sType;
         }
 
+        public static TextureType ToTextureType(this ShadowSamplerType sType)
+        {
+            return (TextureType)sType;
+        }
+
         public static int SizeInBytes(BufferDataType type) => type switch
         {
             BufferDataType.UInt8  => sizeof(byte),
@@ -273,6 +278,30 @@ namespace AerialRace.RenderData
             _ => throw new InvalidEnumArgumentException(nameof(format), (int)format, typeof(TextureFormat)),
         };
 
+        public static TextureCompareMode ToGLTextureCompareMode(DepthTextureCompareMode mode) => mode switch
+        {
+            DepthTextureCompareMode.RefToTexture => TextureCompareMode.CompareRefToTexture,
+            DepthTextureCompareMode.None => TextureCompareMode.None,
+            
+            _ => throw new InvalidEnumArgumentException(nameof(mode), (int)mode, typeof(DepthTextureCompareMode)),
+        };
+
+        // We are using an empty enum definition for now until we get a TextureCompareFunc enum in the binder.
+        public enum TextureCompareFunc : int { }
+        public static TextureCompareFunc ToGLTextureCompareFunc(DepthTextureCompareFunc func) => func switch
+        {
+            DepthTextureCompareFunc.Less => (TextureCompareFunc)All.Less,
+            DepthTextureCompareFunc.Greater => (TextureCompareFunc)All.Greater,
+            DepthTextureCompareFunc.LessThanOrEqual => (TextureCompareFunc)All.Lequal,
+            DepthTextureCompareFunc.GreaterThanOrEqual => (TextureCompareFunc)All.Gequal,
+            DepthTextureCompareFunc.Equal => (TextureCompareFunc)All.Equal,
+            DepthTextureCompareFunc.NotEqual => (TextureCompareFunc)All.Notequal,
+            DepthTextureCompareFunc.Always => (TextureCompareFunc)All.Always,
+            DepthTextureCompareFunc.Never => (TextureCompareFunc)All.Never,
+
+            _ => throw new InvalidEnumArgumentException(nameof(func), (int)func, typeof(DepthTextureCompareFunc)),
+        };
+
         #endregion
 
         #region Creation 
@@ -495,8 +524,8 @@ namespace AerialRace.RenderData
 
             // Now we can inspect this shader!
 
-            Debug.WriteLine($"Uniforms for shader '{name}':");
-            Debug.Indent();
+            //Debug.WriteLine($"Uniforms for shader '{name}':");
+            //Debug.Indent();
 
             {
                 GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
@@ -517,7 +546,7 @@ namespace AerialRace.RenderData
                     program.UniformInfo[i] = fieldInfo;
                     program.UniformLocations.Add(uniformName, location);
 
-                    Debug.WriteLine($"{name} uniform {location} '{uniformName}' {type} ({size})");
+                    //Debug.WriteLine($"{name} uniform {location} '{uniformName}' {type} ({size})");
                 }
             }
 
@@ -540,8 +569,8 @@ namespace AerialRace.RenderData
                     blockInfo[i].BlockName = uniformBlockName;
                     blockInfo[i].BlockUniforms = new UniformFieldInfo[uniformIndices.Length];
 
-                    Debug.WriteLine($"Block {i} '{uniformBlockName}':");
-                    Debug.Indent();
+                    //Debug.WriteLine($"Block {i} '{uniformBlockName}':");
+                    //Debug.Indent();
                     var uniformInfo = blockInfo[i].BlockUniforms;
                     for (int j = 0; j < uniformIndices.Length; j++)
                     {
@@ -552,11 +581,11 @@ namespace AerialRace.RenderData
                         uniformInfo[j].Size = uniformSize;
                         uniformInfo[j].Type = uniformType;
 
-                        Debug.WriteLine($"{name} uniform {uniformIndices[j]} '{uniformName}' {uniformType} ({uniformSize})");
+                        //Debug.WriteLine($"{name} uniform {uniformIndices[j]} '{uniformName}' {uniformType} ({uniformSize})");
                     }
-                    Debug.Unindent();
+                    //Debug.Unindent();
                 }
-                Debug.Unindent();
+                //Debug.Unindent();
             }
 
             return true;
@@ -653,6 +682,24 @@ namespace AerialRace.RenderData
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
         }
 
+        public static ShadowSampler CreateShadowSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap, DepthTextureCompareMode depthCompMode, DepthTextureCompareFunc depthCompFunc)
+        {
+            GLUtil.CreateSampler(name, out int sampler);
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMaxAnisotropyExt, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
+
+            return new ShadowSampler(name, sampler, ShadowSamplerType.Sampler2D, magFilter, minFilter, 0, -1000, 1000, anisoLevel, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false, depthCompMode, depthCompFunc);
+        }
+
         public static Mesh CreateMesh(string name, MeshData data)
         {
             var indexbuffer = data.IndexType switch
@@ -711,6 +758,7 @@ namespace AerialRace.RenderData
 
             BufferStorageFlags glFlags = ToGLStorageFlags(buffer.Flags);
             // GLEXT: ARB_direct_access
+
             GL.NamedBufferStorage(buffer.Handle, newElementCount * buffer.ElementSize, IntPtr.Zero, glFlags);
             buffer.Elements = newElementCount;
         }
@@ -1044,7 +1092,7 @@ namespace AerialRace.RenderData
         public const int MinTextureUnits = 16;
 
         public static Texture?[] BoundTextures = new Texture[MinTextureUnits];
-        public static Sampler?[] BoundSamplers = new Sampler[MinTextureUnits];
+        public static ISampler?[] BoundSamplers = new ISampler[MinTextureUnits];
 
         public static void BindTexture(int unit, Texture texture, Sampler sampler)
         {
@@ -1052,6 +1100,29 @@ namespace AerialRace.RenderData
             {
                 Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
             }
+
+            BindTexture(unit, texture);
+            BindSampler(unit, sampler);
+        }
+
+        public static void BindTexture(int unit, Texture texture, ShadowSampler sampler)
+        {
+            if (BoundTextures[unit]?.Type != sampler.Type.ToTextureType())
+            {
+                Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
+            }
+
+            BindTexture(unit, texture);
+            BindSampler(unit, sampler);
+        }
+
+        public static void BindTexture(int unit, Texture texture, ISampler? sampler)
+        {
+            // FIXME!
+            //if (BoundTextures[unit]?.Type != sampler.Type.ToTextureType())
+            //{
+            //    Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
+            //}
 
             BindTexture(unit, texture);
             BindSampler(unit, sampler);
@@ -1079,6 +1150,26 @@ namespace AerialRace.RenderData
             if (BoundSamplers[unit] != sampler)
             {
                 GL.BindSampler(unit, sampler.Handle);
+
+                BoundSamplers[unit] = sampler;
+            }
+        }
+
+        public static void BindSampler(int unit, ShadowSampler sampler)
+        {
+            if (BoundSamplers[unit] != sampler)
+            {
+                GL.BindSampler(unit, sampler.Handle);
+
+                BoundSamplers[unit] = sampler;
+            }
+        }
+
+        public static void BindSampler(int unit, ISampler? sampler)
+        {
+            if (BoundSamplers[unit] != sampler)
+            {
+                GL.BindSampler(unit, sampler?.Handle ?? 0);
 
                 BoundSamplers[unit] = sampler;
             }

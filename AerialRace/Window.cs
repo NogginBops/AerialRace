@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Transactions;
 
 namespace AerialRace
@@ -65,6 +66,8 @@ namespace AerialRace
         Framebuffer Shadowmap;
         Framebuffer DepthBuffer;
 
+        ShadowSampler ShadowSampler;
+
         //EntityManager Manager = new EntityManager();
 
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
@@ -105,22 +108,14 @@ namespace AerialRace
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
-            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.vert") }, out ShaderProgram depthVertProgram);
-            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.frag") }, out ShaderProgram depthFragProgram);
-
+            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.vert") }, out ShaderProgram? depthVertProgram);
+            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.frag") }, out ShaderProgram? depthFragProgram);
             RenderDataUtil.CreatePipeline("Standard Depth", depthVertProgram, null, depthFragProgram, out var depthPipeline);
 
-            RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/StandardVertex.vert") }, out ShaderProgram? vertexProgram);
-            RenderDataUtil.CreateShaderProgram("UV Debug Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Debug.frag") }, out ShaderProgram? fragmentProgram);
+            RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Standard.vert") }, out ShaderProgram? standardVertex);
+            RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Standard.frag") }, out ShaderProgram? standardFragment);
 
-            var firstShader = RenderDataUtil.CreateEmptyPipeline("First shader pipeline");
-            RenderDataUtil.AssembleProgramPipeline(firstShader, vertexProgram, null, fragmentProgram);
-
-            RenderDataUtil.CreateShaderProgram("Debug Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/SimpleVertex.vert") }, out ShaderProgram? debugVertex);
-            RenderDataUtil.CreateShaderProgram("Debug Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/SimpleDebug.frag") }, out ShaderProgram? debugFragment);
-
-            var debugShader = RenderDataUtil.CreateEmptyPipeline("Debug Shader");
-            RenderDataUtil.AssembleProgramPipeline(debugShader, debugVertex, null, debugFragment);
+            RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment, out var debugShader);
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
 
@@ -128,7 +123,7 @@ namespace AerialRace
 
             //Material = new Material("First Material", firstShader, null);
             Material = new Material("Debug Material", debugShader, depthPipeline);
-            Material.Properties.SetTexture("testTex", TestTexture, DebugSampler);
+            Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
 
             // This should be the first refernce to StaticGeometry.
             StaticGeometry.Init();
@@ -160,20 +155,20 @@ namespace AerialRace
             FloorTransform.Name = "Floor";
 
             var floorMat = new Material("Floor Mat", debugShader, depthPipeline);
-            floorMat.Properties.SetTexture("testTex", TestTexture, DebugSampler);
+            floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
 
             FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
 
-            RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
-            RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
+            //RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
+            //RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
 
             var shipPipeline = RenderDataUtil.CreateEmptyPipeline("Ship Shader");
-            RenderDataUtil.AssembleProgramPipeline(shipPipeline, shipVertex, null, shipFragment);
+            RenderDataUtil.AssembleProgramPipeline(shipPipeline, standardVertex, null, standardFragment);
 
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, false);
 
             Material shipMaterial = new Material("Ship", shipPipeline, depthPipeline);
-            shipMaterial.Properties.SetTexture("testTex", ShipTexture, DebugSampler);
+            shipMaterial.Properties.SetTexture("AlbedoTex", ShipTexture, DebugSampler);
 
             Phys.Init();
 
@@ -191,9 +186,9 @@ namespace AerialRace
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
 
-            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(500, 1, 500)), new Vector3(0, 0, 0), physMat);
+            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(500, 1, 500)), new Vector3(0, -0.5f, 0), physMat);
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
-            new MeshRenderer(new Transform("", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
+            new MeshRenderer(new Transform("Cube", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
 
             TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
             TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f, SimpleMaterial.Default, SimpleBody.Default);
@@ -213,6 +208,17 @@ namespace AerialRace
             {
                 Debug.Break();
             }
+
+            var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048, 2048);
+            RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
+
+            status = RenderDataUtil.CheckFramebufferComplete(Shadowmap, RenderData.FramebufferTarget.Draw);
+            if (status != FramebufferStatus.FramebufferComplete)
+            {
+                Debug.Break();
+            }
+
+            ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
 
             // Setup an always bound VAO
             RenderDataUtil.SetupGlobalVAO();
@@ -258,18 +264,55 @@ namespace AerialRace
             GL.ClearColor(Camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Camera.CalcProjectionMatrix(out var proj);
+            Vector3 directionalLightPos = new Vector3(100, 100, 0);
+            Vector3 directionalLightDir = (Vector3.Zero - directionalLightPos).Normalized();
+
+            var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
+            var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
+            var lightSpace = lightView * proj;
+
+            RenderPassSettings shadowPass = new RenderPassSettings()
+            {
+                IsDepthPass = true,
+                View = lightView,
+                Projection = proj,
+                LightSpace = Matrix4.Identity,
+                ViewPos = directionalLightPos,
+
+                DirectionalLight = new DirectionalLight()
+                {
+                    Direction = directionalLightDir,
+                    Color = Color4.White,
+                },
+                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+            };
+
+            RenderDataUtil.BindDrawFramebuffer(Shadowmap);
+            GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Width, Shadowmap.DepthAttachment!.Height);
+
+            GL.DepthMask(true);
+            GL.ColorMask(false, false, false, false);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+            GL.DepthFunc(DepthFunction.Lequal);
+
+            MeshRenderer.Render(ref shadowPass);
+
+            RenderDataUtil.BindDrawFramebuffer(null);
+            GL.Viewport(0, 0, Width, Height);
+
+            Camera.CalcProjectionMatrix(out proj);
 
             RenderPassSettings depthPrePass = new RenderPassSettings()
             {
                 IsDepthPass = true,
                 View = Camera.Transform.WorldToLocal,
                 Projection = proj,
+                LightSpace = lightSpace,
                 ViewPos = Camera.Transform.WorldPosition,
 
                 DirectionalLight = new DirectionalLight()
                 {
-                    Direction = new Vector3(1, -1, 0),
+                    Direction = directionalLightDir,
                     Color = Color4.White,
                 },
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
@@ -277,9 +320,9 @@ namespace AerialRace
 
             //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
 
-            GL.Clear(ClearBufferMask.DepthBufferBit);
             GL.DepthMask(true);
             GL.ColorMask(false, false, false, false);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
             GL.DepthFunc(DepthFunction.Lequal);
 
             MeshRenderer.Render(ref depthPrePass);
@@ -295,14 +338,19 @@ namespace AerialRace
                 IsDepthPass = false,
                 View = Camera.Transform.WorldToLocal,
                 Projection = proj,
+                LightSpace = lightSpace,
                 ViewPos = Camera.Transform.WorldPosition,
 
                 DirectionalLight = new DirectionalLight()
                 {
-                    Direction = new Vector3(1, -1, 0),
+                    Direction = directionalLightDir,
                     Color = Color4.White,
                 },
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+
+                UseShadows = true,
+                ShadowMap = Shadowmap.DepthAttachment,
+                ShadowSampler = ShadowSampler,
             };
 
             GL.DepthMask(false);
@@ -338,12 +386,24 @@ namespace AerialRace
         public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
         void UpdateCamera(float deltaTime)
         {
-            var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
-            
+            MouseInfluence -= deltaTime * 0.2f;
+            if (MouseInfluence < 0) MouseInfluence = 0;
+
+            //var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
+
+            var targetPos = Player.Transform.LocalPosition;
+
+            Quaternion rotation =
+                    Player.Transform.LocalRotation *
+                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation * MouseInfluence) *
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation * MouseInfluence) *
+                    RotationOffset;
+
+            targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
+
             Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 10f * deltaTime);
 
-            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, Player.Transform.LocalRotation * RotationOffset, 3f * deltaTime);
-
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 3f * deltaTime);
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
 
@@ -395,6 +455,7 @@ namespace AerialRace
 
                             // FIXME: Texture!!
                             RenderDataUtil.BindTextureUnsafe(0, command.TextureHandle);
+                            RenderDataUtil.BindSampler(0, (ISampler?)null);
 
                             GL.DrawElements((PrimitiveType)command.Command, command.ElementCount, DrawElementsType.UnsignedInt, indexBufferOffset * sizeof(uint));
 
@@ -681,6 +742,8 @@ namespace AerialRace
             }*/
         }
 
+        public float MouseInfluence = 0f;
+
         public float MouseSpeedX = 0.2f;
         public float MouseSpeedY = 0.2f;
         public float CameraMinY = -75f;
@@ -694,15 +757,27 @@ namespace AerialRace
             // Move the camera
             if (mouse.IsButtonDown(MouseButton.Right))
             {
+                MouseInfluence = 1f;
+
                 var delta = mouse.Delta;
 
                 Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
                 Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;
                 Camera.XAxisRotation = MathHelper.Clamp(Camera.XAxisRotation, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
 
-                Camera.Transform.LocalRotation =
+                var targetPos = Player.Transform.LocalPosition;
+
+                Quaternion rotation = 
                     Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
                     Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
+
+                //Camera.Transform.LocalPosition = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
+
+                //Camera.Transform.LocalRotation = rotation;
+
+                //Camera.Transform.LocalRotation =
+                //    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
+                //    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
             }
         }
 
