@@ -63,7 +63,7 @@ namespace AerialRace
 
             Collider = new MeshCollider(meshData);
             //Collider = new BoxCollider(new Vector3(5f, 1f, 5f));
-            RigidBody = new RigidBody(Collider, Transform, 2f, playerPhysMat, playerBodyProp);
+            RigidBody = new RigidBody(Collider, Transform, 200f, playerPhysMat, playerBodyProp);
 
             // Never let this body go to sleep
             RigidBody.Body.Activity.SleepThreshold = -1;
@@ -84,12 +84,22 @@ namespace AerialRace
             var forwardVel = Transform.Forward * Vector3.Dot(Velocity, Transform.Forward);
             var cosVertVel = Vector3.Dot(Velocity, Transform.Up);
             var verticalVel = Transform.Up * cosVertVel;
+            var lateralVel = Transform.Right * Vector3.Dot(Velocity, Transform.Right);
 
-            const float LiftFactor = 0.8f;
-            var lift = forwardVel.Length * LiftFactor;
+            const float VerticalLiftFactor = 0.9f;
+            const float LateralLiftFactor = 0.2f;
+            const float density = 1.2041f;
+            const float verticalArea = 10f;
+            const float lateralArea = 1f;
+            //var verticalLift = -verticalVel * VerticalLiftFactor;
+            var verticalLift = VerticalLiftFactor * ((density * -verticalVel * verticalVel.Abs()) / 2f) * verticalArea;
+            var lateralLift = LateralLiftFactor * ((density * -lateralVel * lateralVel.Abs()) / 2f) * lateralArea;
 
-            //RigidBody.Body.ApplyLinearImpulse((Transform.Up * lift * deltaTime).ToNumerics());
-            Debug.Direction(Transform.LocalPosition, Transform.Up * lift, Color4.Lime);
+            RigidBody.Body.ApplyLinearImpulse((verticalLift * deltaTime).ToNumerics());
+            Debug.Direction(Transform.LocalPosition, verticalLift, Color4.Lime);
+
+            RigidBody.Body.ApplyLinearImpulse((lateralLift * deltaTime).ToNumerics());
+            Debug.Direction(Transform.LocalPosition, lateralLift, Color4.Lime);
 
             Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
 

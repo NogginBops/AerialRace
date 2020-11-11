@@ -16,6 +16,8 @@ namespace AerialRace.Physics
 
         public BodyReference Body;
 
+        public float Mass;
+
         public RigidBody(ICollider shape, Transform transform, float mass, SimpleMaterial material, SimpleBody bodyProp)
         {
             Shape = shape;
@@ -27,6 +29,7 @@ namespace AerialRace.Physics
                 new BodyActivityDescription(0.001f),
                 material,
                 bodyProp);
+            Mass = mass;
         }
 
         // FIXME: We want to handle scaling in some way.

@@ -220,6 +220,8 @@ namespace AerialRace
 
             ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
 
+            Editor.Editor.InitEditor(this);
+
             // Setup an always bound VAO
             RenderDataUtil.SetupGlobalVAO();
         }
@@ -254,14 +256,42 @@ namespace AerialRace
             }
 
             UpdateCamera(deltaTime);
-
             Camera.Transform.UpdateMatrices();
+
+            if (Editor.Editor.InEditorMode)
+            {
+                Editor.Editor.EditorCamera.Transform.UpdateMatrices();
+
+                RenderScene(Editor.Editor.EditorCamera);
+
+                Editor.Editor.ShowEditor();
+            }
+            else
+            {
+                RenderScene(Camera);
+            }
+
+            ImGui.EndFrame();
+            imGuiController.Render();
+
+            // FIXME: Reset gl state!
+            // The blend mode is changed to this after imgui
+            //GL.BlendEquation(BlendEquationMode.FuncAdd);
+            //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            // Depth testing is also turned off!
+
+            SwapBuffers();
+        }
+
+        public void RenderScene(Camera camera)
+        {
+            GL.Enable(EnableCap.DepthTest);
 
             // To be able to clear the depth buffer we need to enable writing to it
             GL.DepthMask(true);
             GL.ColorMask(true, true, true, true);
 
-            GL.ClearColor(Camera.ClearColor);
+            GL.ClearColor(camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             Vector3 directionalLightPos = new Vector3(100, 100, 0);
@@ -300,15 +330,15 @@ namespace AerialRace
             RenderDataUtil.BindDrawFramebuffer(null);
             GL.Viewport(0, 0, Width, Height);
 
-            Camera.CalcProjectionMatrix(out proj);
+            camera.CalcProjectionMatrix(out proj);
 
             RenderPassSettings depthPrePass = new RenderPassSettings()
             {
                 IsDepthPass = true,
-                View = Camera.Transform.WorldToLocal,
+                View = camera.Transform.WorldToLocal,
                 Projection = proj,
                 LightSpace = lightSpace,
-                ViewPos = Camera.Transform.WorldPosition,
+                ViewPos = camera.Transform.WorldPosition,
 
                 DirectionalLight = new DirectionalLight()
                 {
@@ -336,10 +366,10 @@ namespace AerialRace
             RenderPassSettings colorPass = new RenderPassSettings()
             {
                 IsDepthPass = false,
-                View = Camera.Transform.WorldToLocal,
+                View = camera.Transform.WorldToLocal,
                 Projection = proj,
                 LightSpace = lightSpace,
-                ViewPos = Camera.Transform.WorldPosition,
+                ViewPos = camera.Transform.WorldPosition,
 
                 DirectionalLight = new DirectionalLight()
                 {
@@ -359,51 +389,45 @@ namespace AerialRace
 
             MeshRenderer.Render(ref colorPass);
 
-            ImGui.EndFrame();
-            imGuiController.Render();
-
-            // FIXME: Reset gl state!
-            // The blend mode is changed to this after imgui
-            //GL.BlendEquation(BlendEquationMode.FuncAdd);
-            //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            //GL.Enable(EnableCap.CullFace);
-
             // Draw debug stuff
             GL.Disable(EnableCap.DepthTest);
 
-            Matrix4 viewMatrix = Camera.Transform.WorldToLocal;
-            Camera.CalcProjectionMatrix(out proj);
+            Matrix4 viewMatrix = camera.Transform.WorldToLocal;
+            camera.CalcProjectionMatrix(out proj);
 
             RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
-            
-            GL.Enable(EnableCap.DepthTest);
-
-            SwapBuffers();
         }
 
-        public Vector3 CameraOffset = new Vector3(0, 6f, 17f);
+        public Vector3 CameraOffset = new Vector3(0, 6f, 27f);
         public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
         void UpdateCamera(float deltaTime)
         {
-            MouseInfluence -= deltaTime * 0.2f;
-            if (MouseInfluence < 0) MouseInfluence = 0;
+            MouseInfluenceTimeout -= deltaTime;
+            if (MouseInfluenceTimeout < 0.001f)
+            {
+                MouseInfluenceTimeout = 0;
 
+                Camera.XAxisRotation -= Camera.XAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.XAxisRotation) < 0.001f) Camera.XAxisRotation = 0;
+                Camera.YAxisRotation -= Camera.YAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.YAxisRotation) < 0.001f) Camera.YAxisRotation = 0;
+            }
+            
             //var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
 
             var targetPos = Player.Transform.LocalPosition;
 
             Quaternion rotation =
                     Player.Transform.LocalRotation *
-                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation * MouseInfluence) *
-                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation * MouseInfluence) *
+                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation) *
                     RotationOffset;
 
             targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
 
-            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 10f * deltaTime);
+            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 30f * deltaTime);
 
-            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 3f * deltaTime);
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 30f * deltaTime);
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
 
@@ -632,15 +656,17 @@ namespace AerialRace
 
             //Camera.Transform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
 
-            HandleKeyboard(KeyboardState, (float)args.Time);
-            HandleMouse(MouseState, (float)args.Time);
-        }
-
-        public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
-        {
+            // Exit if needed
             if (IsKeyPressed(Keys.Escape))
             {
                 Close();
+            }
+
+            // Toggle editor mode
+            var ctrlDown = KeyboardState.IsKeyDown(Keys.LeftControl) | KeyboardState.IsKeyDown(Keys.Right);
+            if (ctrlDown && KeyboardState.IsKeyPressed(Keys.E))
+            {
+                Editor.Editor.InEditorMode = !Editor.Editor.InEditorMode;
             }
 
             var io = ImGui.GetIO();
@@ -649,32 +675,45 @@ namespace AerialRace
                 return;
             }
 
+            if (Editor.Editor.InEditorMode)
+            {
+                Editor.Editor.UpdateEditor(KeyboardState, MouseState, (float)args.Time);
+            }
+            else
+            {
+                HandleKeyboard(KeyboardState, (float)args.Time);
+                HandleMouse(MouseState, (float)args.Time);
+            }
+        }
+
+        public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
+        {
             if (IsKeyDown(Keys.A))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 2f * MathHelper.TwoPi * deltaTime, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.D))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -2f * MathHelper.TwoPi * deltaTime, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.W))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-2 * MathHelper.TwoPi * deltaTime, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-6 * MathHelper.TwoPi * deltaTime, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.S))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(2 * MathHelper.TwoPi * deltaTime, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(6 * MathHelper.TwoPi * deltaTime, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.Up))
@@ -689,21 +728,21 @@ namespace AerialRace
 
             if (IsKeyDown(Keys.Q))
             {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, 2 * MathHelper.TwoPi * deltaTime));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, 4 * MathHelper.TwoPi * deltaTime));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.E))
             {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -2 * MathHelper.TwoPi * deltaTime));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics());
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -4 * MathHelper.TwoPi * deltaTime));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.Space))
             {
-                Player.CurrentAcceleration = 60f;
+                Player.CurrentAcceleration = 60f * Player.RigidBody.Mass;
             }
             else
             {
@@ -742,7 +781,7 @@ namespace AerialRace
             }*/
         }
 
-        public float MouseInfluence = 0f;
+        public float MouseInfluenceTimeout = 0f;
 
         public float MouseSpeedX = 0.2f;
         public float MouseSpeedY = 0.2f;
@@ -757,7 +796,7 @@ namespace AerialRace
             // Move the camera
             if (mouse.IsButtonDown(MouseButton.Right))
             {
-                MouseInfluence = 1f;
+                MouseInfluenceTimeout = 1f;
 
                 var delta = mouse.Delta;
 

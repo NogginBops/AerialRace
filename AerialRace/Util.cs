@@ -123,5 +123,9 @@ namespace AerialRace
 
         public static Quaternion ToOpenTK(this System.Numerics.Quaternion quat) =>
             new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
+
+
+        public static Vector3 Abs(this Vector3 vec3) =>
+            new Vector3(MathF.Abs(vec3.X), MathF.Abs(vec3.Y), MathF.Abs(vec3.Z));
     }
 }
