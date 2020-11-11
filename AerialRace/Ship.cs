@@ -53,7 +53,7 @@ namespace AerialRace
                 MaximumRecoveryVelocity = 2f,
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
-
+            
             SimpleBody playerBodyProp = new SimpleBody()
             {
                 HasGravity = true,

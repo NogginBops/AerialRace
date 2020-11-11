@@ -412,7 +412,7 @@ namespace AerialRace
                 Camera.YAxisRotation -= Camera.YAxisRotation * deltaTime * 3f;
                 if (Math.Abs(Camera.YAxisRotation) < 0.001f) Camera.YAxisRotation = 0;
             }
-            
+
             //var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
 
             var targetPos = Player.Transform.LocalPosition;
@@ -705,14 +705,14 @@ namespace AerialRace
             if (IsKeyDown(Keys.W))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-6 * MathHelper.TwoPi * deltaTime, 0, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-4 * MathHelper.TwoPi * deltaTime, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.S))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(6 * MathHelper.TwoPi * deltaTime, 0, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(4 * MathHelper.TwoPi * deltaTime, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
