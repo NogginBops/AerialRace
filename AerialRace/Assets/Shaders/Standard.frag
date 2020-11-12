@@ -55,7 +55,7 @@ void main(void)
 {
     vec3 normal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
 
-    vec3 lightDir = -dirLight.direction;
+    vec3 lightDir = dirLight.direction;
     vec3 viewDir = normalize(ViewPos - fragPos.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 

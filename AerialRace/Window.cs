@@ -40,14 +40,14 @@ namespace AerialRace
         Mesh Mesh;
 
         Mesh QuadMesh;
+
         Transform QuadTransform;
+        MeshRenderer QuadRenderer;
 
         Transform ChildTransform;
+        MeshRenderer ChildRenderer;
 
         Transform FloorTransform;
-
-        MeshRenderer QuadRenderer;
-        MeshRenderer ChildRenderer;
         MeshRenderer FloorRenderer;
 
         Camera Camera;
@@ -67,6 +67,8 @@ namespace AerialRace
         Framebuffer DepthBuffer;
 
         ShadowSampler ShadowSampler;
+
+        SkyRenderer Sky;
 
         //EntityManager Manager = new EntityManager();
 
@@ -220,6 +222,16 @@ namespace AerialRace
 
             ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
 
+            RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Sky.vert") }, out var skyVertexProgram);
+            RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Sky.frag") }, out var skyFragmentProgram);
+
+            RenderDataUtil.CreatePipeline("Sky", skyVertexProgram, null, skyFragmentProgram, out var skyPipeline);
+
+            Material skyMat = new Material("Sky Material", skyPipeline, null);
+
+            var sunPosition = new Vector3(100, 100, 0);
+            Sky = new SkyRenderer(skyMat, sunPosition.Normalized(), new Color4(1f, 1f, 1f, 1f));
+
             Editor.Editor.InitEditor(this);
 
             // Setup an always bound VAO
@@ -294,8 +306,9 @@ namespace AerialRace
             GL.ClearColor(camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            Vector3 directionalLightPos = new Vector3(100, 100, 0);
-            Vector3 directionalLightDir = (Vector3.Zero - directionalLightPos).Normalized();
+            Color4 directionalLightColor = SkyRenderer.Instance.SunColor;
+            Vector3 directionalLightDir = SkyRenderer.Instance.SunDirection;
+            Vector3 directionalLightPos = directionalLightDir * 100f;
 
             var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
             var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
@@ -309,10 +322,13 @@ namespace AerialRace
                 LightSpace = Matrix4.Identity,
                 ViewPos = directionalLightPos,
 
+                NearPlane = camera.NearPlane,
+                FarPlane = camera.FarPlane,
+
                 DirectionalLight = new DirectionalLight()
                 {
                     Direction = directionalLightDir,
-                    Color = Color4.White,
+                    Color = directionalLightColor,
                 },
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
             };
@@ -340,10 +356,13 @@ namespace AerialRace
                 LightSpace = lightSpace,
                 ViewPos = camera.Transform.WorldPosition,
 
+                NearPlane = camera.NearPlane,
+                FarPlane = camera.FarPlane,
+
                 DirectionalLight = new DirectionalLight()
                 {
                     Direction = directionalLightDir,
-                    Color = Color4.White,
+                    Color = directionalLightColor,
                 },
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
             };
@@ -371,10 +390,13 @@ namespace AerialRace
                 LightSpace = lightSpace,
                 ViewPos = camera.Transform.WorldPosition,
 
+                NearPlane = camera.NearPlane,
+                FarPlane = camera.FarPlane,
+
                 DirectionalLight = new DirectionalLight()
                 {
                     Direction = directionalLightDir,
-                    Color = Color4.White,
+                    Color = directionalLightColor,
                 },
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
@@ -387,7 +409,10 @@ namespace AerialRace
             GL.ColorMask(true, true, true, true);
             GL.DepthFunc(DepthFunction.Equal);
 
+            // We only want to render the skybox when we are rendering the final colors
+            SkyRenderer.Render(ref colorPass);
             MeshRenderer.Render(ref colorPass);
+
 
             // Draw debug stuff
             GL.Disable(EnableCap.DepthTest);

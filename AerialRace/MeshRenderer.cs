@@ -24,6 +24,8 @@ namespace AerialRace
         public Matrix4 LightSpace;
         public Vector3 ViewPos;
 
+        public float NearPlane, FarPlane;
+
         public DirectionalLight DirectionalLight;
         public Color4 AmbientLight;
 
@@ -52,9 +54,6 @@ namespace AerialRace
 
     class MeshRenderer : SelfCollection<MeshRenderer>
     {
-        // FIXME: We should have a better system for binding and using textures
-        public static Dictionary<string, int> NameToTextureUnit = new Dictionary<string, int>();
-
         public Transform Transform;
         public Mesh Mesh;
         public Material Material;
@@ -112,10 +111,9 @@ namespace AerialRace
 
                 RenderDataUtil.UniformVector3("scene.ambientLight", ShaderStage.Fragment, settings.AmbientLight);
 
-                NameToTextureUnit.Clear();
-
                 int textureStartIndex = 0;
 
+                // FIXME!! Make binding texture better!
                 RenderDataUtil.Uniform1("UseShadows", ShaderStage.Vertex, settings.UseShadows ? 1 : 0);
                 RenderDataUtil.Uniform1("UseShadows", ShaderStage.Fragment, settings.UseShadows ? 1 : 0);
                 if (settings.UseShadows)
@@ -129,7 +127,6 @@ namespace AerialRace
                     //RenderDataUtil.BindSampler(0, (ISampler?)null);
                 }
 
-                // FIXME!! Make binding texture better!
                 var matProperties = material.Properties;
                 for (int i = 0; i < matProperties.Textures.Count; i++)
                 {

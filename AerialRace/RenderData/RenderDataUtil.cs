@@ -902,6 +902,14 @@ namespace AerialRace.RenderData
             GL.VertexAttribBinding(link.AttribIndex, link.BufferIndex);
         }
 
+        public static void LinkAttributeBuffers(Span<AttributeBufferLink> links)
+        {
+            for (int i = 0; i < links.Length; i++)
+            {
+                LinkAttributeBuffer(links[i]);
+            }
+        }
+
         public static void LinkAttributeBuffer(int attribIndex, int bufferIndex)
         {
             GL.VertexAttribBinding(attribIndex, bufferIndex);
@@ -1060,6 +1068,14 @@ namespace AerialRace.RenderData
             GL.ProgramUniform1(prog.Handle, location, i);
         }
 
+        public static void Uniform1(string uniformName, ShaderStage stage, float f)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniform1(prog.Handle, location, f);
+        }
+
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
         struct CameraData
         {
@@ -1208,6 +1224,13 @@ namespace AerialRace.RenderData
         public static void DrawElements(PrimitiveType type, int elements, IndexBufferType indexType, int offset)
         {
             GL.DrawElements(type, elements, ToGLDrawElementsType(indexType), offset);
+        }
+
+        public static void DrawAllElements(PrimitiveType type)
+        {
+            if (CurrentIndexBuffer == null) throw new Exception("Cannot draw all elements if there is no element buffer bound!");
+
+            GL.DrawElements(type, CurrentIndexBuffer.Elements, ToGLDrawElementsType(CurrentIndexBuffer.IndexType), 0);
         }
     }
 }
