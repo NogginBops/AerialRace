@@ -14,10 +14,12 @@ uniform vec3 ViewPos;
 
 uniform sampler2D AlbedoTex;
 
-uniform struct DirectionalLight {
-    vec3 direction;
-    vec3 color;
-} dirLight;
+uniform struct Sky {
+    vec3 SunDirection;
+    vec3 SunColor;
+    vec3 SkyColor;
+    vec3 GroundColor;
+} sky;
 
 uniform struct Scene {
     vec3 ambientLight;
@@ -26,6 +28,16 @@ uniform struct Scene {
 uniform bool UseShadows;
 uniform sampler2DShadow ShadowMap;
 
+vec3 skyColor(vec3 direction)
+{
+    vec3 sun = sky.SunColor * pow(max(dot(direction, sky.SunDirection), 0f), 200);
+    float directionDot = dot(direction, vec3(0,1,0));
+    const float margin = 0.005f;
+    float groundMask = smoothstep(-margin, margin, directionDot);
+    float skyGradient = max(1-(directionDot - 0.3f), 0);
+    vec3 skyColor = sky.SkyColor * groundMask * skyGradient + (sky.GroundColor * (1-groundMask));
+    return skyColor + sun;
+}
 
 float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
@@ -55,7 +67,7 @@ void main(void)
 {
     vec3 normal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
 
-    vec3 lightDir = dirLight.direction;
+    vec3 lightDir = sky.SunDirection;
     vec3 viewDir = normalize(ViewPos - fragPos.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 
@@ -63,10 +75,10 @@ void main(void)
 
     vec3 norm = normalize(normal);
     float diff = max(dot(norm, lightDir), 0.0f);
-    vec3 diffuse = dirLight.color * diff * albedo;
-    vec3 ambient = scene.ambientLight * albedo;
+    vec3 diffuse = sky.SunColor * diff * albedo;
+    vec3 ambient = skyColor(normal) * albedo;
 
-    float shadow = 1f - ShadowCalculation(lightSpacePosition, normal, dirLight.direction);
+    float shadow = 1f - ShadowCalculation(lightSpacePosition, normal, sky.SunDirection);
 
     Color = vec4(ambient + diffuse * shadow, 1);
 }

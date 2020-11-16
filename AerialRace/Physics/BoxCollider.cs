@@ -16,7 +16,7 @@ namespace AerialRace.Physics
         public IConvexShape Shape => Box;
         public TypedIndex TypedIndex => BoxShape;
 
-        public Vector3 Center => new Vector3(Box.HalfWidth, Box.HalfHeight, Box.HalfLength);
+        public Vector3 Center => Vector3.Zero;
 
         public BoxCollider(Vector3 size)
         {

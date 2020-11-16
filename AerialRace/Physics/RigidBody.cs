@@ -37,8 +37,8 @@ namespace AerialRace.Physics
         public void UpdateTransform(Transform transform)
         {
             var pose = Body.Pose;
-            transform.LocalPosition = pose.Position.ToOpenTK();
             transform.LocalRotation = pose.Orientation.ToOpenTK();
+            transform.LocalPosition = pose.Position.ToOpenTK() - transform.LocalRotation * Shape.Center;
         }
     }
 }

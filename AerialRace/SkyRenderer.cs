@@ -18,7 +18,6 @@ namespace AerialRace
             new Vector3(-1,  1, 1),
             new Vector3( 1,  1, 1),
             new Vector3( 1, -1, 1),
-
         };
 
         public static readonly AttributeSpecification[] skyboxAttribs = new[]
@@ -82,13 +81,19 @@ namespace AerialRace
             RenderDataUtil.UniformMatrix4("invView", ShaderStage.Vertex, true, ref invView);
             RenderDataUtil.UniformMatrix4("invViewProj", ShaderStage.Vertex, true, ref invViewProj);
 
+            RenderDataUtil.UniformMatrix4("invProj", ShaderStage.Fragment, true, ref invProj);
+            RenderDataUtil.UniformMatrix4("invView", ShaderStage.Fragment, true, ref invView);
+            RenderDataUtil.UniformMatrix4("invViewProj", ShaderStage.Fragment, true, ref invViewProj);
+
             RenderDataUtil.Uniform1("nearPlane", ShaderStage.Vertex, settings.NearPlane);
             RenderDataUtil.Uniform1("farPlane", ShaderStage.Vertex, settings.FarPlane);
 
             RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 
-            RenderDataUtil.UniformVector3("SunDirection", ShaderStage.Fragment, settings.DirectionalLight.Direction);
-            RenderDataUtil.UniformVector3("SunColor", ShaderStage.Fragment, settings.DirectionalLight.Color);
+            RenderDataUtil.UniformVector3("sky.SunDirection", ShaderStage.Fragment, settings.Sky.SunDirection);
+            RenderDataUtil.UniformVector3("sky.SunColor", ShaderStage.Fragment, settings.Sky.SunColor);
+            RenderDataUtil.UniformVector3("sky.SkyColor", ShaderStage.Fragment, settings.Sky.SkyColor);
+            RenderDataUtil.UniformVector3("sky.GroundColor", ShaderStage.Fragment, settings.Sky.GroundColor);
 
             RenderDataUtil.DrawAllElements(PrimitiveType.Triangles);
         }

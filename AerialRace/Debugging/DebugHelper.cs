@@ -73,8 +73,8 @@ namespace AerialRace.Debugging
             {
                 float t = i / (float)Segments;
 
-                float x = (float)Math.Cos(t * 2 * Math.PI);
-                float y = (float)Math.Sin(t * 2 * Math.PI);
+                float x = MathF.Cos(t * 2 * MathF.PI);
+                float y = MathF.Sin(t * 2 * MathF.PI);
 
                 Vector2 pos = new Vector2(x, y) * Radius;
 
@@ -84,5 +84,72 @@ namespace AerialRace.Debugging
             list.AddCommand(PrimitiveType.LineLoop, Segments, BuiltIn.WhiteTex.Handle);
         }
 
+        struct Vertex
+        {
+            public Vector3 Pos;
+            public Vector2 UV;
+            public Vertex(Vector3 pos, Vector2 uv)
+            {
+                Pos = pos;
+                UV = uv;
+            }
+        }
+
+        static readonly Vertex[] BoxVertices = new[]
+            {
+                new Vertex(new Vector3(-1, -1, -1),  new Vector2(0, 1)),
+                new Vertex(new Vector3(-1, -1, 1),   new Vector2(1, 1)),
+                new Vertex(new Vector3(-1, 1, -1),   new Vector2(0, 0)),
+                new Vertex(new Vector3(-1, 1, 1),    new Vector2(1, 0)),
+
+                new Vertex(new Vector3(1, -1, -1),   new Vector2(1, 0)),
+                new Vertex(new Vector3(1, 1, -1),    new Vector2(0, 0)),
+                new Vertex(new Vector3(1, -1, 1),    new Vector2(1, 1)),
+                new Vertex(new Vector3(1, 1, 1),     new Vector2(0, 1)),
+
+                new Vertex(new Vector3(-1, -1, -1),  new Vector2(1, 0)),
+                new Vertex(new Vector3(1, -1, -1),   new Vector2(0, 0)),
+                new Vertex(new Vector3(-1, -1, 1),   new Vector2(1, 1)),
+                new Vertex(new Vector3(1, -1, 1),    new Vector2(0, 1)),
+
+                new Vertex(new Vector3(-1, 1, -1),   new Vector2(1, 0)),
+                new Vertex(new Vector3(-1, 1, 1),    new Vector2(0, 0)),
+                new Vertex(new Vector3(1, 1, -1),    new Vector2(1, 1)),
+                new Vertex(new Vector3(1, 1, 1),     new Vector2(0, 1)),
+
+                new Vertex(new Vector3(-1, -1, -1),  new Vector2(0, 1)),
+                new Vertex(new Vector3(-1, 1, -1),   new Vector2(1, 1)),
+                new Vertex(new Vector3(1, -1, -1),   new Vector2(0, 0)),
+                new Vertex(new Vector3(1, 1, -1),    new Vector2(1, 0)),
+
+                new Vertex(new Vector3(-1, -1, 1),   new Vector2(0, 1)),
+                new Vertex(new Vector3(1, -1, 1),    new Vector2(1, 1)),
+                new Vertex(new Vector3(-1, 1, 1),    new Vector2(0, 0)),
+                new Vertex(new Vector3(1, 1, 1),     new Vector2(1, 0)),
+            };
+
+        public static void OutlineBox(DrawList list, Vector3 center, Quaternion orientation, Vector3 halfSize, Color4 color)
+        {
+            list.Prewarm(BoxVertices.Length);
+            /*
+            for (int i = 0; i < BoxVertices.Length; i++)
+            {
+                int @base = i / 4;
+                int index = i % 4;
+
+                Vector3 pos = center + (orientation * (BoxVertices[i].Pos * halfSize));
+                list.AddVertex(pos, BoxVertices[i].UV, color);
+
+                //list.AddIndexRelativeToLastVertex;
+            }*/
+
+            foreach (var v in BoxVertices)
+            {
+                Vector3 pos = center + (orientation * (v.Pos * halfSize));
+                list.AddVertexWithIndex(pos, v.UV, color);
+            }
+
+            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex.Handle);
+        }
     }
 }

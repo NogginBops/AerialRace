@@ -64,7 +64,7 @@ namespace AerialRace
         public void CalcProjectionMatrix(out Matrix4 projection)
         {
             Matrix4.CreatePerspectiveFieldOfView(
-                Fov * ((float)Math.PI / 180f), Aspect, NearPlane, FarPlane, out projection);
+                Fov * (MathF.PI / 180f), Aspect, NearPlane, FarPlane, out projection);
         }
 
         public void GetCameraDataBlock(out CameraData data)

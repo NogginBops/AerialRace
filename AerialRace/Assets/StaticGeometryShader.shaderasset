@@ -1,0 +1,3 @@
+Name: Static geometry
+Vertex shader: ./Shaders/Standard.vert
+Fragment shader: ./Shaders/Standard.frag

@@ -1,0 +1,5 @@
+Shader: {asdfasdfasdf} or ./StaticGeometryShader.shaderasset
+Properties:
+{
+    Albedo: // FIXME: asset ref!
+}

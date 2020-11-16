@@ -13,13 +13,13 @@ namespace AerialRace
     {
         readonly TextWriter Writer = new StreamWriter(new FileStream("./log.log", FileMode.Create));
         
-        public override void Write(string message)
+        public override void Write(string? message)
         {
             Writer.Write(message);
             Writer.Flush();
         }
 
-        public override void WriteLine(string message)
+        public override void WriteLine(string? message)
         {
             Writer.WriteLine(message);
             Writer.Flush();

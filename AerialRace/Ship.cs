@@ -2,6 +2,7 @@
 using AerialRace.Loading;
 using AerialRace.Physics;
 using AerialRace.RenderData;
+using ImGuiNET;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -58,7 +59,7 @@ namespace AerialRace
             {
                 HasGravity = true,
                 LinearDamping = 0.3f,
-                AngularDamping = 0.5f,
+                AngularDamping = 0.8f,
             };
 
             Collider = new MeshCollider(meshData);
@@ -86,17 +87,17 @@ namespace AerialRace
             var verticalVel = Transform.Up * cosVertVel;
             var lateralVel = Transform.Right * Vector3.Dot(Velocity, Transform.Right);
 
-            const float VerticalLiftFactor = 0.9f;
+            const float VerticalLiftFactor = 1f;
             const float LateralLiftFactor = 0.2f;
             const float density = 1.2041f;
-            const float verticalArea = 10f;
+            const float verticalArea = 100f;
             const float lateralArea = 1f;
             //var verticalLift = -verticalVel * VerticalLiftFactor;
-            var verticalLift = VerticalLiftFactor * ((density * -verticalVel * verticalVel.Abs()) / 2f) * verticalArea;
-            var lateralLift = LateralLiftFactor * ((density * -lateralVel * lateralVel.Abs()) / 2f) * lateralArea;
-
+            var verticalLift = VerticalLiftFactor * ((density * -verticalVel) / 2f) * verticalArea;
+            var lateralLift = LateralLiftFactor * ((density * -lateralVel) / 2f) * lateralArea;
+            
             RigidBody.Body.ApplyLinearImpulse((verticalLift * deltaTime).ToNumerics());
-            Debug.Direction(Transform.LocalPosition, verticalLift, Color4.Lime);
+            Debug.Direction(Transform.LocalPosition, verticalLift/100f, Color4.Lime);
 
             RigidBody.Body.ApplyLinearImpulse((lateralLift * deltaTime).ToNumerics());
             Debug.Direction(Transform.LocalPosition, lateralLift, Color4.Lime);
@@ -109,6 +110,23 @@ namespace AerialRace
             RigidBody.Body.ApplyLinearImpulse((Transform.Forward * CurrentAcceleration * deltaTime).ToNumerics());
 
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
+
+            {
+                if (ImGui.Begin("Plane Stats"))
+                {
+                    ImGui.Text($"Velocity: ({ReadableString(Velocity)}) - {Velocity.Length}");
+                    ImGui.Text($"Vertical Velocity: ({ReadableString(verticalVel)}) - {verticalVel.Length}");
+                    ImGui.Text($"Lateral Velocity: ({ReadableString(lateralVel)}) - {lateralVel.Length}");
+
+                    ImGui.End();
+                }
+            }
+
+            static string ReadableString(Vector3 vec3)
+            {
+                return $"{vec3.X:0.000}, {vec3.Y:0.000}, {vec3.Z:0.000}";
+            }
+
             return;
 
             // Add acceleration

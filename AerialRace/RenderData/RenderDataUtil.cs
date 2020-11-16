@@ -449,7 +449,7 @@ namespace AerialRace.RenderData
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.ColorAttachment0 + index, colorAttachment.Handle, mipLevel);
 
             // Extend the array, add the attachment, sort the attachments by index
-            fbo.ColorAttachments ??= new ColorAttachement[0];
+            fbo.ColorAttachments ??= Array.Empty<ColorAttachement>();
             Array.Resize(ref fbo.ColorAttachments, fbo.ColorAttachments.Length + 1);
             fbo.ColorAttachments[^1] = new ColorAttachement(index, colorAttachment);
             Array.Sort(fbo.ColorAttachments, (a1, a2) => a1.Index - a2.Index);

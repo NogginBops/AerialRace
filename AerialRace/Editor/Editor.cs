@@ -19,7 +19,7 @@ namespace AerialRace.Editor
         public static void InitEditor(Window window)
         {
             Window = window;
-            EditorCamera = new Camera(90, window.Width / (float)window.Height, 0.01f, 1000f, Color4.Black);
+            EditorCamera = new Camera(90, window.Width / (float)window.Height, 0.1f, 10000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
         }
 

@@ -217,6 +217,9 @@ namespace AerialRace
             // FIXME: Make this more efficient
             Matrix3.CreateFromQuaternion(LocalRotation, out Matrix3 rotation);
 
+            // FIXME: This is needed for opentk 4.2.0 only.
+            rotation.Transpose();
+
             matrix.Row0 = new Vector4(rotation.Row0 * LocalScale.X, 0);
             matrix.Row1 = new Vector4(rotation.Row1 * LocalScale.Y, 0);
             matrix.Row2 = new Vector4(rotation.Row2 * LocalScale.Z, 0);

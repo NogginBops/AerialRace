@@ -18,8 +18,8 @@
   <ItemGroup>
     <PackageReference Include="BEPUphysics" Version="2.3.0-beta9" />
     <PackageReference Include="ImGui.NET" Version="1.78.0" />
-    <PackageReference Include="OpenTK" Version="4.1.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.1" />
+    <PackageReference Include="OpenTK" Version="4.2.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.2" />
   </ItemGroup>
 
   <ItemGroup>

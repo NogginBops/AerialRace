@@ -131,6 +131,12 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddVertex(Vector3 Pos, Vector2 UV, Color4 Color)
+        {
+            Vertices.Add(new DrawListVertex(Pos, UV, Color));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4 Color)
         {
             Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));

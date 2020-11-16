@@ -34,6 +34,8 @@ namespace AerialRace
         public int Width => Size.X;
         public int Height => Size.Y;
 
+        AssetDB AssetDB;
+
         ImGuiController imGuiController;
 
         Material Material;
@@ -89,7 +91,10 @@ namespace AerialRace
             // Disables two core driver, we don't want this in a release build
             GL.Enable(EnableCap.DebugOutputSynchronous);
 #endif
-            
+
+            AssetDB = new AssetDB();
+            AssetDB.LoadAllAssetsFromDirectory("./", true);
+
             // Enable backface culling
             // FIXME: This should be a per-material setting
             //GL.Enable(EnableCap.CullFace);
@@ -117,14 +122,14 @@ namespace AerialRace
             RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Standard.vert") }, out ShaderProgram? standardVertex);
             RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Standard.frag") }, out ShaderProgram? standardFragment);
 
-            RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment, out var debugShader);
+            RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment, out var standardShader);
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, false);
 
             DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
 
             //Material = new Material("First Material", firstShader, null);
-            Material = new Material("Debug Material", debugShader, depthPipeline);
+            Material = new Material("Debug Material", standardShader, depthPipeline);
             Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
 
             // This should be the first refernce to StaticGeometry.
@@ -140,6 +145,12 @@ namespace AerialRace
             // FIXME: Magic numbers
             QuadMesh.AddLink(3, 1);
 
+            var rockData = MeshLoader.LoadObjMesh("./Models/opengameart/rocks_02/rock_02_tri.obj");
+            Mesh rockMesh = RenderDataUtil.CreateMesh("Rock 2", rockData);
+            var rockMat = new Material("Rock 2", standardShader, depthPipeline);
+            var rockAlbedo = TextureLoader.LoadRgbaImage("Rock 2 Albedo", "./Models/opengameart/rocks_02/diffuse.tga", true, false);
+            rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
+
             QuadTransform = new Transform(new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
             QuadTransform.Name = "Quad";
 
@@ -149,14 +160,14 @@ namespace AerialRace
             QuadTransform.Children = new List<Transform>();
             ChildTransform.SetParent(QuadTransform);
 
-            QuadRenderer = new MeshRenderer(QuadTransform, QuadMesh, Material);
+            QuadRenderer = new MeshRenderer(QuadTransform, rockMesh, rockMat);
             ChildRenderer = new MeshRenderer(ChildTransform, Mesh, Material);
 
             // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
             FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
             FloorTransform.Name = "Floor";
 
-            var floorMat = new Material("Floor Mat", debugShader, depthPipeline);
+            var floorMat = new Material("Floor Mat", standardShader, depthPipeline);
             floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
 
             FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
@@ -211,7 +222,7 @@ namespace AerialRace
                 Debug.Break();
             }
 
-            var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048, 2048);
+            var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
             RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
 
             status = RenderDataUtil.CheckFramebufferComplete(Shadowmap, RenderData.FramebufferTarget.Draw);
@@ -260,6 +271,8 @@ namespace AerialRace
 
             ShowTransformHierarchy();
 
+            ShowAssetBrowser(AssetDB);
+
             Player.Update(deltaTime);
 
             for (int i = 0; i < Transform.Transforms.Count; i++)
@@ -298,7 +311,7 @@ namespace AerialRace
         public void RenderScene(Camera camera)
         {
             GL.Enable(EnableCap.DepthTest);
-
+            
             // To be able to clear the depth buffer we need to enable writing to it
             GL.DepthMask(true);
             GL.ColorMask(true, true, true, true);
@@ -306,9 +319,18 @@ namespace AerialRace
             GL.ClearColor(camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
+            // FIXME: Make SkyRenderer take a SkySettings instead.
             Color4 directionalLightColor = SkyRenderer.Instance.SunColor;
             Vector3 directionalLightDir = SkyRenderer.Instance.SunDirection;
             Vector3 directionalLightPos = directionalLightDir * 100f;
+
+            SkySettings skySettings = new SkySettings()
+            {
+                SunDirection = directionalLightDir,
+                SunColor = directionalLightColor,
+                SkyColor = new Color4(0.2f, 0.3f, 0.6f, 1f),
+                GroundColor = new Color4(0.15f, 0.1f, 0.05f, 1f),
+            };
 
             var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
             var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
@@ -325,11 +347,7 @@ namespace AerialRace
                 NearPlane = camera.NearPlane,
                 FarPlane = camera.FarPlane,
 
-                DirectionalLight = new DirectionalLight()
-                {
-                    Direction = directionalLightDir,
-                    Color = directionalLightColor,
-                },
+                Sky = skySettings,
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
             };
 
@@ -359,11 +377,7 @@ namespace AerialRace
                 NearPlane = camera.NearPlane,
                 FarPlane = camera.FarPlane,
 
-                DirectionalLight = new DirectionalLight()
-                {
-                    Direction = directionalLightDir,
-                    Color = directionalLightColor,
-                },
+                Sky = skySettings,
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
             };
 
@@ -393,11 +407,7 @@ namespace AerialRace
                 NearPlane = camera.NearPlane,
                 FarPlane = camera.FarPlane,
 
-                DirectionalLight = new DirectionalLight()
-                {
-                    Direction = directionalLightDir,
-                    Color = directionalLightColor,
-                },
+                Sky = skySettings,
                 AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
                 UseShadows = true,
@@ -419,6 +429,9 @@ namespace AerialRace
 
             Matrix4 viewMatrix = camera.Transform.WorldToLocal;
             camera.CalcProjectionMatrix(out proj);
+
+            //PhysDebugRenderer.RenderColliders();
+            //RenderDrawList(PhysDebugRenderer.Drawlist, Debug.DebugPipeline, ref proj, ref viewMatrix);
 
             RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
         }
@@ -656,6 +669,37 @@ namespace AerialRace
                 else
                 {
                     ImGui.Text("No entity selected");
+                }
+
+                ImGui.End();
+            }
+        }
+
+        public void ShowAssetBrowser(AssetDB db)
+        {
+            if (ImGui.Begin("Asset browser"))
+            {
+                foreach (var type in Enum.GetValues<AssetType>())
+                {
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                    bool typeOpen = ImGui.TreeNodeEx(type.ToString(), flags);
+                    if (typeOpen)
+                    {
+                        var typeAssets = db.Assets[type];
+                        foreach (var asset in typeAssets)
+                        {
+                            flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                            flags |= ImGuiTreeNodeFlags.Leaf;
+                            bool isOpen = ImGui.TreeNodeEx(asset.Name, flags);
+
+                            if (isOpen)
+                            {
+                                ImGui.TreePop();
+                            }
+                        }
+
+                        ImGui.TreePop();
+                    }
                 }
 
                 ImGui.End();

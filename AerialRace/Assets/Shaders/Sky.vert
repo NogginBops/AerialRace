@@ -9,8 +9,7 @@ out gl_PerVertex
 
 out VertexOutput
 {
-    vec3 near;
-    vec3 far;
+    vec2 uv;
 };
 
 uniform mat4 invProj;
@@ -23,14 +22,15 @@ uniform float farPlane;
 vec3 unproject(vec3 pos)
 {
     vec4 unproj = vec4(pos.xyz, 1f) * invViewProj;
-    return unproj.xyz/unproj.w;
+    return unproj.xyz / unproj.w;
 }
 
 void main(void)
 {
     gl_Position = vec4(in_position, 1f);
 
+    uv = in_position.xy;
     // FIXME: This methods seems to have some jittering when moving
-    far = unproject(vec3(in_position.x, in_position.y, 0));
-    near = unproject(vec3(in_position.x, in_position.y, 1));
+    //far = unproject(vec3(in_position.x, in_position.y, 0.9f));
+    //near = unproject(vec3(in_position.x, in_position.y, 1));
 }
