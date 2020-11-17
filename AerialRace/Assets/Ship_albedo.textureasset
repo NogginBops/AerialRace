@@ -1,0 +1,5 @@
+Name: Ship Albedo
+AssetID: e00835ac-d6c3-47ba-978f-aeed1e45fd35
+Texture: ./Textures/ship.png
+GenerateMips: True
+IsSrgb: False

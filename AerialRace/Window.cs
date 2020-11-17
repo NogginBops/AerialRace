@@ -271,7 +271,7 @@ namespace AerialRace
 
             ShowTransformHierarchy();
 
-            ShowAssetBrowser(AssetDB);
+            AssetDB.ShowAssetBrowser();
 
             Player.Update(deltaTime);
 
@@ -669,37 +669,6 @@ namespace AerialRace
                 else
                 {
                     ImGui.Text("No entity selected");
-                }
-
-                ImGui.End();
-            }
-        }
-
-        public void ShowAssetBrowser(AssetDB db)
-        {
-            if (ImGui.Begin("Asset browser"))
-            {
-                foreach (var type in Enum.GetValues<AssetType>())
-                {
-                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-                    bool typeOpen = ImGui.TreeNodeEx(type.ToString(), flags);
-                    if (typeOpen)
-                    {
-                        var typeAssets = db.Assets[type];
-                        foreach (var asset in typeAssets)
-                        {
-                            flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-                            flags |= ImGuiTreeNodeFlags.Leaf;
-                            bool isOpen = ImGui.TreeNodeEx(asset.Name, flags);
-
-                            if (isOpen)
-                            {
-                                ImGui.TreePop();
-                            }
-                        }
-
-                        ImGui.TreePop();
-                    }
                 }
 
                 ImGui.End();

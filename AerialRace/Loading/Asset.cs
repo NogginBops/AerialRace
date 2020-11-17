@@ -1,4 +1,7 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.DebugGui;
+using AerialRace.RenderData;
+using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -43,9 +46,11 @@ namespace AerialRace.Loading
         }
     }
 
+    // FIXME: Check that the Giud that we get are actually unique!!
     class AssetDB
     {
-        public Dictionary<AssetType, List<Asset>> Assets = new Dictionary<AssetType, List<Asset>>();
+        public List<TextureAsset> TextureAssets = new List<TextureAsset>();
+        public List<MeshAsset> MeshAssets = new List<MeshAsset>();
 
         public AssetDB()
         { }
@@ -53,20 +58,224 @@ namespace AerialRace.Loading
         public void LoadAllAssetsFromDirectory(string dirPath, bool recursive)
         {
             var directory = new DirectoryInfo(dirPath);
-            var textureAssetFiles = directory.GetFiles("*.textureasset", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 
-            List<Asset> textureAssets = new List<Asset>();
-            Assets.Add(AssetType.Texture, textureAssets);
-
-            foreach (var textureAssetFile in textureAssetFiles)
+            // Texture assets
             {
-                var textureAsset = TextureAsset.Parse(directory, textureAssetFile);
-                if (textureAsset != null)
+                var textureAssetFiles = directory.GetFiles("*.textureasset", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                TextureAssets = new List<TextureAsset>();
+                foreach (var textureAssetFile in textureAssetFiles)
                 {
-                    textureAssets.Add(textureAsset);
+                    var textureAsset = TextureAsset.Parse(directory, textureAssetFile);
+                    if (textureAsset != null)
+                    {
+                        TextureAssets.Add(textureAsset);
+                    }
+                }
+            }
+
+            // Mesh assets
+            {
+                var meshAssetFiles = directory.GetFiles("*.meshasset", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                MeshAssets = new List<MeshAsset>();
+                foreach (var textureAssetFile in meshAssetFiles)
+                {
+                    var meshAsset = MeshAsset.Parse(directory, textureAssetFile);
+                    if (meshAsset != null)
+                    {
+                        MeshAssets.Add(meshAsset);
+                    }
                 }
             }
         }
+
+        public Asset? SelectedAsset;
+        public void ShowAssetBrowser()
+        {
+            if (ImGui.Begin("Asset browser"))
+            {
+                ImGui.Columns(2);
+
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                if (ImGui.TreeNodeEx("Textures", flags))
+                {
+                    TextureAssetList(ref SelectedAsset);
+
+                    ImGui.TreePop();
+                }
+
+                if (ImGui.TreeNodeEx("Meshes", flags))
+                {
+                    MeshAssetList(ref SelectedAsset);
+
+                    ImGui.TreePop();
+                }
+
+                // After all asset lists
+                ImGui.NextColumn();
+
+                AssetInspector(SelectedAsset);
+
+                ImGui.End();
+            }
+        }
+
+        #region AssetLists
+
+        public void TextureAssetList(ref Asset? selected)
+        {
+            foreach (var asset in TextureAssets)
+            {
+                var flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                flags |= ImGuiTreeNodeFlags.Leaf;
+
+                if (selected == asset)
+                {
+                    flags |= ImGuiTreeNodeFlags.Selected;
+                }
+
+                bool isOpen = ImGui.TreeNodeEx(asset.Name, flags);
+
+                if (ImGui.IsItemClicked())
+                {
+                    selected = asset;
+                }
+
+                if (isOpen)
+                {
+                    ImGui.TreePop();
+                }
+            }
+        }
+
+        public void MeshAssetList(ref Asset? selected)
+        {
+            foreach (var asset in MeshAssets)
+            {
+                var flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                flags |= ImGuiTreeNodeFlags.Leaf;
+
+                if (selected == asset)
+                {
+                    flags |= ImGuiTreeNodeFlags.Selected;
+                }
+
+                bool isOpen = ImGui.TreeNodeEx(asset.Name, flags);
+
+                if (ImGui.IsItemClicked())
+                {
+                    selected = asset;
+                }
+
+                if (isOpen)
+                {
+                    ImGui.TreePop();
+                }
+            }
+        }
+
+        #endregion
+
+        #region Inspectors
+
+        public void AssetInspector(Asset? asset)
+        {
+            if (asset == null)
+            {
+                ImGui.Text("No asset selected!");
+                return;
+            }
+
+            switch (asset)
+            {
+                case TextureAsset ta:
+                    TextureAssetInspector(ta);
+                    break;
+                default:
+                    {
+                        ImGui.Text($"There is no inspector for the asset type '{asset.GetType()}'");
+                    }
+                    break;
+            }
+        }
+
+        public void TextureAssetInspector(TextureAsset asset)
+        {
+            // FIXME: Undo
+            const ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
+            if (ImGui.InputText("Name", ref asset.Name, 200, inputFlags))
+                asset.MarkDirty();
+
+            ImGui.LabelText("Guid", $"{{{asset.AssetID}}}");
+            ImGui.LabelText("Asset path", asset.AssetFilePath);
+            ImGui.LabelText("Texture path", asset.TexturePath);
+            //ImGui.SameLine();
+            //if (ImGui.Button("Browse..."))
+            //{
+            // open a file browser!
+            //}
+
+            if (ImGui.Checkbox("Generate mips", ref asset.GenerateMips)) asset.MarkDirty();
+            if (ImGui.Checkbox("Is sRGB", ref asset.IsSrgb)) asset.MarkDirty();
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    RenderDataUtil.DeleteTexture(ref asset.LoadedTexture);
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+
+            if (asset.LoadedTexture == null) asset.LoadTexture();
+
+            if (asset.LoadedTexture != null)
+            {
+                ImGui.Separator();
+
+                TexturePreview(asset.LoadedTexture, asset.GenerateMips);
+            }
+        }
+
+        #endregion
+
+        #region Preview
+
+        public float previewLevel = 0;
+        public bool showMip = false;
+        public void TexturePreview(Texture texture, bool hasMips)
+        {
+            if (ImGui.CollapsingHeader($"Texture preview '{texture.Name}'", ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                float level = -1;
+                if (hasMips)
+                {
+                    ImGui.Checkbox("Show mip level", ref showMip);
+
+                    if (showMip)
+                    {
+                        ImGui.SliderFloat("Mip", ref previewLevel, texture.BaseLevel, texture.MaxLevel);
+                        level = previewLevel;
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled("Not showing any specific mip");
+                    }
+
+                    ImGui.Spacing();
+                }
+
+                var size = new System.Numerics.Vector2(256, 256);
+                var uv0 = new System.Numerics.Vector2(1, 0);
+                var uv1 = new System.Numerics.Vector2(0, 1);
+                ImGui.Image((IntPtr)ImGuiController.ReferenceTexture(texture, level), size, uv1, uv0);
+            }
+        }
+
+        #endregion
     }
 
     abstract class Asset
@@ -100,10 +309,6 @@ namespace AerialRace.Loading
 
         public void MarkDirty() => IsDirty = true;
 
-        public abstract Asset ParseAsset(string assetFile);
-
-        public abstract Asset CreateAsset(string name, string assetFilePath);
-
         public void WriteIfDirty()
         {
             if (IsDirty) WriteToDisk();
@@ -136,25 +341,21 @@ namespace AerialRace.Loading
         public override AssetType Type => AssetType.Texture;
 
         public string? TexturePath;
+        public bool GenerateMips = false;
+        public bool IsSrgb = false;
+
+        public Texture? LoadedTexture;
 
         public TextureAsset(string name, string assetFilePath) : base(name, assetFilePath)
         {
             TexturePath = null;
         }
 
-        public TextureAsset(in AssetBaseInfo assetInfo, string? texturePath) : base(assetInfo)
+        public TextureAsset(in AssetBaseInfo assetInfo, string? texturePath, bool generateMips, bool isSrgb) : base(assetInfo)
         {
             TexturePath = texturePath;
-        }
-
-        public override TextureAsset ParseAsset(string assetFile)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override TextureAsset CreateAsset(string name, string assetFilePath)
-        {
-            return new TextureAsset(name, assetFilePath);
+            GenerateMips = generateMips;
+            IsSrgb = isSrgb;
         }
 
         public static TextureAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
@@ -164,6 +365,8 @@ namespace AerialRace.Loading
             AssetBaseInfo info = default;
             info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
             string? texturePath = default;
+            bool generateMips = false;
+            bool isSrgb = false;
             while (textReader.EndOfStream == false)
             {
                 var line = textReader.ReadLine()!;
@@ -175,7 +378,7 @@ namespace AerialRace.Loading
                 {
                     if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
                     {
-                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt.");
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
                         return null;
                     }
                 }
@@ -183,14 +386,51 @@ namespace AerialRace.Loading
                 {
                     texturePath = line.Substring("Texture: ".Length);
                 }
+                else if (line.StartsWith("GenerateMips: "))
+                {
+                    if (bool.TryParse(line.Substring("GenerateMips: ".Length), out generateMips) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: GenerateMips property for texture asset {info.Name} was corrupt.");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("IsSrgb: "))
+                {
+                    if (bool.TryParse(line.Substring("IsSrgb: ".Length), out isSrgb) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: IsSRGB property for texture asset {info.Name} was corrupt.");
+                        return null;
+                    }
+                }
             }
 
-            return new TextureAsset(info, texturePath);
+            return new TextureAsset(info, texturePath, generateMips, isSrgb);
         }
 
         public override void WriteAssetProperties(TextWriter writer)
         {
             writer.WriteLine($"Texture: {TexturePath}");
+            writer.WriteLine($"GenerateMips: {GenerateMips}");
+            writer.WriteLine($"IsSrgb: {IsSrgb}");
+        }
+
+        public bool LoadTexture()
+        {
+            if (LoadedTexture != null)
+            {
+                Debug.Print($"Texture asset '{Name}' is already loaded!");
+                return false;
+            }
+
+            if (TexturePath == null)
+            {
+                Debug.Print($"Texture asset '{Name}' doesn't have a texture path.");
+                return false;
+            }
+
+            LoadedTexture = TextureLoader.LoadRgbaImage(Name, TexturePath, GenerateMips, IsSrgb);
+
+            return true;
         }
     }
 
@@ -210,14 +450,35 @@ namespace AerialRace.Loading
             MeshPath = meshPath;
         }
 
-        public override MeshAsset ParseAsset(string assetFile)
+        public static MeshAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
         {
-            throw new NotImplementedException();
-        }
+            // FIXME: We don't want assets without a guid to pass this!
+            using var textReader = assetFile.OpenText();
+            AssetBaseInfo info = default;
+            info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
+            string? meshPath = default;
+            while (textReader.EndOfStream == false)
+            {
+                var line = textReader.ReadLine()!;
+                if (line.StartsWith("Name: "))
+                {
+                    info.Name = line.Substring("Name: ".Length);
+                }
+                else if (line.StartsWith("AssetID: "))
+                {
+                    if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("Mesh: "))
+                {
+                    meshPath = line.Substring("Mesh: ".Length);
+                }
+            }
 
-        public override MeshAsset CreateAsset(string name, string assetFilePath)
-        {
-            return new MeshAsset(name, assetFilePath);
+            return new MeshAsset(info, meshPath);
         }
 
         public override void WriteAssetProperties(TextWriter writer)

@@ -12,12 +12,32 @@ using System.Runtime.CompilerServices;
 
 namespace AerialRace.DebugGui
 {
+    struct TextureRef
+    {
+        public Texture Texture;
+        public float Level;
+
+        public TextureRef(Texture tex, float level = -1)
+        {
+            Texture = tex;
+            Level = level;
+        }
+    }
+
     /// <summary>
     /// A modified version of Veldrid.ImGui's ImGuiRenderer.
     /// Manages input for ImGui and handles rendering ImGui's DrawLists with Veldrid.
     /// </summary>
-    public class ImGuiController
+    class ImGuiController
     {
+        static List<TextureRef> PermanentRefs = new List<TextureRef>();
+        static List<TextureRef> TextureRefs = new List<TextureRef>();
+        public static int ReferenceTexture(Texture texture, float level = -1)
+        {
+            TextureRefs.Add(new TextureRef(texture, level));
+            return PermanentRefs.Count + TextureRefs.Count;
+        }
+
         private bool _frameBegun;
 
         //private int _vertexArray;
@@ -25,7 +45,7 @@ namespace AerialRace.DebugGui
         private RenderData.IndexBuffer IndexBuffer;
 
         private Texture _fontTexture;
-        private Sampler _fontSampler;
+        private Sampler _textureSampler;
 
         private ShaderPipeline _shader;
 
@@ -52,6 +72,8 @@ namespace AerialRace.DebugGui
             io.Fonts.AddFontDefault();
 
             io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
+
+            io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
 
             CreateDeviceResources();
             SetKeyMappings();
@@ -92,7 +114,7 @@ void main()
     color = in_color;
     texCoord = in_texCoord;
 }";
-            string FragmentSource = @"#version 330 core
+            string FragmentSource = @"#version 400 core
 
 uniform sampler2D in_fontTexture;
 
@@ -101,9 +123,19 @@ in vec2 texCoord;
 
 out vec4 outputColor;
 
+uniform bool useLod;
+uniform float lodLevel;
+
 void main()
 {
-    outputColor = color * texture(in_fontTexture, texCoord);
+    if (useLod)
+    {
+        outputColor = color * textureLod(in_fontTexture, texCoord, lodLevel);
+    }
+    else
+    {
+        outputColor = color * texture(in_fontTexture, texCoord);
+    }
 }";
 
             RenderDataUtil.CreateShaderProgram("ImGui Vertex", ShaderStage.Vertex, new[] { VertexSource }, out var vertexShader);
@@ -125,7 +157,7 @@ void main()
             ImGuiIOPtr io = ImGui.GetIO();
             io.Fonts.GetTexDataAsRGBA32(out IntPtr pixels, out int width, out int height, out int bytesPerPixel);
 
-            _fontSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Linear, MinFilter.Linear, 1.0f, WrapMode.Repeat, WrapMode.Repeat);
+            _textureSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Nearest, MinFilter.LinearMipmapLinear, 1.0f, WrapMode.Repeat, WrapMode.Repeat);
 
             GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2D, out var glTexture);
 
@@ -133,8 +165,11 @@ void main()
             GL.TextureSubImage2D(glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
             _fontTexture = new Texture("ImGui Text Atlas", glTexture, TextureType.Texture2D, TextureFormat.Rgba8, width, height, 1, 0, 0, 0);
-            
-            io.Fonts.SetTexID((IntPtr)glTexture);
+
+            // Add this as a permanent texture reference
+            PermanentRefs.Add(new TextureRef(_fontTexture));
+
+            io.Fonts.SetTexID((IntPtr)PermanentRefs.Count);
 
             io.Fonts.ClearTexData();
         }
@@ -167,6 +202,8 @@ void main()
 
             SetPerFrameImGuiData(deltaSeconds);
             UpdateImGuiInput(wnd);
+
+            TextureRefs.Clear();
 
             _frameBegun = true;
             ImGui.NewFrame();
@@ -330,7 +367,7 @@ void main()
             GL.Disable(EnableCap.CullFace);
             GL.Disable(EnableCap.DepthTest);
 
-            RenderDataUtil.BindSampler(0, (ISampler?)null);
+            RenderDataUtil.BindSampler(0, _textureSampler);
 
             // Render command lists
             for (int n = 0; n < draw_data.CmdListsCount; n++)
@@ -353,8 +390,37 @@ void main()
                     }
                     else
                     {
-                        RenderDataUtil.BindTextureUnsafe(0, (int)pcmd.TextureId);
-                        
+                        int texRefIndex = (int)pcmd.TextureId;
+                        TextureRef? textureRef = null;
+                        if (texRefIndex == 0)
+                        {
+                            // No texture!
+                        }
+                        else if (texRefIndex <= PermanentRefs.Count)
+                        {
+                            textureRef = PermanentRefs[texRefIndex - 1];
+                        }
+                        else if (texRefIndex <= PermanentRefs.Count + TextureRefs.Count)
+                        {
+                            textureRef = TextureRefs[texRefIndex - PermanentRefs.Count - 1];
+                        }
+                        else
+                        {
+                            throw new Exception();
+                        }
+
+                        RenderDataUtil.BindTexture(0, textureRef?.Texture);
+
+                        if (textureRef is TextureRef @ref && @ref.Level != -1)
+                        {
+                            RenderDataUtil.Uniform1("useLod", ShaderStage.Fragment, 1);
+                            RenderDataUtil.Uniform1("lodLevel", ShaderStage.Fragment, @ref.Level);
+                        }
+                        else
+                        {
+                            RenderDataUtil.Uniform1("useLod", ShaderStage.Fragment, 0);
+                        }
+
                         // We do _windowHeight - (int)clip.W instead of (int)clip.Y because gl has flipped Y when it comes to these coordinates
                         var clip = pcmd.ClipRect;
                         GL.Scissor((int)clip.X, _windowHeight - (int)clip.W, (int)(clip.Z - clip.X), (int)(clip.W - clip.Y));

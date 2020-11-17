@@ -751,6 +751,19 @@ namespace AerialRace.RenderData
 
         #endregion
 
+        #region Modification
+
+        public static void SetMinMaxLod(ref Sampler sampler, float min, float max)
+        {
+            GL.SamplerParameter(sampler.Handle, SamplerParameterName.TextureMinLod, min);
+            GL.SamplerParameter(sampler.Handle, SamplerParameterName.TextureMaxLod, max);
+
+            sampler.LODMin = min;
+            sampler.LODMax = max;
+        }
+
+        #endregion
+
         public static void ReallocBuffer(ref Buffer buffer, int newElementCount)
         {
             GL.DeleteBuffer(buffer.Handle);
@@ -780,6 +793,7 @@ namespace AerialRace.RenderData
         public static void DeleteBuffer(ref Buffer? buffer)
         {
             GL.DeleteBuffer(buffer?.Handle ?? 0);
+            if (buffer != null) buffer.Handle = -1;
             buffer = default;
         }
 
@@ -787,7 +801,15 @@ namespace AerialRace.RenderData
         public static void DeleteBuffer(ref IndexBuffer? buffer)
         {
             GL.DeleteBuffer(buffer?.Handle ?? 0);
+            if (buffer != null) buffer.Handle = -1;
             buffer = default;
+        }
+
+        public static void DeleteTexture(ref Texture? texture)
+        {
+            GL.DeleteTexture(texture?.Handle ?? 0);
+            if (texture != null) texture.Handle = -1;
+            texture = null;
         }
 
         #endregion
@@ -1144,12 +1166,11 @@ namespace AerialRace.RenderData
             BindSampler(unit, sampler);
         }
 
-        public static void BindTexture(int unit, Texture texture)
+        public static void BindTexture(int unit, Texture? texture)
         {
             if (BoundTextures[unit] != texture)
             {
-                GL.BindTextureUnit(unit, texture.Handle);
-
+                GL.BindTextureUnit(unit, texture?.Handle ?? 0);
                 BoundTextures[unit] = texture;
             }
         }

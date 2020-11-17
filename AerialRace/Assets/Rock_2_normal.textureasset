@@ -1,4 +1,5 @@
-Name: Rock 2 Normal
+﻿Name: Rock 2 Normal
 AssetID: cd321a3c-f8e0-484e-8967-2f2c3901e303
 Texture: ./Models/opengameart/rocks_02/normal.tga
-// Sampler settings...
+GenerateMips: True
+IsSrgb: False

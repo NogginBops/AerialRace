@@ -120,8 +120,7 @@ namespace AerialRace.RenderData
         public MagFilter MagFilter;
         public MinFilter MinFilter;
 
-        // FIXME: It looks from documentation like LODBias is actually a float
-        public int LODBias, LODMin, LODMax;
+        public float LODBias, LODMin, LODMax;
 
         // GLEXT:  EXT_texture_filter_anisotropic
         public float MaxAnisotropy;
@@ -132,7 +131,7 @@ namespace AerialRace.RenderData
         // GLEXT: ARB_seamless_cubemap_per_texture
         public bool SeamlessCube;
 
-        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, int lODBias, int lODMin, int lODMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4 borderColor, bool seamlessCube)
+        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4 borderColor, bool seamlessCube)
         {
             Name = name;
             Handle = handle;
@@ -140,9 +139,9 @@ namespace AerialRace.RenderData
             MagFilter = magFilter;
             MinFilter = minFilter;
             DataType = dataType;
-            LODBias = lODBias;
-            LODMin = lODMin;
-            LODMax = lODMax;
+            LODBias = lodBias;
+            LODMin = lodMin;
+            LODMax = lodMax;
             MaxAnisotropy = maxAnisotropy;
             WrapModeS = wrapModeS;
             WrapModeT = wrapModeT;
@@ -167,7 +166,7 @@ namespace AerialRace.RenderData
         public MagFilter MagFilter;
         public MinFilter MinFilter;
 
-        public int LODBias, LODMin, LODMax;
+        public float LODBias, LODMin, LODMax;
 
         // GLEXT:  EXT_texture_filter_anisotropic
         public float MaxAnisotropy;
@@ -180,16 +179,16 @@ namespace AerialRace.RenderData
         public DepthTextureCompareMode CompareMode;
         public DepthTextureCompareFunc CompareFunc;
 
-        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, int lODBias, int lODMin, int lODMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
+        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
         {
             Name = name;
             Handle = handle;
             Type = type;
             MagFilter = magFilter;
             MinFilter = minFilter;
-            LODBias = lODBias;
-            LODMin = lODMin;
-            LODMax = lODMax;
+            LODBias = lodBias;
+            LODMin = lodMin;
+            LODMax = lodMax;
             MaxAnisotropy = maxAnisotropy;
             WrapModeS = wrapModeS;
             WrapModeT = wrapModeT;

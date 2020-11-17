@@ -1,2 +1,3 @@
-name: Rock 2
-model: ./Models/opengameart/rocks_02/rock_02.obj
+Name: Rock 2
+AssetID: 33ace734-eab4-449b-89a4-48375547c180
+Mesh: ./Models/opengameart/rocks_02/rock_02.obj
