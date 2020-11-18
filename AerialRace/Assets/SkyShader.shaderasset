@@ -1,0 +1,4 @@
+﻿Name: Sky Shader
+AssetID: adb549a1-a708-42ae-8b57-7c47306d6329
+Vertex: ./Shaders/Sky.vert
+Fragment: ./Shaders/Sky.frag

@@ -1,0 +1,4 @@
+﻿Name: Standard Depth
+AssetID: 9ee47a2a-94a0-4ec0-8831-486222cf596a
+Vertex: ./Shaders/Depth/StandardDepth.vert
+Fragment: ./Shaders/Depth/StandardDepth.frag

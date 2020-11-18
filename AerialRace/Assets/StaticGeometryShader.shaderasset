@@ -1,3 +1,4 @@
-Name: Static geometry
-Vertex shader: ./Shaders/Standard.vert
-Fragment shader: ./Shaders/Standard.frag
+﻿Name: Static geometry
+AssetID: b3036ddc-0af3-448b-8252-78b10067b29c
+Vertex: ./Shaders/Standard.vert
+Fragment: ./Shaders/Standard.frag

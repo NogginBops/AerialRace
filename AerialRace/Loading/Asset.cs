@@ -51,6 +51,9 @@ namespace AerialRace.Loading
     {
         public List<TextureAsset> TextureAssets = new List<TextureAsset>();
         public List<MeshAsset> MeshAssets = new List<MeshAsset>();
+        public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
+
+        private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser();
 
         public AssetDB()
         { }
@@ -59,30 +62,46 @@ namespace AerialRace.Loading
         {
             var directory = new DirectoryInfo(dirPath);
 
+            var seachOpt = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+
             // Texture assets
             {
-                var textureAssetFiles = directory.GetFiles("*.textureasset", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                var assetFiles = directory.GetFiles("*.textureasset", seachOpt);
                 TextureAssets = new List<TextureAsset>();
-                foreach (var textureAssetFile in textureAssetFiles)
+                foreach (var assetFile in assetFiles)
                 {
-                    var textureAsset = TextureAsset.Parse(directory, textureAssetFile);
-                    if (textureAsset != null)
+                    var asset = TextureAsset.Parse(directory, assetFile);
+                    if (asset != null)
                     {
-                        TextureAssets.Add(textureAsset);
+                        TextureAssets.Add(asset);
                     }
                 }
             }
 
             // Mesh assets
             {
-                var meshAssetFiles = directory.GetFiles("*.meshasset", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                var assetFiles = directory.GetFiles("*.meshasset", seachOpt);
                 MeshAssets = new List<MeshAsset>();
-                foreach (var textureAssetFile in meshAssetFiles)
+                foreach (var assetFile in assetFiles)
                 {
-                    var meshAsset = MeshAsset.Parse(directory, textureAssetFile);
-                    if (meshAsset != null)
+                    var asset = MeshAsset.Parse(directory, assetFile);
+                    if (asset != null)
                     {
-                        MeshAssets.Add(meshAsset);
+                        MeshAssets.Add(asset);
+                    }
+                }
+            }
+
+            // Shader assets
+            {
+                var assetFiles = directory.GetFiles("*.shaderasset", seachOpt);
+                ShaderAssets = new List<ShaderAsset>();
+                foreach (var assetFile in assetFiles)
+                {
+                    var asset = ShaderAsset.Parse(directory, assetFile);
+                    if (asset != null)
+                    {
+                        ShaderAssets.Add(asset);
                     }
                 }
             }
@@ -93,19 +112,36 @@ namespace AerialRace.Loading
         {
             if (ImGui.Begin("Asset browser"))
             {
+                if (ImGui.BeginMenuBar())
+                {
+                    if (ImGui.BeginMenu("Create..."))
+                    {
+                        ImGui.MenuItem("Test");
+                    }
+
+                    ImGui.EndMenuBar();
+                }
+
                 ImGui.Columns(2);
 
                 ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
                 if (ImGui.TreeNodeEx("Textures", flags))
                 {
-                    TextureAssetList(ref SelectedAsset);
+                    AssetList(TextureAssets, ref SelectedAsset);
 
                     ImGui.TreePop();
                 }
 
                 if (ImGui.TreeNodeEx("Meshes", flags))
                 {
-                    MeshAssetList(ref SelectedAsset);
+                    AssetList(MeshAssets, ref SelectedAsset);
+
+                    ImGui.TreePop();
+                }
+
+                if (ImGui.TreeNodeEx("Shaders", flags))
+                {
+                    AssetList(ShaderAssets, ref SelectedAsset);
 
                     ImGui.TreePop();
                 }
@@ -115,15 +151,14 @@ namespace AerialRace.Loading
 
                 AssetInspector(SelectedAsset);
 
-                ImGui.End();
+                
             }
+            ImGui.End();
         }
 
-        #region AssetLists
-
-        public void TextureAssetList(ref Asset? selected)
+        public void AssetList<T>(List<T> assets, ref Asset? selected) where T : Asset
         {
-            foreach (var asset in TextureAssets)
+            foreach (var asset in assets)
             {
                 var flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
                 flags |= ImGuiTreeNodeFlags.Leaf;
@@ -146,34 +181,6 @@ namespace AerialRace.Loading
                 }
             }
         }
-
-        public void MeshAssetList(ref Asset? selected)
-        {
-            foreach (var asset in MeshAssets)
-            {
-                var flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-                flags |= ImGuiTreeNodeFlags.Leaf;
-
-                if (selected == asset)
-                {
-                    flags |= ImGuiTreeNodeFlags.Selected;
-                }
-
-                bool isOpen = ImGui.TreeNodeEx(asset.Name, flags);
-
-                if (ImGui.IsItemClicked())
-                {
-                    selected = asset;
-                }
-
-                if (isOpen)
-                {
-                    ImGui.TreePop();
-                }
-            }
-        }
-
-        #endregion
 
         #region Inspectors
 
@@ -190,6 +197,12 @@ namespace AerialRace.Loading
                 case TextureAsset ta:
                     TextureAssetInspector(ta);
                     break;
+                case MeshAsset ma:
+                    MeshAssetInspector(ma);
+                    break;
+                case ShaderAsset sa:
+                    ShaderAssetInspector(sa);
+                    break;
                 default:
                     {
                         ImGui.Text($"There is no inspector for the asset type '{asset.GetType()}'");
@@ -198,7 +211,7 @@ namespace AerialRace.Loading
             }
         }
 
-        public void TextureAssetInspector(TextureAsset asset)
+        private void BasicAssetInspector(Asset asset)
         {
             // FIXME: Undo
             const ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
@@ -206,13 +219,42 @@ namespace AerialRace.Loading
                 asset.MarkDirty();
 
             ImGui.LabelText("Guid", $"{{{asset.AssetID}}}");
+            if (asset.AssetID == Guid.Empty)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button("Generate guid"))
+                {
+                    asset.AssetID = Guid.NewGuid();
+                    asset.MarkDirty();
+                }
+            }
+            
             ImGui.LabelText("Asset path", asset.AssetFilePath);
+        }
+
+        public void TextureAssetInspector(TextureAsset asset)
+        {
+            // FIXME: Undo
+            BasicAssetInspector(asset);
+
+            bool browseTexturePath = false;
+
             ImGui.LabelText("Texture path", asset.TexturePath);
-            //ImGui.SameLine();
-            //if (ImGui.Button("Browse..."))
-            //{
-            // open a file browser!
-            //}
+            ImGui.SameLine();
+            if (ImGui.Button("Browse..."))
+                browseTexturePath = true;
+            ImGui.NewLine();
+
+            if (browseTexturePath)
+            {
+                ImGui.OpenPopup("Open File");
+            }
+
+            if (FileBrowser.ShowFileDialog("Open File", DialogMode.Open, new System.Numerics.Vector2(), "*.*"))
+            {
+                asset.TexturePath = FileBrowser.SelectedPath;
+                asset.MarkDirty();
+            }
 
             if (ImGui.Checkbox("Generate mips", ref asset.GenerateMips)) asset.MarkDirty();
             if (ImGui.Checkbox("Is sRGB", ref asset.IsSrgb)) asset.MarkDirty();
@@ -234,9 +276,63 @@ namespace AerialRace.Loading
 
             if (asset.LoadedTexture != null)
             {
-                ImGui.Separator();
+                // FIXME: This draws a line through both columns...
+                //ImGui.Separator();
+                ImGui.Spacing();
 
                 TexturePreview(asset.LoadedTexture, asset.GenerateMips);
+            }
+        }
+
+        public void MeshAssetInspector(MeshAsset asset)
+        {
+            BasicAssetInspector(asset);
+
+            ImGui.LabelText("Mesh path", asset.MeshPath);
+            //ImGui.SameLine();
+            //if (ImGui.Button("Browse..."))
+            //{
+            // open a file browser!
+            //}
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    //RenderDataUtil.DeleteTexture(ref asset);
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+        }
+
+        public void ShaderAssetInspector(ShaderAsset asset)
+        {
+            BasicAssetInspector(asset);
+
+            if (asset.VertexShaderPath != null)
+                ImGui.LabelText("Vertex path", asset.VertexShaderPath);
+
+            if (asset.GeometryShaderPath != null)
+                ImGui.LabelText("Geometry path", asset.GeometryShaderPath);
+
+            if (asset.FragmentShaderPath != null)
+                ImGui.LabelText("Fragment path", asset.FragmentShaderPath);
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    //RenderDataUtil.DeleteTexture(ref asset.LoadedTexture);
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
             }
         }
 
@@ -291,15 +387,6 @@ namespace AerialRace.Loading
 
         public abstract AssetType Type { get; }
 
-        public Asset(string name, string assetFilePath)
-        {
-            Name = name;
-            AssetID = Guid.NewGuid();
-            AssetFilePath = assetFilePath;
-            IsDirty = true;
-            WriteToDisk();
-        }
-
         public Asset(in AssetBaseInfo info)
         {
             Name = info.Name;
@@ -345,11 +432,6 @@ namespace AerialRace.Loading
         public bool IsSrgb = false;
 
         public Texture? LoadedTexture;
-
-        public TextureAsset(string name, string assetFilePath) : base(name, assetFilePath)
-        {
-            TexturePath = null;
-        }
 
         public TextureAsset(in AssetBaseInfo assetInfo, string? texturePath, bool generateMips, bool isSrgb) : base(assetInfo)
         {
@@ -440,11 +522,6 @@ namespace AerialRace.Loading
 
         public string? MeshPath;
 
-        public MeshAsset(string name, string assetFilePath) : base(name, assetFilePath)
-        {
-            MeshPath = null;
-        }
-
         public MeshAsset(in AssetBaseInfo assetInfo, string? meshPath) : base(assetInfo)
         {
             MeshPath = meshPath;
@@ -484,6 +561,117 @@ namespace AerialRace.Loading
         public override void WriteAssetProperties(TextWriter writer)
         {
             writer.WriteLine($"Mesh: {MeshPath}");
+        }
+    }
+
+    class ShaderAsset : Asset
+    {
+        public override AssetType Type => AssetType.Shader;
+
+        public string? VertexShaderPath;
+        public string? GeometryShaderPath;
+        public string? FragmentShaderPath;
+
+        public ShaderPipeline? LoadedPipeline;
+
+        public ShaderAsset(in AssetBaseInfo assetInfo, string? vertex, string? geometry, string? fragment) : base(assetInfo)
+        {
+            VertexShaderPath = vertex;
+            GeometryShaderPath = geometry;
+            FragmentShaderPath = fragment;
+        }
+
+        public static ShaderAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
+        {
+            // FIXME: We don't want assets without a guid to pass this!
+            using var textReader = assetFile.OpenText();
+            AssetBaseInfo info = default;
+            info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
+            string? vertex = default;
+            string? geometry = default;
+            string? fragment = default;
+            while (textReader.EndOfStream == false)
+            {
+                var line = textReader.ReadLine()!;
+                if (line.StartsWith("Name: "))
+                {
+                    info.Name = line.Substring("Name: ".Length);
+                }
+                else if (line.StartsWith("AssetID: "))
+                {
+                    if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("Vertex: "))
+                {
+                    vertex = line.Substring("Vertex: ".Length);
+                }
+                else if (line.StartsWith("Geometry: "))
+                {
+                    geometry = line.Substring("Geometry: ".Length);
+                }
+                else if (line.StartsWith("Fragment: "))
+                {
+                    fragment = line.Substring("Fragment: ".Length);
+                }
+            }
+
+            return new ShaderAsset(info, vertex, geometry, fragment);
+        }
+
+        public override void WriteAssetProperties(TextWriter writer)
+        {
+            if (VertexShaderPath != null) writer.WriteLine($"Vertex: {VertexShaderPath}");
+            if (GeometryShaderPath != null) writer.WriteLine($"Geometry: {GeometryShaderPath }");
+            if (FragmentShaderPath != null) writer.WriteLine($"Fragment: {FragmentShaderPath}");
+        }
+
+        public bool LoadShader()
+        {
+            if (LoadedPipeline != null)
+            {
+                Debug.Print($"Shader asset '{Name}' is already loaded!");
+                return false;
+            }
+
+            ShaderProgram? vertex = null;
+            ShaderProgram? geometry = null;
+            ShaderProgram? fragment = null;
+            
+            // FIXME: Check for errors and display them in the shader inspector!!
+            
+            if (VertexShaderPath != null) 
+                RenderDataUtil.CreateShaderProgram(
+                    Name + " Vertex",
+                    ShaderStage.Vertex,
+                    new string[] {
+                        File.ReadAllText(VertexShaderPath) 
+                    }, 
+                    out vertex);
+
+            if (GeometryShaderPath != null)
+                RenderDataUtil.CreateShaderProgram(
+                    Name + " Geometry",
+                    ShaderStage.Geometry,
+                    new string[] {
+                        File.ReadAllText(GeometryShaderPath) 
+                    },
+                    out geometry);
+
+            if (FragmentShaderPath != null)
+                RenderDataUtil.CreateShaderProgram(
+                    Name + " Fragment",
+                    ShaderStage.Fragment,
+                    new string[] {
+                        File.ReadAllText(FragmentShaderPath) 
+                    },
+                    out fragment);
+
+            RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment, out LoadedPipeline);
+            return true;
         }
     }
 }
