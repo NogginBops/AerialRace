@@ -858,13 +858,6 @@ namespace AerialRace
             }
         }
 
-        protected override void OnMouseWheel(MouseWheelEventArgs e)
-        {
-            base.OnMouseWheel(e);
-
-            imGuiController.MouseScroll(e.Offset);
-        }
-
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);

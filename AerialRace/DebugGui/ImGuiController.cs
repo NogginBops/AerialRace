@@ -238,9 +238,8 @@ void main()
 
             io.MousePos = new System.Numerics.Vector2(MouseState.Position.X, MouseState.Position.Y);
 
-            // This is broken in opentk 4.0.4, will be fixed in 4.0.5
-            //io.MouseWheel = MouseState.ScrollDelta.Y;
-            //io.MouseWheelH = MouseState.Scroll.X;
+            io.MouseWheel = MouseState.ScrollDelta.Y;
+            io.MouseWheelH = MouseState.ScrollDelta.X;
 
             foreach (Keys key in Enum.GetValues(typeof(Keys)))
             {
@@ -264,15 +263,6 @@ void main()
         internal void PressChar(char keyChar)
         {
             PressedChars.Add(keyChar);
-        }
-
-        // FIXME: Later opentk versions don't need this
-        internal void MouseScroll(Vector2 offset)
-        {
-            ImGuiIOPtr io = ImGui.GetIO();
-
-            io.MouseWheel = offset.Y;
-            io.MouseWheelH = offset.X;
         }
 
         private static void SetKeyMappings()

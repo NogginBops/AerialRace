@@ -226,7 +226,7 @@ namespace AerialRace.DebugGui
                         
                         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                         {
-                            // FIXME: Do something!
+                            showError = LoadWindowsDrives() == false;
                         }
                         else
                         {
@@ -454,7 +454,8 @@ namespace AerialRace.DebugGui
             int items = 0;
             for (int i = 0; i < FilteredDirs.Count; i++)
             {
-                if (FilteredDirs[i].Attributes.HasFlag(FileAttributes.Hidden) == false || ShowHidden)
+                var fileAttribs = FilteredDirs[i].Attributes;
+                if (fileAttribs.HasFlag(FileAttributes.Hidden) == false /*|| fileAttribs.HasFlag(FileAttributes.System)*/ || ShowHidden)
                 {
                     items++;
                     if (ImGui.Selectable(FilteredDirs[i].Name, SelectedIndex == i && IsDirectory, ImGuiSelectableFlags.AllowDoubleClick))
@@ -484,7 +485,8 @@ namespace AerialRace.DebugGui
             //Output files
             for (int i = 0; i < FilteredFiles.Count; i++)
             {
-                if (FilteredFiles[i].Attributes.HasFlag(FileAttributes.Hidden) == false || ShowHidden)
+                var fileAttribs = FilteredFiles[i].Attributes;
+                if (fileAttribs.HasFlag(FileAttributes.Hidden) == false || ShowHidden)
                 {
                     items++;
                     if (ImGui.Selectable(FilteredFiles[i].Name, SelectedIndex == i && !IsDirectory, ImGuiSelectableFlags.AllowDoubleClick))

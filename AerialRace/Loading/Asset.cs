@@ -53,7 +53,7 @@ namespace AerialRace.Loading
         public List<MeshAsset> MeshAssets = new List<MeshAsset>();
         public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
 
-        private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser();
+        private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser() { /*CurrentPath = Directory.GetCurrentDirectory()*/ };
 
         public AssetDB()
         { }
@@ -248,6 +248,7 @@ namespace AerialRace.Loading
             if (browseTexturePath)
             {
                 ImGui.OpenPopup("Open File");
+                //FileBrowser.CurrentPath = Path.GetDirectoryName(asset.TexturePath) ?? "";
             }
 
             if (FileBrowser.ShowFileDialog("Open File", DialogMode.Open, new System.Numerics.Vector2(), "*.*"))
