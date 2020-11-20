@@ -117,9 +117,8 @@ namespace AerialRace
                     ImGui.Text($"Velocity: ({ReadableString(Velocity)}) - {Velocity.Length}");
                     ImGui.Text($"Vertical Velocity: ({ReadableString(verticalVel)}) - {verticalVel.Length}");
                     ImGui.Text($"Lateral Velocity: ({ReadableString(lateralVel)}) - {lateralVel.Length}");
-
-                    ImGui.End();
                 }
+                ImGui.End();
             }
 
             static string ReadableString(Vector3 vec3)

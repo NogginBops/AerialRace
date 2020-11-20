@@ -577,9 +577,8 @@ namespace AerialRace
                 {
                     ImGui.Text("No transform selected");
                 }
-
-                ImGui.End();
             }
+            ImGui.End();
 
             static void ShowTransform(Transform transform)
             {
@@ -670,9 +669,8 @@ namespace AerialRace
                 {
                     ImGui.Text("No entity selected");
                 }
-
-                ImGui.End();
             }
+            ImGui.End();
         }
 
         float TotalTime = 0;

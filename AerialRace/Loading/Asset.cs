@@ -4,6 +4,7 @@ using AerialRace.RenderData;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -53,7 +54,50 @@ namespace AerialRace.Loading
         public List<MeshAsset> MeshAssets = new List<MeshAsset>();
         public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
 
+        private string BaseDirectory = Directory.GetCurrentDirectory();
         private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser() { /*CurrentPath = Directory.GetCurrentDirectory()*/ };
+
+        private bool PathField(string name, in string? path)
+        {
+            bool browsePath = false;
+
+            ImGui.LabelText(name, path);
+            ImGui.SameLine();
+            ImGui.PushID(name);
+            if (ImGui.Button("Browse..."))
+                browsePath = true;
+
+            ImGui.PopID();
+
+            if (browsePath)
+            {
+                ImGui.OpenPopup("Open File");
+                FileBrowser.CurrentPath = Path.GetDirectoryName(path) ?? "";
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool ShowBrowser(string filter = "*.*")
+        {
+            return FileBrowser.ShowFileDialog("Open File", DialogMode.Open, new System.Numerics.Vector2(700, 310), filter);
+        }
+
+        public string GetSelectedPath()
+        {
+            if (FileBrowser.SelectedPath.StartsWith(BaseDirectory))
+            {
+                return Path.GetRelativePath(BaseDirectory, FileBrowser.SelectedPath);
+            }
+            else
+            {
+                // TODO: Move files or stuff!!
+                // Maybe have a warning for now?
+                return FileBrowser.SelectedPath;
+            }
+        }
 
         public AssetDB()
         { }
@@ -110,16 +154,33 @@ namespace AerialRace.Loading
         public Asset? SelectedAsset;
         public void ShowAssetBrowser()
         {
-            if (ImGui.Begin("Asset browser"))
+            if (ImGui.Begin("Asset browser", ImGuiWindowFlags.MenuBar))
             {
+                bool openCreateTexture = false;
+
                 if (ImGui.BeginMenuBar())
                 {
                     if (ImGui.BeginMenu("Create..."))
                     {
-                        ImGui.MenuItem("Test");
+                        if (ImGui.MenuItem("New Texture"))
+                        {
+                            openCreateTexture = true;
+                        }
+
+                        ImGui.EndMenu();
                     }
 
                     ImGui.EndMenuBar();
+                }
+
+                if (openCreateTexture)
+                {
+                    ImGui.OpenPopup("Create Texture");
+                }
+
+                if (ShowCreateTexturePopup("Create Texture", openCreateTexture, out TextureAsset? newTextureAsset))
+                {
+                    TextureAssets.Add(newTextureAsset);
                 }
 
                 ImGui.Columns(2);
@@ -237,28 +298,19 @@ namespace AerialRace.Loading
             // FIXME: Undo
             BasicAssetInspector(asset);
 
-            bool browseTexturePath = false;
-
-            ImGui.LabelText("Texture path", asset.TexturePath);
-            ImGui.SameLine();
-            if (ImGui.Button("Browse..."))
-                browseTexturePath = true;
-            ImGui.NewLine();
-
-            if (browseTexturePath)
-            {
-                ImGui.OpenPopup("Open File");
-                //FileBrowser.CurrentPath = Path.GetDirectoryName(asset.TexturePath) ?? "";
-            }
-
-            if (FileBrowser.ShowFileDialog("Open File", DialogMode.Open, new System.Numerics.Vector2(), "*.*"))
-            {
-                asset.TexturePath = FileBrowser.SelectedPath;
-                asset.MarkDirty();
-            }
+            bool setTexturePath = PathField("Texture path", in asset.TexturePath);
 
             if (ImGui.Checkbox("Generate mips", ref asset.GenerateMips)) asset.MarkDirty();
             if (ImGui.Checkbox("Is sRGB", ref asset.IsSrgb)) asset.MarkDirty();
+
+            if (ShowBrowser())
+            {
+                if (setTexturePath)
+                {
+                    asset.TexturePath = GetSelectedPath();
+                    asset.MarkDirty();
+                }
+            }
 
             if (asset.IsDirty)
             {
@@ -289,12 +341,16 @@ namespace AerialRace.Loading
         {
             BasicAssetInspector(asset);
 
-            ImGui.LabelText("Mesh path", asset.MeshPath);
-            //ImGui.SameLine();
-            //if (ImGui.Button("Browse..."))
-            //{
-            // open a file browser!
-            //}
+            bool setMeshPath = PathField("Mesh path", in asset.MeshPath);
+
+            if (ShowBrowser())
+            {
+                if (setMeshPath)
+                {
+                    asset.MeshPath = GetSelectedPath();
+                    asset.MarkDirty();
+                }
+            }
 
             if (asset.IsDirty)
             {
@@ -314,14 +370,38 @@ namespace AerialRace.Loading
         {
             BasicAssetInspector(asset);
 
+            bool setVertex = false, setGeometry = false, setFragment = false;
+
             if (asset.VertexShaderPath != null)
-                ImGui.LabelText("Vertex path", asset.VertexShaderPath);
+                setVertex = PathField("Vertex path", in asset.VertexShaderPath);
 
             if (asset.GeometryShaderPath != null)
-                ImGui.LabelText("Geometry path", asset.GeometryShaderPath);
+                setGeometry = PathField("Geometry path", in asset.GeometryShaderPath);
 
             if (asset.FragmentShaderPath != null)
-                ImGui.LabelText("Fragment path", asset.FragmentShaderPath);
+                setFragment = PathField("Fragment path", in asset.FragmentShaderPath);
+
+            if (ShowBrowser())
+            {
+                string selectedPath = GetSelectedPath();
+                if (setVertex)
+                {
+                    asset.VertexShaderPath = selectedPath;
+                    asset.MarkDirty();
+                }
+
+                if (setGeometry)
+                {
+                    asset.GeometryShaderPath = selectedPath;
+                    asset.MarkDirty();
+                }
+
+                if (setFragment)
+                {
+                    asset.FragmentShaderPath = selectedPath;
+                    asset.MarkDirty();
+                }
+            }
 
             if (asset.IsDirty)
             {
@@ -370,6 +450,77 @@ namespace AerialRace.Loading
                 var uv1 = new System.Numerics.Vector2(0, 1);
                 ImGui.Image((IntPtr)ImGuiController.ReferenceTexture(texture, level), size, uv1, uv0);
             }
+        }
+
+        #endregion
+
+        #region Creators
+
+        public AssetBaseInfo CreateAssetInfo;
+
+        public string CreateTexturePath;
+        public bool CreateGenerateMips;
+        public bool CreateIsSrgb;
+        public bool ShowCreateTexturePopup(string name, bool opening, [NotNullWhen(true)] out TextureAsset? asset)
+        {
+            bool open = true;
+            ImGuiIOPtr io = ImGui.GetIO();
+            ImGui.SetNextWindowPos(io.DisplaySize * 0.5f, ImGuiCond.Appearing, new System.Numerics.Vector2(0.5f, 0.5f));
+            if (ImGui.BeginPopupModal(name, ref open, ImGuiWindowFlags.None))
+            {
+                if (opening)
+                {
+                    Debug.Print($"Opening '{name}'!!");
+
+                    // FIXME: Unique name
+                    CreateAssetInfo.Name = "texture";
+                    CreateAssetInfo.AssetFilePath = "./texture.textureasset";
+                    CreateAssetInfo.AssetID = Guid.NewGuid();
+
+                    CreateTexturePath = "";
+                    CreateGenerateMips = true;
+                    CreateIsSrgb = false;
+                }
+
+                // FIXME: Max length
+                ImGui.InputText("Name", ref CreateAssetInfo.Name, 256);
+
+                bool setAssetPath = PathField("Asset path", in CreateAssetInfo.AssetFilePath);
+
+                ImGui.LabelText("Asset ID", $"{CreateAssetInfo.AssetID}");
+
+                bool setTexturePath = PathField("Texture path", in CreateTexturePath);
+
+                ImGui.Checkbox("Generate Mips", ref CreateGenerateMips);
+                ImGui.Checkbox("Is sRGB", ref CreateIsSrgb);
+
+                if (ShowBrowser())
+                {
+                    string selectedPath = GetSelectedPath();
+
+                    if (setAssetPath) CreateAssetInfo.AssetFilePath = selectedPath;
+
+                    if (setTexturePath) CreateTexturePath = selectedPath;
+                }
+
+                // FIXME: Validate the asset!
+                if (ImGui.Button("Create Asset"))
+                {
+                    asset = new TextureAsset(CreateAssetInfo, CreateTexturePath, CreateGenerateMips, CreateIsSrgb);
+                    return true;
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    ImGui.CloseCurrentPopup();
+                }
+
+                ImGui.EndPopup();
+            }
+            
+
+            asset = null;
+            return false;
         }
 
         #endregion

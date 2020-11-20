@@ -102,8 +102,9 @@ namespace AerialRace.Editor
             {
 
 
-                ImGui.End();
+                
             }
+            ImGui.End();
         }
     }
 }

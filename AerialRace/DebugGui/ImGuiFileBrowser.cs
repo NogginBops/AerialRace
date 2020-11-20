@@ -128,20 +128,11 @@ namespace AerialRace.DebugGui
         public string? ErrorTitle = "";
         public string? ErrorMessage = "";
 
-        public unsafe ImGuiTextFilterPtr Filter;
+        public string FilterInput = "";
+        public List<string> Filter = new List<string>();
         public List<DirectoryInfo> FilteredDirs = new List<DirectoryInfo>();
         public List<FileInfo> FilteredFiles = new List<FileInfo>();
         public List<string> InputCBFilterFiles = new List<string>();
-
-        public unsafe ImGuiFileBrowser()
-        {
-            Filter = new ImGuiTextFilterPtr(Marshal.AllocHGlobal(sizeof(ImGuiTextFilter)));
-        }
-
-        unsafe ~ImGuiFileBrowser()
-        {
-            Marshal.FreeHGlobal((IntPtr)Filter.NativePtr);
-        }
 
         public void ClearFileList()
         {
@@ -395,9 +386,22 @@ namespace AerialRace.DebugGui
 
             // Render Search/Filter bar
             float markerWidth = ImGui.CalcTextSize("(?)").X + style.ItemSpacing.X;
-            if (Filter.Draw("##SearchBar", swContentSize.X - markerWidth) || FilterDirty)
             {
-                FilterFiles(FilterMode);
+                // C# version of:
+                // if (Filter.Draw("##SearchBar", swContentSize.X - markerWidth))
+
+                ImGui.SetNextItemWidth(swContentSize.X - markerWidth);
+                bool filterChanged = ImGui.InputText("##SearchBar", ref FilterInput, 256);
+                if (filterChanged)
+                {
+                    // reparse the filter
+                    Filter = new List<string>(FilterInput.Split(',', StringSplitOptions.RemoveEmptyEntries));
+                }
+
+                if (filterChanged || FilterDirty)
+                {
+                    FilterFiles(FilterMode);
+                }
             }
 
             // If filter bar was focused clear selection
@@ -405,7 +409,6 @@ namespace AerialRace.DebugGui
             {
                 SelectedIndex = -1;
             }
-
 
             ImGui.SameLine();
             ShowHelpMarker("Filter (inc, -exc)");
@@ -934,6 +937,30 @@ namespace AerialRace.DebugGui
             return true;
         }
 
+        bool PassFilter(string str)
+        {
+            foreach (var filterStr in Filter)
+            {
+                if (filterStr[0] == '-')
+                {
+                    if (str.Contains(filterStr.Substring(1), StringComparison.InvariantCultureIgnoreCase))
+                        return false;
+                }
+                else
+                {
+                    if (str.Contains(filterStr, StringComparison.InvariantCultureIgnoreCase))
+                        return true;
+                }
+            }
+
+            if (Filter.Count == 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         void FilterFiles(FilterMode filterMode)
         {
             FilterDirty = false;
@@ -942,7 +969,7 @@ namespace AerialRace.DebugGui
                 FilteredDirs.Clear();
                 for (int i = 0; i < SubDirs.Count; ++i)
                 {
-                    if (Filter.PassFilter(SubDirs[i].Name))
+                    if (PassFilter(SubDirs[i].Name))
                         FilteredDirs.Add(SubDirs[i]);
                 }
             }
@@ -953,12 +980,12 @@ namespace AerialRace.DebugGui
                 {
                     if (ValidExts[SelectedExtIndex] == "*.*")
                     {
-                        if (Filter.PassFilter(SubFiles[i].Name))
+                        if (PassFilter(SubFiles[i].Name))
                             FilteredFiles.Add(SubFiles[i]);
                     }
                     else
                     {
-                        if (Filter.PassFilter(SubFiles[i].Name) && SubFiles[i].Name.Contains(ValidExts[SelectedExtIndex]))
+                        if (PassFilter(SubFiles[i].Name) && SubFiles[i].Name.Contains(ValidExts[SelectedExtIndex]))
                             FilteredFiles.Add(SubFiles[i]);
                     }
                 }
