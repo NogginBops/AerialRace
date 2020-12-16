@@ -65,7 +65,7 @@ namespace AerialRace.Debugging
 
         public static void OutlineCircle(DrawList list, Vector2 Position, float Radius, Color4 color, int Segments)
         {
-            if (Segments <= 2) throw new ArgumentException(nameof(Segments));
+            if (Segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {Segments}", nameof(Segments));
 
             list.Prewarm(Segments);
 

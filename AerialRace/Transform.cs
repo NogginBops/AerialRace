@@ -107,7 +107,7 @@ namespace AerialRace
         public Quaternion LocalRotation = Quaternion.Identity;
 
         public Vector3 WorldPosition {
-            get => Vector3.TransformPosition(LocalPosition, LocalToWorld); //Transformations.MultPosition(LocalPosition, ref LocalToWorld);
+            get => Vector3.TransformPosition(Vector3.Zero, LocalToWorld); //Transformations.MultPosition(LocalPosition, ref LocalToWorld);
             set => LocalPosition = Vector3.TransformPosition(value, WorldToLocal); //= Transformations.MultPosition(value, ref WorldToLocal);
         }
 
@@ -214,11 +214,7 @@ namespace AerialRace
 
         public void GetTransformationMatrix(out Matrix4 matrix)
         {
-            // FIXME: Make this more efficient
             Matrix3.CreateFromQuaternion(LocalRotation, out Matrix3 rotation);
-
-            // FIXME: This is needed for opentk 4.2.0 only.
-            rotation.Transpose();
 
             matrix.Row0 = new Vector4(rotation.Row0 * LocalScale.X, 0);
             matrix.Row1 = new Vector4(rotation.Row1 * LocalScale.Y, 0);

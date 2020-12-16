@@ -1,5 +1,7 @@
-Shader: {asdfasdfasdf} or ./StaticGeometryShader.shaderasset
+Name: Static Geometry
+AssetID: 
+Shader: b3036ddc-0af3-448b-8252-78b10067b29c
 Properties:
 {
-    Albedo: // FIXME: asset ref!
+    [Texture]Albedo: 
 }

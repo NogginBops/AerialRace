@@ -34,9 +34,9 @@ namespace AerialRace
         public int Width => Size.X;
         public int Height => Size.Y;
 
-        AssetDB AssetDB;
+        public AssetDB AssetDB;
 
-        ImGuiController imGuiController;
+        ImGuiController ImGuiController;
 
         Material Material;
         Mesh Mesh;
@@ -49,8 +49,8 @@ namespace AerialRace
         Transform ChildTransform;
         MeshRenderer ChildRenderer;
 
-        Transform FloorTransform;
-        MeshRenderer FloorRenderer;
+        StaticSetpiece Floor;
+        StaticSetpiece Rock;
 
         Camera Camera;
 
@@ -60,7 +60,6 @@ namespace AerialRace
         Ship Player;
         Texture ShipTexture;
 
-        StaticCollider FloorCollider;
         RigidBody TestBox;
         Transform TestBoxTransform;
         MeshRenderer TestBoxRenderer;
@@ -115,12 +114,12 @@ namespace AerialRace
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
-            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.vert") }, out ShaderProgram? depthVertProgram);
-            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Depth/StandardDepth.frag") }, out ShaderProgram? depthFragProgram);
+            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Depth/StandardDepth.vert"), out ShaderProgram? depthVertProgram);
+            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Depth/StandardDepth.frag"), out ShaderProgram? depthFragProgram);
             RenderDataUtil.CreatePipeline("Standard Depth", depthVertProgram, null, depthFragProgram, out var depthPipeline);
 
-            RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Standard.vert") }, out ShaderProgram? standardVertex);
-            RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Standard.frag") }, out ShaderProgram? standardFragment);
+            RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, File.ReadAllText("./Shaders/Standard.vert"), out ShaderProgram? standardVertex);
+            RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, File.ReadAllText("./Shaders/Standard.frag"), out ShaderProgram? standardFragment);
 
             RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment, out var standardShader);
 
@@ -145,32 +144,15 @@ namespace AerialRace
             // FIXME: Magic numbers
             QuadMesh.AddLink(3, 1);
 
-            var rockData = MeshLoader.LoadObjMesh("./Models/opengameart/rocks_02/rock_02_tri.obj");
-            Mesh rockMesh = RenderDataUtil.CreateMesh("Rock 2", rockData);
-            var rockMat = new Material("Rock 2", standardShader, depthPipeline);
-            var rockAlbedo = TextureLoader.LoadRgbaImage("Rock 2 Albedo", "./Models/opengameart/rocks_02/diffuse.tga", true, false);
-            rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
+            QuadTransform = new Transform("Quad", new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
 
-            QuadTransform = new Transform(new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
-            QuadTransform.Name = "Quad";
-
-            ChildTransform = new Transform(new Vector3(1f, 1f, 0f));
-            ChildTransform.Name = "Child";
+            ChildTransform = new Transform("Child", new Vector3(1f, 1f, 0f));
 
             QuadTransform.Children = new List<Transform>();
             ChildTransform.SetParent(QuadTransform);
 
-            QuadRenderer = new MeshRenderer(QuadTransform, rockMesh, rockMat);
+            QuadRenderer = new MeshRenderer(QuadTransform, QuadMesh, Material);
             ChildRenderer = new MeshRenderer(ChildTransform, Mesh, Material);
-
-            // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
-            FloorTransform = new Transform(new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
-            FloorTransform.Name = "Floor";
-
-            var floorMat = new Material("Floor Mat", standardShader, depthPipeline);
-            floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
-
-            FloorRenderer = new MeshRenderer(FloorTransform, QuadMesh, floorMat);
 
             //RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
             //RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
@@ -199,7 +181,35 @@ namespace AerialRace
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
 
-            FloorCollider = new StaticCollider(new BoxCollider(new Vector3(500, 1, 500)), new Vector3(0, -0.5f, 0), physMat);
+            {
+                var floorMat = new Material("Floor Mat", standardShader, depthPipeline);
+                floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
+
+                // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
+                var FloorTransform = new Transform("Floor", new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
+
+                Floor = new StaticSetpiece(FloorTransform, QuadMesh, floorMat, new BoxCollider(new Vector3(500, 1, 500), new Vector3(0, -0.5f, 0)), physMat);
+            }
+
+            {
+                var rockData = MeshLoader.LoadObjMesh("./Models/opengameart/rocks_02/rock_02_tri.obj");
+                Mesh rockMesh = RenderDataUtil.CreateMesh("Rock 2", rockData);
+                var rockMat = new Material("Rock 2", standardShader, depthPipeline);
+                var rockAlbedo = TextureLoader.LoadRgbaImage("Rock 2 Albedo", "./Models/opengameart/rocks_02/diffuse.tga", true, false);
+                rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
+
+                var rockTransform = new Transform("Rock", new Vector3(300f, 0f, -2f));
+
+                SimpleMaterial physMatRock = new SimpleMaterial()
+                {
+                    FrictionCoefficient = 0.85f,
+                    MaximumRecoveryVelocity = 2f,
+                    SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+                };
+
+                Rock = new StaticSetpiece(rockTransform, rockMesh, rockMat, new MeshCollider(rockData), physMatRock);
+            }
+
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
             new MeshRenderer(new Transform("Cube", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
 
@@ -208,7 +218,7 @@ namespace AerialRace
             
             TestBoxRenderer = new MeshRenderer(TestBoxTransform, cube, Material);
 
-            imGuiController = new ImGuiController(Width, Height);
+            ImGuiController = new ImGuiController(Width, Height);
 
             Shadowmap = RenderDataUtil.CreateEmptyFramebuffer("Shadowmap");
             DepthBuffer = RenderDataUtil.CreateEmptyFramebuffer("Depth Prepass");
@@ -233,8 +243,8 @@ namespace AerialRace
 
             ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
 
-            RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Sky.vert") }, out var skyVertexProgram);
-            RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Sky.frag") }, out var skyFragmentProgram);
+            RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Sky.vert"), out var skyVertexProgram);
+            RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Sky.frag"), out var skyFragmentProgram);
 
             RenderDataUtil.CreatePipeline("Sky", skyVertexProgram, null, skyFragmentProgram, out var skyPipeline);
 
@@ -262,7 +272,7 @@ namespace AerialRace
 
             Debug.NewFrame(Width, Height);
 
-            imGuiController.Update(this, (float)args.Time);
+            ImGuiController.Update(this, (float)args.Time);
             // Update above calls ImGui.NewFrame()...
             // ImGui.NewFrame();
 
@@ -270,8 +280,6 @@ namespace AerialRace
             //ShowEntityList(Manager);
 
             ShowTransformHierarchy();
-
-            AssetDB.ShowAssetBrowser();
 
             Player.Update(deltaTime);
 
@@ -297,7 +305,7 @@ namespace AerialRace
             }
 
             ImGui.EndFrame();
-            imGuiController.Render();
+            ImGuiController.Render();
 
             // FIXME: Reset gl state!
             // The blend mode is changed to this after imgui
@@ -465,7 +473,7 @@ namespace AerialRace
 
             Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 30f * deltaTime);
 
-            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 30f * deltaTime);
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
 
@@ -703,6 +711,7 @@ namespace AerialRace
             if (ctrlDown && KeyboardState.IsKeyPressed(Keys.E))
             {
                 Editor.Editor.InEditorMode = !Editor.Editor.InEditorMode;
+                
             }
 
             var io = ImGui.GetIO();
@@ -724,97 +733,83 @@ namespace AerialRace
 
         public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
         {
+            float pitchForce = 0.05f;
+            float yawForce = 0.05f;
+            float rollForce = 0.08f;
+
             if (IsKeyDown(Keys.A))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 2f * MathHelper.TwoPi * deltaTime, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, yawForce * MathHelper.TwoPi, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.D))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -2f * MathHelper.TwoPi * deltaTime, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -yawForce * MathHelper.TwoPi, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.W))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-4 * MathHelper.TwoPi * deltaTime, 0, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-pitchForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.S))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(4 * MathHelper.TwoPi * deltaTime, 0, 0));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(pitchForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.Up))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 1.2f, 0, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-yawForce * MathHelper.TwoPi, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.Down))
             {
-                Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 1.2f, 0, 0);
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(yawForce * MathHelper.TwoPi, 0, 0));
+                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
             if (IsKeyDown(Keys.Q))
             {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, 4 * MathHelper.TwoPi * deltaTime));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, rollForce * MathHelper.TwoPi));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.E))
             {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -4 * MathHelper.TwoPi * deltaTime));
+                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -rollForce * MathHelper.TwoPi));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
             }
 
             if (IsKeyDown(Keys.Space))
             {
-                Player.CurrentAcceleration = 60f * Player.RigidBody.Mass;
+                Player.AccelerationTimer += deltaTime;
+                if (Player.AccelerationTimer >= Player.AccelerationTime)
+                {
+                    Player.AccelerationTimer = Player.AccelerationTime;
+                }
             }
             else
             {
-                Player.CurrentAcceleration = 0f;
+                Player.AccelerationTimer -= deltaTime * 2;
+                if (Player.AccelerationTimer <= 0)
+                {
+                    Player.AccelerationTimer = 0;
+                }
             }
 
-            /*
-            if (IsKeyDown(Keys.W))
-            {
-                Camera.Transform.LocalPosition += Camera.Transform.Forward * deltaTime;
-            }
-
-            if (IsKeyDown(Keys.S))
-            {
-                Camera.Transform.LocalPosition += -Camera.Transform.Forward * deltaTime;
-            }
-
-            if (IsKeyDown(Keys.A))
-            {
-                Camera.Transform.LocalPosition += -Camera.Transform.Right * deltaTime;
-            }
-
-            if (IsKeyDown(Keys.D))
-            {
-                Camera.Transform.LocalPosition += Camera.Transform.Right * deltaTime;
-            }
-
-            if (IsKeyDown(Keys.Space))
-            {
-                Camera.Transform.LocalPosition += new Vector3(0f, 1f, 0f) * deltaTime;
-            }
-
-            if (IsKeyDown(Keys.LeftShift))
-            {
-                Camera.Transform.LocalPosition += new Vector3(0f, -1f, 0f) * deltaTime;
-            }*/
+            float timerPercent = Player.AccelerationTimer / Player.AccelerationTime;
+            Player.CurrentAcceleration = MathHelper.Lerp(0, Player.MaxAcceleration, timerPercent);
         }
 
         public float MouseInfluenceTimeout = 0f;
@@ -860,7 +855,7 @@ namespace AerialRace
         {
             base.OnResize(e);
 
-            imGuiController.WindowResized(e.Width, e.Height);
+            ImGuiController.WindowResized(e.Width, e.Height);
 
             // FIXME: Adjust things that need to be adjusted
         }
@@ -869,7 +864,7 @@ namespace AerialRace
         {
             base.OnTextInput(e);
 
-            imGuiController.PressChar((char)e.Unicode);
+            ImGuiController.PressChar((char)e.Unicode);
         }
 
         private static void Window_DebugProc(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)

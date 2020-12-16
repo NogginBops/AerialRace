@@ -55,6 +55,13 @@ namespace AerialRace
             FarPlane = far;
         }
 
+        public void CalcViewProjection(out Matrix4 vp)
+        {
+            CalcViewMatrix(out var view);
+            CalcProjectionMatrix(out var proj);
+            Matrix4.Mult(view, proj, out vp);
+        }
+
         public void CalcViewMatrix(out Matrix4 viewMatrix)
         {
             Transform.GetTransformationMatrix(out viewMatrix);

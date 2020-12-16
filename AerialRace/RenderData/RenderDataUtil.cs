@@ -482,12 +482,12 @@ namespace AerialRace.RenderData
         }
 
         // FIXME: Make error handling for shader that don't compile better!
-        public static bool CreateShaderProgram(string name, ShaderStage stage, string[] sources, [NotNullWhen(true)] out ShaderProgram? program)
+        public static bool CreateShaderProgram(string name, ShaderStage stage, string source, [NotNullWhen(true)] out ShaderProgram? program)
         {
             program = CreateEmptyShaderProgram(name, stage, true);
-
+            
             GLUtil.CreateShader(name, ToGLShaderType(stage), out var shader);
-            GL.ShaderSource(shader, sources.Length, sources, (int[]?)null);
+            GL.ShaderSource(shader, source);
 
             GL.CompileShader(shader);
 

@@ -217,7 +217,7 @@ namespace AerialRace.Loading
             ImGui.End();
         }
 
-        public void AssetList<T>(List<T> assets, ref Asset? selected) where T : Asset
+        public static void AssetList<T>(List<T> assets, ref Asset? selected) where T : Asset
         {
             foreach (var asset in assets)
             {
@@ -272,7 +272,7 @@ namespace AerialRace.Loading
             }
         }
 
-        private void BasicAssetInspector(Asset asset)
+        private static void BasicAssetInspector(Asset asset)
         {
             // FIXME: Undo
             const ImGuiInputTextFlags inputFlags = ImGuiInputTextFlags.EnterReturnsTrue;
@@ -799,27 +799,21 @@ namespace AerialRace.Loading
                 RenderDataUtil.CreateShaderProgram(
                     Name + " Vertex",
                     ShaderStage.Vertex,
-                    new string[] {
-                        File.ReadAllText(VertexShaderPath) 
-                    }, 
+                    File.ReadAllText(VertexShaderPath),
                     out vertex);
 
             if (GeometryShaderPath != null)
                 RenderDataUtil.CreateShaderProgram(
                     Name + " Geometry",
                     ShaderStage.Geometry,
-                    new string[] {
-                        File.ReadAllText(GeometryShaderPath) 
-                    },
+                    File.ReadAllText(GeometryShaderPath),
                     out geometry);
 
             if (FragmentShaderPath != null)
                 RenderDataUtil.CreateShaderProgram(
                     Name + " Fragment",
                     ShaderStage.Fragment,
-                    new string[] {
-                        File.ReadAllText(FragmentShaderPath) 
-                    },
+                    File.ReadAllText(FragmentShaderPath),
                     out fragment);
 
             RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment, out LoadedPipeline);

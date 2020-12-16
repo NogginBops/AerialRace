@@ -27,7 +27,12 @@ namespace AerialRace
 
         public float MaxSpeed;
 
+        public float AccelerationTimer;
+        public float AccelerationTime = 2f;
         public float CurrentAcceleration;
+        public float MaxAcceleration = 1;
+
+        public float ForwardStallSpeed = 40;
 
         public Vector3 Velocity;
 
@@ -90,14 +95,21 @@ namespace AerialRace
             const float VerticalLiftFactor = 1f;
             const float LateralLiftFactor = 0.2f;
             const float density = 1.2041f;
-            const float verticalArea = 100f;
+            const float verticalArea = 10f;
             const float lateralArea = 1f;
             //var verticalLift = -verticalVel * VerticalLiftFactor;
             var verticalLift = VerticalLiftFactor * ((density * -verticalVel) / 2f) * verticalArea;
             var lateralLift = LateralLiftFactor * ((density * -lateralVel) / 2f) * lateralArea;
-            
-            RigidBody.Body.ApplyLinearImpulse((verticalLift * deltaTime).ToNumerics());
-            Debug.Direction(Transform.LocalPosition, verticalLift/100f, Color4.Lime);
+
+            bool stalling = false;
+            if (forwardVel.LengthSquared < ForwardStallSpeed * ForwardStallSpeed)
+            {
+                verticalLift *= 0.1f;
+                stalling = true;
+            }
+
+            RigidBody.Body.ApplyLinearImpulse((verticalLift).ToNumerics());
+            Debug.Direction(Transform.LocalPosition, verticalLift/RigidBody.Mass, Color4.Lime);
 
             RigidBody.Body.ApplyLinearImpulse((lateralLift * deltaTime).ToNumerics());
             Debug.Direction(Transform.LocalPosition, lateralLift, Color4.Lime);
@@ -107,18 +119,26 @@ namespace AerialRace
             //var drag = Velocity * -0.01f;
             //RigidBody.Body.ApplyLinearImpulse((drag).ToNumerics());
 
-            RigidBody.Body.ApplyLinearImpulse((Transform.Forward * CurrentAcceleration * deltaTime).ToNumerics());
+            RigidBody.Body.ApplyLinearImpulse((Transform.Forward * CurrentAcceleration * RigidBody.Mass).ToNumerics());
 
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
 
             {
                 if (ImGui.Begin("Plane Stats"))
                 {
+                    ImGui.Text($"Acceleration: {ReadablePercentage(AccelerationTimer / AccelerationTime)}");
+                    ImGui.Text($"Stalling: {stalling}");
                     ImGui.Text($"Velocity: ({ReadableString(Velocity)}) - {Velocity.Length}");
-                    ImGui.Text($"Vertical Velocity: ({ReadableString(verticalVel)}) - {verticalVel.Length}");
-                    ImGui.Text($"Lateral Velocity: ({ReadableString(lateralVel)}) - {lateralVel.Length}");
+                    ImGui.Text($"Vertical Velocity: ({ReadableString(verticalVel)}) - {ReadablePercentage(verticalVel.Length / Velocity.Length)}");
+                    ImGui.Text($"Lateral Velocity: ({ReadableString(lateralVel)}) - {ReadablePercentage(lateralVel.Length / Velocity.Length)}");
                 }
                 ImGui.End();
+            }
+
+
+            static string ReadablePercentage(float f)
+            {
+                return $"{f * 100:000.}%";
             }
 
             static string ReadableString(Vector3 vec3)

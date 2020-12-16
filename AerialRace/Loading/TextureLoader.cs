@@ -30,7 +30,7 @@ namespace AerialRace.Loading
             if (image.TryGetSinglePixelSpan(out Span<Rgba32> allData))
             {
                 image.Mutate(x => x.Flip(FlipMode.Vertical));
-                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedByte, ref allData[0]);
+                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedInt8888Reversed, ref allData[0]);
             }
             else
             {
@@ -38,7 +38,7 @@ namespace AerialRace.Loading
                 for (int i = 0; i < image.Height; i++)
                 {
                     var row = image.GetPixelRowSpan(i);
-                    GL.TextureSubImage2D(texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, ref row[0]);
+                    GL.TextureSubImage2D(texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, PixelType.UnsignedInt8888Reversed, ref row[0]);
                 }
             }
 

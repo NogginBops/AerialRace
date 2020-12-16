@@ -138,8 +138,8 @@ void main()
     }
 }";
 
-            RenderDataUtil.CreateShaderProgram("ImGui Vertex", ShaderStage.Vertex, new[] { VertexSource }, out var vertexShader);
-            RenderDataUtil.CreateShaderProgram("ImGui Fragment", ShaderStage.Fragment, new[] { FragmentSource }, out var fragmentShader);
+            RenderDataUtil.CreateShaderProgram("ImGui Vertex", ShaderStage.Vertex, VertexSource, out var vertexShader);
+            RenderDataUtil.CreateShaderProgram("ImGui Fragment", ShaderStage.Fragment, FragmentSource, out var fragmentShader);
 
             _shader = RenderDataUtil.CreateEmptyPipeline("ImGui");
             RenderDataUtil.AssembleProgramPipeline(_shader, vertexShader, null, fragmentShader);

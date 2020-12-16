@@ -11,7 +11,7 @@ namespace AerialRace.Physics
     class MeshCollider : ICollider
     {
         public ConvexHull Hull;
-        
+
         public IConvexShape Shape => Hull;
         public TypedIndex TypedIndex { get; private set; }
         public Vector3 Center { get; private set; }

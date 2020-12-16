@@ -29,12 +29,12 @@ namespace AerialRace.Debugging
 
             RenderDataUtil.CreateShaderProgram("Debug Vertex", 
                 ShaderStage.Vertex,
-                new string[] { DebugVertexSource },
+                DebugVertexSource,
                 out var vertexProg);
 
             RenderDataUtil.CreateShaderProgram("Debug Fragment",
                 ShaderStage.Fragment,
-                new string[] { DebugFragmentSource },
+                DebugFragmentSource,
                 out var fragProg);
 
             DebugPipeline = RenderDataUtil.CreateEmptyPipeline("Debug Pipeline");

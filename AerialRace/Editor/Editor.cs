@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using AerialRace.Loading;
+using ImGuiNET;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
@@ -11,6 +12,7 @@ namespace AerialRace.Editor
     static class Editor
     {
         public static Window Window;
+        public static AssetDB AssetDB;
 
         public static bool InEditorMode;
         public static Camera EditorCamera;
@@ -19,6 +21,7 @@ namespace AerialRace.Editor
         public static void InitEditor(Window window)
         {
             Window = window;
+            AssetDB = window.AssetDB;
             EditorCamera = new Camera(90, window.Width / (float)window.Height, 0.1f, 10000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
         }
@@ -98,11 +101,13 @@ namespace AerialRace.Editor
         // Called after rendering the scene
         public static void ShowEditor()
         {
+            AssetDB.ShowAssetBrowser();
+
             if (ImGui.Begin("Editor"))
             {
-
-
                 
+
+
             }
             ImGui.End();
         }
