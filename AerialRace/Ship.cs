@@ -124,7 +124,7 @@ namespace AerialRace
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
 
             {
-                if (ImGui.Begin("Plane Stats"))
+                if (ImGui.Begin("Plane Stats", ImGuiWindowFlags.NoFocusOnAppearing))
                 {
                     ImGui.Text($"Acceleration: {ReadablePercentage(AccelerationTimer / AccelerationTime)}");
                     ImGui.Text($"Stalling: {stalling}");

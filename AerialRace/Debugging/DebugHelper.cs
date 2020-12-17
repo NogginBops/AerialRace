@@ -23,7 +23,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture.Handle);
+            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y + Rect.Height), UVs.Xy, Color);
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y), UVs.Xw, Color);
@@ -33,7 +33,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color1, Color4 Color2, Color4 Color3, Color4 Color4)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture.Handle);
+            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y + Rect.Height), UVs.Xy, Color1);
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y), UVs.Xw, Color2);
@@ -43,7 +43,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture.Handle);
+            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Position.X, Position.Y + Size.Y), UVs.Xy, Color);
             List.AddVertexWithIndex(PixelsToGL(Position.X, Position.Y), UVs.Xw, Color);
@@ -53,7 +53,7 @@ namespace AerialRace.Debugging
 
         public static void RectOutline(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.LineStrip, 5, Texture.Handle);
+            List.AddCommand(PrimitiveType.LineStrip, 5, Texture);
 
             List.AddRelativeIndecies(new[] { 0, 1, 2, 3, 0 });
 
@@ -81,7 +81,7 @@ namespace AerialRace.Debugging
                 list.AddVertexWithIndex(PixelsToGL(Position + pos), new Vector2(x, y), color);
             }
 
-            list.AddCommand(PrimitiveType.LineLoop, Segments, BuiltIn.WhiteTex.Handle);
+            list.AddCommand(PrimitiveType.LineLoop, Segments, BuiltIn.WhiteTex);
         }
 
         struct Vertex
@@ -149,7 +149,7 @@ namespace AerialRace.Debugging
                 list.AddVertexWithIndex(pos, v.UV, color);
             }
 
-            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex.Handle);
+            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
     }
 }

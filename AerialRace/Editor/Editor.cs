@@ -1,9 +1,11 @@
-﻿using AerialRace.Loading;
+﻿using AerialRace.Debugging;
+using AerialRace.Loading;
 using ImGuiNET;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -24,14 +26,16 @@ namespace AerialRace.Editor
             AssetDB = window.AssetDB;
             EditorCamera = new Camera(90, window.Width / (float)window.Height, 0.1f, 10000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
+
+            Gizmos.Init();
         }
 
         // Called on update while in editor mode
         public static void UpdateEditor(KeyboardState keyboard, MouseState mouse, float deltaTime)
         {
-
-
             UpdateEditorCamera(keyboard, mouse, deltaTime);
+
+            Gizmos.UpdateInput(mouse, keyboard, Window.Size, EditorCamera);
         }
 
         public static float MouseSpeedX = 0.2f;
@@ -103,13 +107,104 @@ namespace AerialRace.Editor
         {
             AssetDB.ShowAssetBrowser();
 
-            if (ImGui.Begin("Editor"))
+            ShowTransformHierarchy();
+
+            if (SelectedTransform != null)
             {
-                
+                Gizmos.TransformHandle(SelectedTransform);
+            }
 
+            // Gizmos drawlist rendering
+            {
+                RenderData.RenderDataUtil.UsePipeline(Gizmos.GizmoMaterial.Pipeline);
+                DrawListSettings settings = new DrawListSettings()
+                {
+                    DepthTest = false,
+                    DepthWrite = false,
+                    Vp = Matrix4.Identity,
+                };
+                DrawListRenderer.RenderDrawList(Gizmos.GizmoDrawList, ref settings);
+                Gizmos.GizmoDrawList.Clear();
+            }
+        }
 
+        public static Transform? SelectedTransform;
+        public static void ShowTransformHierarchy()
+        {
+            if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoFocusOnAppearing))
+            {
+                ImGui.Columns(2);
+
+                // FIXME!!!!! Keep a list of roots...
+                foreach (var t in Transform.Transforms.Where(t => t.Parent == null))
+                {
+                    ShowTransform(t);
+                }
+
+                ImGui.NextColumn();
+
+                if (SelectedTransform != null)
+                {
+                    System.Numerics.Vector3 pos = SelectedTransform.LocalPosition.ToNumerics();
+                    if (ImGui.DragFloat3("Position", ref pos, 0.1f))
+                        SelectedTransform.LocalPosition = pos.ToOpenTK();
+
+                    // FIXME: Display euler angles
+                    //System.Numerics.Vector4 rot = SelectedTransform.LocalRotation.ToNumerics();
+                    //if (ImGui.DragFloat4("Rotation", ref rot, 0.1f))
+                    //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
+
+                    System.Numerics.Vector3 scale = SelectedTransform.LocalScale.ToNumerics();
+                    if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
+                        SelectedTransform.LocalScale = scale.ToOpenTK();
+                }
+                else
+                {
+                    ImGui.Text("No transform selected");
+                }
             }
             ImGui.End();
+
+            static void ShowTransform(Transform transform)
+            {
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+                if (SelectedTransform == transform)
+                {
+                    flags |= ImGuiTreeNodeFlags.Selected;
+                }
+
+                if (transform.Children?.Count > 0)
+                {
+                    bool open = ImGui.TreeNodeEx(transform.Name, flags);
+
+                    if (ImGui.IsItemClicked())
+                    {
+                        SelectedTransform = transform;
+                    }
+
+                    if (open)
+                    {
+                        for (int i = 0; i < transform.Children.Count; i++)
+                        {
+                            ShowTransform(transform.Children[i]);
+                        }
+
+                        ImGui.TreePop();
+                    }
+                }
+                else
+                {
+                    flags |= ImGuiTreeNodeFlags.Leaf;
+                    ImGui.TreeNodeEx(transform.Name, flags);
+
+                    if (ImGui.IsItemClicked())
+                    {
+                        SelectedTransform = transform;
+                    }
+
+                    ImGui.TreePop();
+                }
+            }
         }
     }
 }

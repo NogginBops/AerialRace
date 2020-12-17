@@ -154,7 +154,7 @@ namespace AerialRace.Loading
         public Asset? SelectedAsset;
         public void ShowAssetBrowser()
         {
-            if (ImGui.Begin("Asset browser", ImGuiWindowFlags.MenuBar))
+            if (ImGui.Begin("Asset browser", ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoFocusOnAppearing))
             {
                 bool openCreateTexture = false;
 

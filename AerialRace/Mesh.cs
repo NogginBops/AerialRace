@@ -50,9 +50,9 @@ namespace AerialRace
         {
             Name = name;
             Indices = indices;
-            DataBuffers = new Buffer[0];
-            Attributes = new AttributeSpecification[0];
-            AttributeBufferLinks = new AttributeBufferLink[0];
+            DataBuffers = Array.Empty<Buffer>();
+            Attributes = Array.Empty<AttributeSpecification>();
+            AttributeBufferLinks = Array.Empty<AttributeBufferLink>();
             Submeshes = submeshes;
         }
 
@@ -61,8 +61,8 @@ namespace AerialRace
             Name = name;
             Indices = indices;
             DataBuffers = new Buffer[1] { standardVertex };
-            Attributes = new AttributeSpecification[0];
-            AttributeBufferLinks = new AttributeBufferLink[0];
+            Attributes = Array.Empty<AttributeSpecification>();
+            AttributeBufferLinks = Array.Empty<AttributeBufferLink>();
             Submeshes = submeshes;
         }
 

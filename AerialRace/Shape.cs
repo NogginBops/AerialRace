@@ -51,7 +51,7 @@ namespace AerialRace.Debugging
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(A), new Vector2(0f, 0f), color);
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(B), new Vector2(0f, 0f), color);
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(C), new Vector2(0f, 0f), color);
-            list.AddCommand(PrimitiveType.LineLoop, 3, BuiltIn.WhiteTex.Handle);
+            list.AddCommand(PrimitiveType.LineLoop, 3, BuiltIn.WhiteTex);
         }
     }
 

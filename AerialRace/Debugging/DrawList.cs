@@ -50,27 +50,27 @@ namespace AerialRace.Debugging
     {
         public DrawCommandType Command;
         public int ElementCount;
-        public int TextureHandle;
+        public Texture? Texture;
         // We could change this to be something like a material index instead... and make it
         public Material? Material;
         public Matrix3 Transform;
-        public Rect Scissor;
+        public Recti Scissor;
 
-        public DrawCommand(PrimitiveType primitive, int elementCount, int glTexture = 0, Material? material = null)
+        public DrawCommand(PrimitiveType primitive, int elementCount, Texture? texture = null, Material? material = null)
         {
             Command = (DrawCommandType) primitive;
             ElementCount = elementCount;
-            TextureHandle = glTexture;
+            Texture = texture;
             Material = material;
             Transform = default;
             Scissor = default;
         }
 
-        public DrawCommand(Rect scissor)
+        public DrawCommand(Recti scissor)
         {
             Command = DrawCommandType.SetScissor;
             ElementCount = default;
-            TextureHandle = default;
+            Texture = default;
             Material = default;
             Transform = default;
             Scissor = scissor;
@@ -114,12 +114,12 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddCommand(PrimitiveType type, int elementCount, int texture, Material? material = null)
+        public void AddCommand(PrimitiveType type, int elementCount, Texture texture, Material? material = null)
         {
             Commands.Add(new DrawCommand(type, elementCount, texture, material));
         }
 
-        public void SetScissor(Rect rect)
+        public void SetScissor(Recti rect)
         {
             Commands.Add(new DrawCommand(rect));
         }

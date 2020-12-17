@@ -47,7 +47,7 @@ namespace AerialRace.Entities
         // This array could be used to store an array the same size as the number of entities
         // Using this we would not need the linear search when finding the index for an entitiy.
         // This is a must for when there is a lot of entitites
-        public int[] IndexToEntity = new int[0];
+        public int[] IndexToEntity = Array.Empty<int>();
         public int Count;
 
         public ComponentCollection()

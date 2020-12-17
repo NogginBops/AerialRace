@@ -91,6 +91,8 @@ namespace AerialRace
             GL.Enable(EnableCap.DebugOutputSynchronous);
 #endif
 
+            Screen.UpdateScreenSize(Size);
+
             AssetDB = new AssetDB();
             AssetDB.LoadAllAssetsFromDirectory("./", true);
 
@@ -99,7 +101,7 @@ namespace AerialRace
             //GL.Enable(EnableCap.CullFace);
             //GL.CullFace(CullFaceMode.Front);
 
-            GL.Enable(EnableCap.DepthTest);
+            RenderDataUtil.SetDepthTesting(true);
             GL.DepthFunc(DepthFunction.Lequal);
 
             RenderDataUtil.QueryLimits();
@@ -279,8 +281,6 @@ namespace AerialRace
             //Manager.UpdateSystems();
             //ShowEntityList(Manager);
 
-            ShowTransformHierarchy();
-
             Player.Update(deltaTime);
 
             for (int i = 0; i < Transform.Transforms.Count; i++)
@@ -318,11 +318,11 @@ namespace AerialRace
 
         public void RenderScene(Camera camera)
         {
-            GL.Enable(EnableCap.DepthTest);
-            
+            RenderDataUtil.SetDepthTesting(true);
+
             // To be able to clear the depth buffer we need to enable writing to it
-            GL.DepthMask(true);
-            GL.ColorMask(true, true, true, true);
+            RenderDataUtil.SetDepthWrite(true);
+            RenderDataUtil.SetColorWrite(ColorChannels.All);
 
             GL.ClearColor(camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -362,8 +362,8 @@ namespace AerialRace
             RenderDataUtil.BindDrawFramebuffer(Shadowmap);
             GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Width, Shadowmap.DepthAttachment!.Height);
 
-            GL.DepthMask(true);
-            GL.ColorMask(false, false, false, false);
+            RenderDataUtil.SetDepthWrite(true);
+            RenderDataUtil.SetColorWrite(ColorChannels.None);
             GL.Clear(ClearBufferMask.DepthBufferBit);
             GL.DepthFunc(DepthFunction.Lequal);
 
@@ -390,9 +390,8 @@ namespace AerialRace
             };
 
             //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
-
-            GL.DepthMask(true);
-            GL.ColorMask(false, false, false, false);
+            RenderDataUtil.SetDepthWrite(true);
+            RenderDataUtil.SetColorWrite(ColorChannels.None);
             GL.Clear(ClearBufferMask.DepthBufferBit);
             GL.DepthFunc(DepthFunction.Lequal);
 
@@ -423,8 +422,8 @@ namespace AerialRace
                 ShadowSampler = ShadowSampler,
             };
 
-            GL.DepthMask(false);
-            GL.ColorMask(true, true, true, true);
+            RenderDataUtil.SetDepthWrite(false);
+            RenderDataUtil.SetColorWrite(ColorChannels.All);
             GL.DepthFunc(DepthFunction.Equal);
 
             // We only want to render the skybox when we are rendering the final colors
@@ -433,7 +432,7 @@ namespace AerialRace
 
 
             // Draw debug stuff
-            GL.Disable(EnableCap.DepthTest);
+            RenderDataUtil.SetDepthTesting(false);
 
             Matrix4 viewMatrix = camera.Transform.WorldToLocal;
             camera.CalcProjectionMatrix(out proj);
@@ -441,7 +440,17 @@ namespace AerialRace
             //PhysDebugRenderer.RenderColliders();
             //RenderDrawList(PhysDebugRenderer.Drawlist, Debug.DebugPipeline, ref proj, ref viewMatrix);
 
-            RenderDrawList(Debug.List, Debug.DebugPipeline, ref proj, ref viewMatrix);
+            // Draw debug drawlist
+            {
+                RenderDataUtil.UsePipeline(Debug.DebugPipeline);
+                DrawListSettings settings = new DrawListSettings()
+                {
+                    DepthTest = true,
+                    DepthWrite = false,
+                    Vp = viewMatrix * proj,
+                };
+                DrawListRenderer.RenderDrawList(Debug.List, ref settings);
+            }
         }
 
         public Vector3 CameraOffset = new Vector3(0, 6f, 27f);
@@ -475,159 +484,6 @@ namespace AerialRace
 
             Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
-        }
-
-        void RenderDrawList(DrawList list, ShaderPipeline pipeline, ref Matrix4 projection, ref Matrix4 view)
-        {
-            // Upload draw list data to gpu
-            list.UploadData();
-
-            RenderDataUtil.BindIndexBuffer(list.IndexBuffer);
-
-            RenderDataUtil.BindVertexAttribBuffer(0, list.VertexBuffer, 0);
-            RenderDataUtil.SetAndEnableVertexAttributes(Debug.DebugAttributes);
-            RenderDataUtil.LinkAttributeBuffer(0, 0);
-            RenderDataUtil.LinkAttributeBuffer(1, 0);
-            RenderDataUtil.LinkAttributeBuffer(2, 0);
-
-            RenderDataUtil.UsePipeline(pipeline);
-
-            RenderDataUtil.UniformMatrix4("projection", ShaderStage.Vertex, true, ref projection);
-            RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref view);
-
-            Matrix4 vp = view * projection;
-            RenderDataUtil.UniformMatrix4("vp", ShaderStage.Vertex, true, ref vp);
-
-            //GL.BindSampler(0, DebugSampler.Handle);
-
-            // Reset the scissor area
-            GL.Scissor(0, 0, Width, Height);
-
-            int indexBufferOffset = 0;
-            foreach (var command in list.Commands)
-            {
-                switch (command.Command)
-                {
-                    case DrawCommandType.Points:
-                    case DrawCommandType.Lines:
-                    case DrawCommandType.LineLoop:
-                    case DrawCommandType.LineStrip:
-                    case DrawCommandType.Triangles:
-                    case DrawCommandType.TriangleStrip:
-                    case DrawCommandType.TriangleFan:
-                        {
-                            // Do normal rendering
-                            //Material material = command.Material ?? DefaultMaterial;
-                            //material.UseMaterial();
-
-                            //int unit = TextureBinder.BindTexture(command.TextureHandle);
-                            //material.Shader.SetTexture("tex", unit);
-
-                            // FIXME: Texture!!
-                            RenderDataUtil.BindTextureUnsafe(0, command.TextureHandle);
-                            RenderDataUtil.BindSampler(0, (ISampler?)null);
-
-                            GL.DrawElements((PrimitiveType)command.Command, command.ElementCount, DrawElementsType.UnsignedInt, indexBufferOffset * sizeof(uint));
-
-                            indexBufferOffset += command.ElementCount;
-
-                            //TextureBinder.ReleaseTexture(command.TextureHandle);
-                        }
-                        break;
-                    case DrawCommandType.SetScissor:
-                        // Set the scissor area
-                        // FIXME: Figure out what to do for rounding...
-                        var scissor = command.Scissor;
-                        GL.Scissor(
-                            (int)scissor.X,
-                            (int)(Height - (scissor.Y + scissor.Height)),
-                            (int)scissor.Width,
-                            (int)scissor.Height);
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-
-        public static Transform? SelectedTransform;
-        public void ShowTransformHierarchy()
-        {
-            if (ImGui.Begin("Hierarchy"))
-            {
-                ImGui.Columns(2);
-
-                var roots = Transform.Transforms.Where(t => t.Parent == null).ToArray();
-
-                for (int i = 0; i < roots.Length; i++)
-                {
-                    ShowTransform(roots[i]);
-                }
-
-                ImGui.NextColumn();
-
-                if (SelectedTransform != null)
-                {
-                    System.Numerics.Vector3 pos = SelectedTransform.LocalPosition.ToNumerics();
-                    if (ImGui.DragFloat3("Position", ref pos, 0.1f))
-                        SelectedTransform.LocalPosition = pos.ToOpenTK();
-
-                    // FIXME: Display euler angles
-                    //System.Numerics.Vector4 rot = SelectedTransform.LocalRotation.ToNumerics();
-                    //if (ImGui.DragFloat4("Rotation", ref rot, 0.1f))
-                    //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
-
-                    System.Numerics.Vector3 scale = SelectedTransform.LocalScale.ToNumerics();
-                    if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
-                        SelectedTransform.LocalScale = scale.ToOpenTK();
-                }
-                else
-                {
-                    ImGui.Text("No transform selected");
-                }
-            }
-            ImGui.End();
-
-            static void ShowTransform(Transform transform)
-            {
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-                if (SelectedTransform == transform)
-                {
-                    flags |= ImGuiTreeNodeFlags.Selected;
-                }
-                
-                if (transform.Children?.Count > 0)
-                {
-                    bool open = ImGui.TreeNodeEx(transform.Name, flags);
-
-                    if (ImGui.IsItemClicked())
-                    {
-                        SelectedTransform = transform;
-                    }
-
-                    if (open)
-                    {
-                        for (int i = 0; i < transform.Children.Count; i++)
-                        {
-                            ShowTransform(transform.Children[i]);
-                        }
-
-                        ImGui.TreePop();
-                    }
-                }
-                else
-                {
-                    flags |= ImGuiTreeNodeFlags.Leaf;
-                    ImGui.TreeNodeEx(transform.Name, flags);
-
-                    if (ImGui.IsItemClicked())
-                    {
-                        SelectedTransform = transform;
-                    }
-
-                    ImGui.TreePop();
-                }
-            }
         }
 
         public EntityRef? SelectedEntity;
@@ -854,6 +710,8 @@ namespace AerialRace
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
+
+            Screen.UpdateScreenSize(new Vector2i(e.Width, e.Height));
 
             ImGuiController.WindowResized(e.Width, e.Height);
 

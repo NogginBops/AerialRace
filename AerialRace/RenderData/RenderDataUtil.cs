@@ -17,6 +17,9 @@ using GLFrameBufferTarget = OpenTK.Graphics.OpenGL4.FramebufferTarget;
 
 namespace AerialRace.RenderData
 {
+    // FIXME: Find a place for this
+    [Flags] public enum ColorChannels : byte { None = 0, Red = 1, Green = 2, Blue = 4, Alpha = 8, All = 0x0F }
+
     static class RenderDataUtil
     {
         public static float MaxAnisoLevel { get; private set; }
@@ -1253,5 +1256,54 @@ namespace AerialRace.RenderData
 
             GL.DrawElements(type, CurrentIndexBuffer.Elements, ToGLDrawElementsType(CurrentIndexBuffer.IndexType), 0);
         }
+
+        public static Recti CurrentScissor = Recti.Empty;
+        public static void SetScissor(Recti rect)
+        {
+            if (CurrentScissor != rect)
+            {
+                // FIXME: This will break if the screen size is changed
+                GL.Scissor(rect.X, (Screen.Height - (rect.Y + rect.Height)), rect.Width, rect.Height);
+                CurrentScissor = rect;
+            }
+        }
+
+        private static bool DepthTesting;
+        public static void SetDepthTesting(bool shouldTest)
+        {
+            if (DepthTesting != shouldTest)
+            {
+                if (shouldTest) GL.Enable(EnableCap.DepthTest);
+                else GL.Disable(EnableCap.DepthTest);
+
+                DepthTesting = shouldTest;
+            }
+        }
+
+        private static bool DepthWrite;
+        public static void SetDepthWrite(bool write)
+        {
+            if (DepthWrite != write)
+            {
+                GL.DepthMask(write);
+                DepthWrite = write;
+            }
+        }
+
+        private static ColorChannels ColorWrite;
+        public static void SetColorWrite(ColorChannels flags)
+        {
+            if (ColorWrite != flags)
+            {
+                GL.ColorMask(
+                    flags.HasFlag(ColorChannels.Red),
+                    flags.HasFlag(ColorChannels.Green),
+                    flags.HasFlag(ColorChannels.Blue),
+                    flags.HasFlag(ColorChannels.Alpha));
+
+                ColorWrite = flags;
+            }
+        }
+
     }
 }
