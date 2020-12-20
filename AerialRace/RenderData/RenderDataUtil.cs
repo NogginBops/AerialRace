@@ -847,17 +847,25 @@ namespace AerialRace.RenderData
                 Attributes[i].Type = 0;
                 Attributes[i].Normalized = false;
             }
+        }
 
+        public static void SetVertexAttribute(int index, AttributeSpecification spec)
+        {
+            ref VertexAttribute attrib = ref Attributes[index];
 
+            // Only set the vertex attrib format if it's actually different from what is already bound
+            if (attrib.Size != spec.Size ||
+                attrib.Type != spec.Type ||
+                attrib.Normalized != spec.Normalized ||
+                attrib.Offset != spec.Offset)
+            {
+                GL.VertexAttribFormat(index, spec.Size, ToGLAttribType(spec.Type), spec.Normalized, spec.Offset);
 
-            // Positions
-            GL.VertexAttribFormat(0, 3, VertexAttribType.Float, false, 0);
-            // UVs
-            GL.VertexAttribFormat(1, 2, VertexAttribType.Float, false, 0);
-            // Normals
-            GL.VertexAttribFormat(2, 3, VertexAttribType.Float, false, 0);
-            // Colors
-            GL.VertexAttribFormat(3, 4, VertexAttribType.Float, false, 0);
+                attrib.Size = spec.Size;
+                attrib.Type = spec.Type;
+                attrib.Normalized = spec.Normalized;
+                attrib.Offset = spec.Offset;
+            }
         }
 
         public static void SetAndEnableVertexAttribute(int index, AttributeSpecification spec)
@@ -1305,5 +1313,46 @@ namespace AerialRace.RenderData
             }
         }
 
+
+        #region Debug Regions
+
+        public struct DebugGroup : IDisposable
+        {
+            public void Dispose()
+            {
+                PopDebugGroup();
+            }
+        }
+
+        public static DebugGroup PushGenericPass(string name)
+        {
+            GLUtil.PushDebugGroup(name);
+            return default;
+        }
+
+        public static DebugGroup PushDepthPass(string name)
+        {
+            GLUtil.PushDebugGroup($"Depth pass: {name}");
+            return default;
+        }
+
+        public static DebugGroup PushColorPass(string name)
+        {
+            GLUtil.PushDebugGroup($"Color pass: {name}");
+            return default;
+        }
+
+        public static DebugGroup PushCombinedPass(string name)
+        {
+            GLUtil.PushDebugGroup($"Color + depth pass: {name}");
+            return default;
+        }
+
+        public static void PopDebugGroup()
+        {
+            GLUtil.PopDebugGroup();
+        }
+
+        #endregion
     }
 }

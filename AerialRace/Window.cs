@@ -305,7 +305,11 @@ namespace AerialRace
             }
 
             ImGui.EndFrame();
-            ImGuiController.Render();
+
+            using (_ = RenderDataUtil.PushGenericPass("ImGui"))
+            {
+                ImGuiController.Render();
+            }
 
             // FIXME: Reset gl state!
             // The blend mode is changed to this after imgui
@@ -318,10 +322,13 @@ namespace AerialRace
 
         public void RenderScene(Camera camera)
         {
+            using var sceneDebugGroup = RenderDataUtil.PushGenericPass("Scene");
+
             RenderDataUtil.SetDepthTesting(true);
 
             // To be able to clear the depth buffer we need to enable writing to it
             RenderDataUtil.SetDepthWrite(true);
+
             RenderDataUtil.SetColorWrite(ColorChannels.All);
 
             GL.ClearColor(camera.ClearColor);
@@ -344,112 +351,123 @@ namespace AerialRace
             var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
             var lightSpace = lightView * proj;
 
-            RenderPassSettings shadowPass = new RenderPassSettings()
-            {
-                IsDepthPass = true,
-                View = lightView,
-                Projection = proj,
-                LightSpace = Matrix4.Identity,
-                ViewPos = directionalLightPos,
-
-                NearPlane = camera.NearPlane,
-                FarPlane = camera.FarPlane,
-
-                Sky = skySettings,
-                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
-            };
-
-            RenderDataUtil.BindDrawFramebuffer(Shadowmap);
-            GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Width, Shadowmap.DepthAttachment!.Height);
-
-            RenderDataUtil.SetDepthWrite(true);
-            RenderDataUtil.SetColorWrite(ColorChannels.None);
-            GL.Clear(ClearBufferMask.DepthBufferBit);
-            GL.DepthFunc(DepthFunction.Lequal);
-
-            MeshRenderer.Render(ref shadowPass);
-
-            RenderDataUtil.BindDrawFramebuffer(null);
-            GL.Viewport(0, 0, Width, Height);
-
-            camera.CalcProjectionMatrix(out proj);
-
-            RenderPassSettings depthPrePass = new RenderPassSettings()
-            {
-                IsDepthPass = true,
-                View = camera.Transform.WorldToLocal,
-                Projection = proj,
-                LightSpace = lightSpace,
-                ViewPos = camera.Transform.WorldPosition,
-
-                NearPlane = camera.NearPlane,
-                FarPlane = camera.FarPlane,
-
-                Sky = skySettings,
-                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
-            };
-
-            //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
-            RenderDataUtil.SetDepthWrite(true);
-            RenderDataUtil.SetColorWrite(ColorChannels.None);
-            GL.Clear(ClearBufferMask.DepthBufferBit);
-            GL.DepthFunc(DepthFunction.Lequal);
-
-            MeshRenderer.Render(ref depthPrePass);
-
-            //RenderDataUtil.BindDrawFramebuffer(null);
-
             // What we want to do here is first render the shadowmaps using all renderers
             // Then do a z prepass from the normal camera
             // Then do the final color pass
 
-            RenderPassSettings colorPass = new RenderPassSettings()
+            using (_ = RenderDataUtil.PushDepthPass("Directional Shadow"))
             {
-                IsDepthPass = false,
-                View = camera.Transform.WorldToLocal,
-                Projection = proj,
-                LightSpace = lightSpace,
-                ViewPos = camera.Transform.WorldPosition,
-
-                NearPlane = camera.NearPlane,
-                FarPlane = camera.FarPlane,
-
-                Sky = skySettings,
-                AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
-
-                UseShadows = true,
-                ShadowMap = Shadowmap.DepthAttachment,
-                ShadowSampler = ShadowSampler,
-            };
-
-            RenderDataUtil.SetDepthWrite(false);
-            RenderDataUtil.SetColorWrite(ColorChannels.All);
-            GL.DepthFunc(DepthFunction.Equal);
-
-            // We only want to render the skybox when we are rendering the final colors
-            SkyRenderer.Render(ref colorPass);
-            MeshRenderer.Render(ref colorPass);
-
-
-            // Draw debug stuff
-            RenderDataUtil.SetDepthTesting(false);
-
-            Matrix4 viewMatrix = camera.Transform.WorldToLocal;
-            camera.CalcProjectionMatrix(out proj);
-
-            //PhysDebugRenderer.RenderColliders();
-            //RenderDrawList(PhysDebugRenderer.Drawlist, Debug.DebugPipeline, ref proj, ref viewMatrix);
-
-            // Draw debug drawlist
-            {
-                RenderDataUtil.UsePipeline(Debug.DebugPipeline);
-                DrawListSettings settings = new DrawListSettings()
+                RenderPassSettings shadowPass = new RenderPassSettings()
                 {
-                    DepthTest = true,
-                    DepthWrite = false,
-                    Vp = viewMatrix * proj,
+                    IsDepthPass = true,
+                    View = lightView,
+                    Projection = proj,
+                    LightSpace = Matrix4.Identity,
+                    ViewPos = directionalLightPos,
+
+                    NearPlane = camera.NearPlane,
+                    FarPlane = camera.FarPlane,
+
+                    Sky = skySettings,
+                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
                 };
-                DrawListRenderer.RenderDrawList(Debug.List, ref settings);
+
+                RenderDataUtil.BindDrawFramebuffer(Shadowmap);
+                GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Width, Shadowmap.DepthAttachment!.Height);
+
+                RenderDataUtil.SetDepthWrite(true);
+                RenderDataUtil.SetColorWrite(ColorChannels.None);
+                GL.Clear(ClearBufferMask.DepthBufferBit);
+                GL.DepthFunc(DepthFunction.Lequal);
+
+                MeshRenderer.Render(ref shadowPass);
+            }
+
+            using (_ = RenderDataUtil.PushDepthPass("Depth prepass"))
+            {
+                RenderDataUtil.BindDrawFramebuffer(null);
+                GL.Viewport(0, 0, Width, Height);
+
+                camera.CalcProjectionMatrix(out proj);
+
+                RenderPassSettings depthPrePass = new RenderPassSettings()
+                {
+                    IsDepthPass = true,
+                    View = camera.Transform.WorldToLocal,
+                    Projection = proj,
+                    LightSpace = lightSpace,
+                    ViewPos = camera.Transform.WorldPosition,
+
+                    NearPlane = camera.NearPlane,
+                    FarPlane = camera.FarPlane,
+
+                    Sky = skySettings,
+                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                };
+
+                //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
+                RenderDataUtil.SetDepthWrite(true);
+                RenderDataUtil.SetColorWrite(ColorChannels.None);
+                GL.Clear(ClearBufferMask.DepthBufferBit);
+                GL.DepthFunc(DepthFunction.Lequal);
+
+                MeshRenderer.Render(ref depthPrePass);
+
+                //RenderDataUtil.BindDrawFramebuffer(null);
+            }
+
+            using (_ = RenderDataUtil.PushColorPass("Color pass"))
+            {
+                RenderPassSettings colorPass = new RenderPassSettings()
+                {
+                    IsDepthPass = false,
+                    View = camera.Transform.WorldToLocal,
+                    Projection = proj,
+                    LightSpace = lightSpace,
+                    ViewPos = camera.Transform.WorldPosition,
+
+                    NearPlane = camera.NearPlane,
+                    FarPlane = camera.FarPlane,
+
+                    Sky = skySettings,
+                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+
+                    UseShadows = true,
+                    ShadowMap = Shadowmap.DepthAttachment,
+                    ShadowSampler = ShadowSampler,
+                };
+
+                RenderDataUtil.SetDepthWrite(false);
+                RenderDataUtil.SetColorWrite(ColorChannels.All);
+                GL.DepthFunc(DepthFunction.Equal);
+
+                // We only want to render the skybox when we are rendering the final colors
+                SkyRenderer.Render(ref colorPass);
+                MeshRenderer.Render(ref colorPass);
+            }
+
+            using (_ = RenderDataUtil.PushGenericPass("Scene Debug"))
+            {
+                // Draw debug stuff
+                RenderDataUtil.SetDepthTesting(false);
+
+                Matrix4 viewMatrix = camera.Transform.WorldToLocal;
+                camera.CalcProjectionMatrix(out proj);
+
+                //PhysDebugRenderer.RenderColliders();
+                //RenderDrawList(PhysDebugRenderer.Drawlist, Debug.DebugPipeline, ref proj, ref viewMatrix);
+
+                // Draw debug drawlist
+                {
+                    RenderDataUtil.UsePipeline(Debug.DebugPipeline);
+                    DrawListSettings settings = new DrawListSettings()
+                    {
+                        DepthTest = false,
+                        DepthWrite = false,
+                        Vp = viewMatrix * proj,
+                    };
+                    DrawListRenderer.RenderDrawList(Debug.List, ref settings);
+                }
             }
         }
 
@@ -549,10 +567,10 @@ namespace AerialRace
                 Debug.WriteLine($"Long frame time: {args.Time:0.000}");
             }
 
-            QuadTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 0.1f * MathF.PI * (float)args.Time);
-            QuadTransform.LocalPosition = new Vector3(1, MathF.Sin(TotalTime * MathF.PI * 0.2f), -2);
+            //QuadTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 0.1f * MathF.PI * (float)args.Time);
+            //QuadTransform.LocalPosition = new Vector3(1, MathF.Sin(TotalTime * MathF.PI * 0.2f), -2);
 
-            //ChildTransform.Rotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)args.Time);
+            ChildTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)args.Time);
 
             //Camera.Transform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
 

@@ -44,17 +44,53 @@ namespace AerialRace.Editor
 
         public static void TransformHandle(Transform transform)
         {
-            Camera.CalcViewProjection(out var vp);
             Vector4 worldPos = new Vector4(transform.WorldPosition, 1);
-            Vector4 screenPos = worldPos * vp;
-            screenPos /= screenPos.W;
+            Camera.CalcViewProjection(out var vp);
 
-            Vector2 size = (1, 1) * InvScreenSize;
+            const float arrowLength = 2;
 
-            Rect rect = new Rect(screenPos.X, screenPos.Y, size.X, size.Y);
-            DebugHelper.Rect(GizmoDrawList, rect, Debug.FullUV, BuiltIn.WhiteTex, Color4.CornflowerBlue);
+            Vector4 wp = new Vector4(transform.WorldPosition, 1);
+            Vector4 wp_plusX = new Vector4(transform.WorldPosition + transform.Right.Normalized() * arrowLength, 1);
+            Vector4 wp_minusZ = new Vector4(transform.WorldPosition + transform.Forward.Normalized() * arrowLength, 1);
+            Vector4 wp_plusY = new Vector4(transform.WorldPosition + transform.Up.Normalized() * arrowLength, 1);
+
+            Line(GizmoDrawList, wp.Xyz, wp_plusX.Xyz, Color4.Red);
+            Line(GizmoDrawList, wp.Xyz, wp_plusY.Xyz, Color4.Lime); // because for some reason Green isn't green...
+            Line(GizmoDrawList, wp.Xyz, wp_minusZ.Xyz, Color4.Blue);
+
+            var m = new Matrix3(transform.LocalToWorld);
+
+            // FIXME: We actually want the worldspace rotation!!
+            // We might need to modify this to make it work
+            Quaternion Zaxis_rot = transform.LocalRotation;
+            DebugHelper.Cone(GizmoDrawList, wp_minusZ.Xyz, 0.2f, 0.4f, Zaxis_rot, 20, Color4.Blue);
+
+            Quaternion Xaxis_rot = Zaxis_rot * Quaternion.FromAxisAngle(Vector3.UnitY, -MathF.PI/2);
+            DebugHelper.Cone(GizmoDrawList, wp_plusY.Xyz, 0.2f, 0.3f, Xaxis_rot, 20, Color4.Red);
+            
+            Quaternion Yaxis_rot = Zaxis_rot * Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2);
+            DebugHelper.Cone(GizmoDrawList, wp_plusY.Xyz, 0.2f, 0.3f, Yaxis_rot, 20, Color4.Lime);
+            
+            static void Line(DrawList list, Vector3 from, Vector3 to, Color4 color)
+            {
+                list.AddVertexWithIndex(from, (0, 1), color);
+                list.AddVertexWithIndex(to,   (1, 0), color);
+                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            }
+
+            static void Rect(DrawList list, Vector3 origin, Vector3 base1, Vector3 base2, Color4 color)
+            {
+                list.AddVertex(origin, (0, 0), color);
+                list.AddVertex(origin, (0, 0), color);
+                list.AddVertex(origin, (0, 0), color);
+                list.AddVertex(origin, (0, 0), color);
+
+            }
         }
 
+
+        // FIXME: This is actually the same as all of the other drawlist rendering!
+        // So we should remove this
         private const string VertexSource = @"#version 460 core
 
 layout (location = 0) in vec3 in_position;
@@ -70,9 +106,11 @@ out VertexOutput
     vec4 v_color;
 };
 
+uniform mat4 vp;
+
 void main(void)
 {
-    gl_Position = vec4(in_position, 1f);
+    gl_Position = vec4(in_position, 1f) * vp;
     v_color = in_color;
 }
 ";
@@ -82,7 +120,7 @@ void main(void)
 in VertexOutput
 {
     vec4 v_color;
-}
+};
 
 out vec4 Color;
 

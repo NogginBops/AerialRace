@@ -117,11 +117,12 @@ namespace AerialRace.Editor
             // Gizmos drawlist rendering
             {
                 RenderData.RenderDataUtil.UsePipeline(Gizmos.GizmoMaterial.Pipeline);
+                EditorCamera.CalcViewProjection(out var vp);
                 DrawListSettings settings = new DrawListSettings()
                 {
                     DepthTest = false,
                     DepthWrite = false,
-                    Vp = Matrix4.Identity,
+                    Vp = vp,
                 };
                 DrawListRenderer.RenderDrawList(Gizmos.GizmoDrawList, ref settings);
                 Gizmos.GizmoDrawList.Clear();
@@ -154,9 +155,11 @@ namespace AerialRace.Editor
                     //if (ImGui.DragFloat4("Rotation", ref rot, 0.1f))
                     //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
 
+                    const float MinScale = 0.00000001f;
                     System.Numerics.Vector3 scale = SelectedTransform.LocalScale.ToNumerics();
                     if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
-                        SelectedTransform.LocalScale = scale.ToOpenTK();
+                        SelectedTransform.LocalScale = Vector3.ComponentMax(scale.ToOpenTK(), (MinScale, MinScale, MinScale));
+
                 }
                 else
                 {

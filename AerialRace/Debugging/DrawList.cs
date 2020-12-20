@@ -137,17 +137,23 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4 Color)
+        public int AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4 Color)
         {
             Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));
-            AddIndexOfLastVertex();
+            return AddIndexOfLastVertex();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddVertexWithIndex(Vector3 Pos, Vector2 UV, Color4 Color)
+        public int AddVertexWithIndex(Vector3 Pos, Vector2 UV, Color4 Color)
         {
             Vertices.Add(new DrawListVertex(Pos, UV, Color));
-            AddIndexOfLastVertex();
+            return AddIndexOfLastVertex();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddIndex(int index)
+        {
+            Indicies.Add(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,9 +163,16 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddIndexOfLastVertex()
+        public int TakeIndexOfLastVertex()
+        {
+            return Vertices.Count - 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int AddIndexOfLastVertex()
         {
             Indicies.Add(Vertices.Count - 1);
+            return Vertices.Count - 1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -173,7 +186,7 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddRelativeIndecies(int[] relativeIndicies)
+        public void AddRelativeIndices(int[] relativeIndicies)
         {
             int baseIndex = Vertices.Count;
             for (int i = 0; i < relativeIndicies.Length; i++)

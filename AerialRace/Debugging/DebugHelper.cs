@@ -9,6 +9,8 @@ namespace AerialRace.Debugging
 {
     static class DebugHelper
     {
+        // FIXME: We want to remove this because we don't really know what size we are drawing to.
+        // This info should be part of the draw drawlist if we really need this information.
         public static Vector2 PixelsToGL(Vector2 pixels)
         {
             return new Vector2(
@@ -55,7 +57,7 @@ namespace AerialRace.Debugging
         {
             List.AddCommand(PrimitiveType.LineStrip, 5, Texture);
 
-            List.AddRelativeIndecies(new[] { 0, 1, 2, 3, 0 });
+            List.AddRelativeIndices(new[] { 0, 1, 2, 3, 0 });
 
             List.AddVertex(PixelsToGL(Position.X, Position.Y + Size.Y), UVs.Xy, Color);
             List.AddVertex(PixelsToGL(Position.X, Position.Y), UVs.Xw, Color);
@@ -150,6 +152,52 @@ namespace AerialRace.Debugging
             }
 
             list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
+        }
+
+        // --------------------------
+        // ----  New 3D helpers  ----
+        // --------------------------
+
+        public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4 color)
+        {
+            if (segments < 3) throw new InvalidOperationException();
+
+            list.PrewarmVertices(segments + 2);
+            list.PrewarmIndices(segments * 6);
+
+            var dir = orientation * - Vector3.UnitZ;
+
+            list.AddVertex(@base, new Vector2(0, 0), color);
+            int baseVert = list.TakeIndexOfLastVertex();
+
+            list.AddVertex(@base + dir, new Vector2(1, 0), color);
+            int topVert = list.TakeIndexOfLastVertex();
+
+            int baseIndex = topVert + 1;
+
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)(segments - 1);
+
+                float x = MathF.Cos(t * 2 * MathF.PI) * radius;
+                float y = MathF.Sin(t * 2 * MathF.PI) * radius;
+                Vector3 pos = @base + (orientation * new Vector3(x, y, 0));
+                list.AddVertex(pos, (0, 1), color);
+
+                // This is one of the triangles of the base circle
+                // It goes from the circle center, to the current pos, and ends a the next pos
+                // The % is so that we loop back to 0 when we get to the end.
+                list.AddIndex(baseVert);
+                list.AddIndex(baseIndex + ((i + 1) % segments));
+                list.AddIndex(baseIndex + i);
+
+                // Do the same for the top vertex, but in reverse winding order
+                list.AddIndex(topVert);
+                list.AddIndex(baseIndex + i);
+                list.AddIndex(baseIndex + ((i + 1) % segments));
+            }
+
+            list.AddCommand(PrimitiveType.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
         }
     }
 }
