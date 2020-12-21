@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
@@ -11,7 +12,10 @@ namespace AerialRace.Editor
 {
     static class Gizmos
     {
-        public static Material GizmoMaterial;
+        public static Framebuffer GizmosOverlay;
+
+        public static ShaderPipeline GizmoOverlayPipeline;
+
         public static DrawList GizmoDrawList = new DrawList();
 
         // FIXME: We might want to view the gizmo from different cameras!
@@ -25,10 +29,23 @@ namespace AerialRace.Editor
 
         public static void Init()
         {
-            RenderData.RenderDataUtil.CreateShaderProgram("Gizmo Vertex", RenderData.ShaderStage.Vertex, VertexSource, out var vertex);
-            RenderData.RenderDataUtil.CreateShaderProgram("Gizmo Fragment", RenderData.ShaderStage.Fragment, FragmentSource, out var fragment);
-            RenderData.RenderDataUtil.CreatePipeline("Gizmo", vertex, null, fragment, out var pipeline);
-            GizmoMaterial = new Material("Gizmo", pipeline, null);
+            // Setup the overlay shader
+            RenderDataUtil.CreateShaderProgram("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag, out var overlayFrag);
+            RenderDataUtil.CreatePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, null, overlayFrag, out GizmoOverlayPipeline);
+
+            // FIXME: RESIZE: We want to handle screen resize!!
+            var color = RenderDataUtil.CreateEmpty2DTexture("Gizmo overlay color", TextureFormat.Rgba8, Debug.Width, Debug.Height);
+            var depth = RenderDataUtil.CreateEmpty2DTexture("Gizmo overlay depth", TextureFormat.Depth32F, Debug.Width, Debug.Height);
+
+            GizmosOverlay = RenderDataUtil.CreateEmptyFramebuffer("Gizmos overlay");
+            RenderDataUtil.AddColorAttachment(GizmosOverlay, color, 0, 0);
+            RenderDataUtil.AddDepthAttachment(GizmosOverlay, depth, 0);
+
+            var status = RenderDataUtil.CheckFramebufferComplete(GizmosOverlay, FramebufferTarget.ReadDraw);
+            if (status != OpenTK.Graphics.OpenGL4.FramebufferStatus.FramebufferComplete)
+            {
+                throw new Exception(status.ToString());
+            }
         }
 
         public static void UpdateInput(MouseState mouse, KeyboardState keyboard, Vector2 screenSize, Camera camera)
@@ -49,32 +66,36 @@ namespace AerialRace.Editor
 
             const float arrowLength = 2;
 
-            Vector4 wp = new Vector4(transform.WorldPosition, 1);
-            Vector4 wp_plusX = new Vector4(transform.WorldPosition + transform.Right.Normalized() * arrowLength, 1);
-            Vector4 wp_minusZ = new Vector4(transform.WorldPosition + transform.Forward.Normalized() * arrowLength, 1);
-            Vector4 wp_plusY = new Vector4(transform.WorldPosition + transform.Up.Normalized() * arrowLength, 1);
+            Matrix4 l2w = transform.LocalToWorld;
 
-            Line(GizmoDrawList, wp.Xyz, wp_plusX.Xyz, Color4.Red);
-            Line(GizmoDrawList, wp.Xyz, wp_plusY.Xyz, Color4.Lime); // because for some reason Green isn't green...
-            Line(GizmoDrawList, wp.Xyz, wp_minusZ.Xyz, Color4.Blue);
+            Vector3 axisX = l2w.Row0.Xyz.Normalized();
+            Vector3 axisY = l2w.Row1.Xyz.Normalized();
+            Vector3 axisZ = l2w.Row2.Xyz.Normalized();
+            Vector3 translation = l2w.Row3.Xyz;
 
-            var m = new Matrix3(transform.LocalToWorld);
+            Direction(GizmoDrawList, translation, axisX, arrowLength, Color4.Red);
+            Direction(GizmoDrawList, translation, axisY, arrowLength, Color4.Lime);
+            Direction(GizmoDrawList, translation, axisZ, arrowLength, Color4.Blue);
 
-            // FIXME: We actually want the worldspace rotation!!
-            // We might need to modify this to make it work
-            Quaternion Zaxis_rot = transform.LocalRotation;
-            DebugHelper.Cone(GizmoDrawList, wp_minusZ.Xyz, 0.2f, 0.4f, Zaxis_rot, 20, Color4.Blue);
+            DebugHelper.Cone(GizmoDrawList, translation + axisX * arrowLength, 0.2f, 0.5f, axisX, 20, Color4.Red);
+            DebugHelper.Cone(GizmoDrawList, translation + axisZ * arrowLength, 0.2f, 0.5f, axisZ, 20, Color4.Blue);
+            DebugHelper.Cone(GizmoDrawList, translation + axisY * arrowLength, 0.2f, 0.5f, axisY, 20, Color4.Lime);
 
-            Quaternion Xaxis_rot = Zaxis_rot * Quaternion.FromAxisAngle(Vector3.UnitY, -MathF.PI/2);
-            DebugHelper.Cone(GizmoDrawList, wp_plusY.Xyz, 0.2f, 0.3f, Xaxis_rot, 20, Color4.Red);
-            
-            Quaternion Yaxis_rot = Zaxis_rot * Quaternion.FromAxisAngle(Vector3.UnitX, MathF.PI / 2);
-            DebugHelper.Cone(GizmoDrawList, wp_plusY.Xyz, 0.2f, 0.3f, Yaxis_rot, 20, Color4.Lime);
-            
-            static void Line(DrawList list, Vector3 from, Vector3 to, Color4 color)
+            Matrix3 rotation = new Matrix3(axisX, axisY, axisZ);
+
+            const float ScaleBoxSize = 0.4f;
+            Vector3 halfSize = (ScaleBoxSize, ScaleBoxSize, ScaleBoxSize);
+            halfSize /= 2f;
+            float boxDist = arrowLength + ScaleBoxSize + 0.4f;
+
+            Cube(GizmoDrawList, translation + axisX * boxDist, halfSize, rotation, Color4.Red);
+            Cube(GizmoDrawList, translation + axisY * boxDist, halfSize, rotation, Color4.Lime);
+            Cube(GizmoDrawList, translation + axisZ * boxDist, halfSize, rotation, Color4.Blue);
+
+            static void Direction(DrawList list, Vector3 origin, Vector3 dir, float length, Color4 color)
             {
-                list.AddVertexWithIndex(from, (0, 1), color);
-                list.AddVertexWithIndex(to,   (1, 0), color);
+                list.AddVertexWithIndex(origin, (0, 1), color);
+                list.AddVertexWithIndex(origin + (dir * length), (1, 0), color);
                 list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
             }
 
@@ -84,49 +105,61 @@ namespace AerialRace.Editor
                 list.AddVertex(origin, (0, 0), color);
                 list.AddVertex(origin, (0, 0), color);
                 list.AddVertex(origin, (0, 0), color);
-
             }
+
+            static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
+            {
+                Span<int> iArray = stackalloc int[6] { 0, 1, 2, 1, 3, 2 };
+
+                const int faces = 6;
+
+                int index = 0;
+                for (int f = 0; f < faces; f++)
+                {
+                    list.AddRelativeIndices(iArray);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Vector3 offset = (DebugHelper.BoxVertices[index].Pos * halfSize) * rot;
+                        Vector3 pos = center + offset;
+                        list.AddVertex(pos , DebugHelper.BoxVertices[index].UV, color);
+                        
+                        index++;
+                    }
+                }
+
+                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, faces * 6, BuiltIn.WhiteTex);
+            }
+
         }
 
+        struct Ray
+        {
+            public Vector3 Origin;
+            public Vector3 Direction;
+        }
 
-        // FIXME: This is actually the same as all of the other drawlist rendering!
-        // So we should remove this
-        private const string VertexSource = @"#version 460 core
+        struct Cylinder
+        {
+            public Vector3 Origin;
+            public Vector3 Direction;
+            public float Radius;
+            public float Height;
+        }
 
-layout (location = 0) in vec3 in_position;
-layout (location = 2) in vec4 in_color;
-
-out gl_PerVertex
-{
-    vec4 gl_Position;
-};
-
-out VertexOutput
-{
-    vec4 v_color;
-};
-
-uniform mat4 vp;
-
-void main(void)
-{
-    gl_Position = vec4(in_position, 1f) * vp;
-    v_color = in_color;
-}
-";
-
-        private const string FragmentSource = @"#version 460 core
+        public const string OverlayFrag = @"#version 460 core
 
 in VertexOutput
 {
-    vec4 v_color;
+    vec2 uv;
 };
 
 out vec4 Color;
 
+uniform sampler2D overlayTex;
+
 void main(void)
 {
-    Color = vec4(v_color.rgb, 1);
+    Color = texture(overlayTex, uv);
 }
 ";
     }

@@ -1,5 +1,6 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.Loading;
+using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -115,18 +116,58 @@ namespace AerialRace.Editor
             }
 
             // Gizmos drawlist rendering
+            using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
             {
-                RenderData.RenderDataUtil.UsePipeline(Gizmos.GizmoMaterial.Pipeline);
+                // We need to enable writing to both depth and color for the clear to work.
+                RenderDataUtil.SetDepthWrite(true);
+                RenderDataUtil.SetColorWrite(ColorChannels.All);
+                
+                // FIXME: Make our own enum
+                RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
+                    Gizmos.GizmosOverlay,
+                    default,
+                    OpenTK.Graphics.OpenGL4.ClearBufferMask.ColorBufferBit |
+                    OpenTK.Graphics.OpenGL4.ClearBufferMask.DepthBufferBit);
+
+                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+
+                RenderDataUtil.UsePipeline(Debug.DebugPipeline);
                 EditorCamera.CalcViewProjection(out var vp);
                 DrawListSettings settings = new DrawListSettings()
                 {
-                    DepthTest = false,
-                    DepthWrite = false,
+                    DepthTest = true,
+                    DepthWrite = true,
                     Vp = vp,
+                    CullMode = RenderDataUtil.CullMode.Back,
                 };
                 DrawListRenderer.RenderDrawList(Gizmos.GizmoDrawList, ref settings);
                 Gizmos.GizmoDrawList.Clear();
+
+                RenderDataUtil.BindDrawFramebuffer(null);
+
+                // FIXME: Reset viewport
             }
+
+            // Here we overlay the gizmo FBO ontop of the default FBO.
+            RenderDataUtil.UsePipeline(Gizmos.GizmoOverlayPipeline);
+
+            RenderDataUtil.SetNormalAlphaBlending();
+
+            // FIXME: We might want a better way of binding textures...
+            RenderDataUtil.Uniform1("overlayTex", ShaderStage.Fragment, 0);
+            RenderDataUtil.BindTexture(0, Gizmos.GizmosOverlay.ColorAttachments![0].ColorTexture, (ISampler?)null);
+
+            RenderDataUtil.DisableAllVertexAttributes();
+
+            // FIXME: Setup correct blend mode
+
+            OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
+
+            // Important to unbind this texture so that we can draw to it later.
+            RenderDataUtil.BindTexture(0, null);
+
+            // Just in case we disable blending.
+            RenderDataUtil.DisableBlending();
         }
 
         public static Transform? SelectedTransform;

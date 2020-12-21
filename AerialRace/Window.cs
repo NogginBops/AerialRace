@@ -102,7 +102,7 @@ namespace AerialRace
             //GL.CullFace(CullFaceMode.Front);
 
             RenderDataUtil.SetDepthTesting(true);
-            GL.DepthFunc(DepthFunction.Lequal);
+            RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
 
             RenderDataUtil.QueryLimits();
             BuiltIn.StaticCtorTrigger();
@@ -324,6 +324,11 @@ namespace AerialRace
         {
             using var sceneDebugGroup = RenderDataUtil.PushGenericPass("Scene");
 
+            // Disable culling here. We do this because the drawlist rendering can change this setting.
+            // I don't want to figure out in what ways the current code relies on having no culling.
+            // - 2020-12-21
+            RenderDataUtil.SetCullMode(RenderDataUtil.CullMode.None);
+
             RenderDataUtil.SetDepthTesting(true);
 
             // To be able to clear the depth buffer we need to enable writing to it
@@ -378,7 +383,7 @@ namespace AerialRace
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.None);
                 GL.Clear(ClearBufferMask.DepthBufferBit);
-                GL.DepthFunc(DepthFunction.Lequal);
+                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
 
                 MeshRenderer.Render(ref shadowPass);
             }
@@ -409,7 +414,7 @@ namespace AerialRace
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.None);
                 GL.Clear(ClearBufferMask.DepthBufferBit);
-                GL.DepthFunc(DepthFunction.Lequal);
+                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
 
                 MeshRenderer.Render(ref depthPrePass);
 
@@ -439,7 +444,7 @@ namespace AerialRace
 
                 RenderDataUtil.SetDepthWrite(false);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
-                GL.DepthFunc(DepthFunction.Equal);
+                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfEqual);
 
                 // We only want to render the skybox when we are rendering the final colors
                 SkyRenderer.Render(ref colorPass);
@@ -465,6 +470,7 @@ namespace AerialRace
                         DepthTest = false,
                         DepthWrite = false,
                         Vp = viewMatrix * proj,
+                        CullMode = RenderDataUtil.CullMode.None,
                     };
                     DrawListRenderer.RenderDrawList(Debug.List, ref settings);
                 }

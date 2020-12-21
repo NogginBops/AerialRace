@@ -14,6 +14,8 @@ namespace AerialRace.Debugging
 
         public bool DepthTest;
         public bool DepthWrite;
+
+        public RenderDataUtil.CullMode CullMode;
     }
 
     static class DrawListRenderer
@@ -32,6 +34,8 @@ namespace AerialRace.Debugging
 
             RenderDataUtil.SetDepthTesting(settings.DepthTest);
             RenderDataUtil.SetDepthWrite(settings.DepthWrite);
+
+            RenderDataUtil.SetCullMode(settings.CullMode);
 
             RenderDataUtil.UniformMatrix4("vp", ShaderStage.Vertex, true, ref settings.Vp);
 

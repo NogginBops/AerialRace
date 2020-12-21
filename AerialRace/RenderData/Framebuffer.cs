@@ -8,6 +8,7 @@ namespace AerialRace.RenderData
     {
         Read = 1,
         Draw = 2,
+        ReadDraw = 3,
     }
 
     struct ColorAttachement

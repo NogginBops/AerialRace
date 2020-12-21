@@ -1,4 +1,5 @@
-﻿using AerialRace.RenderData;
+﻿using AerialRace.Loading;
+using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -16,12 +17,16 @@ namespace AerialRace
         public static readonly Texture BlackTransparentTex;
         public static readonly Texture FlatNormalTex;
 
+        public static readonly Texture UVTest;
+
         public static readonly AttributeSpecification[] StandardAttributes;
 
         public static ShaderProgram ErrorVertexProgram;
         public static ShaderProgram ErrorFragmentProgram;
 
         public static ShaderPipeline ErrorShaderPipeline;
+
+        public static ShaderProgram FullscreenTriangleVertex;
 
         static BuiltIn()
         {
@@ -30,6 +35,9 @@ namespace AerialRace
             BlackTex = RenderDataUtil.Create1PixelTexture("BuiltIn.Black", new Color4(0f, 0f, 0f, 1f));
             BlackTransparentTex = RenderDataUtil.Create1PixelTexture("BuiltIn.BlackTransparent", new Color4(0f, 0f, 0f, 0f));
             FlatNormalTex = RenderDataUtil.Create1PixelTexture("BuiltIn.FlatNormal", new Color4(.5f, .5f, 1f, 1f));
+
+            // FIXME: This might fail... do we want to load this here?
+            UVTest = TextureLoader.LoadRgbaImage("Builtin UV Test", "./Textures/uvtest.png", true, false);
 
             // These are attributes defined in the "standard" vertex stream.
             StandardAttributes = new[]
@@ -44,6 +52,8 @@ namespace AerialRace
             RenderDataUtil.CreateShaderProgram("Error fragment", ShaderStage.Fragment, ErrorFragmentSource, out ErrorFragmentProgram!);
 
             RenderDataUtil.CreatePipeline("Error pipeline", ErrorVertexProgram, null, ErrorFragmentProgram, out ErrorShaderPipeline);
+
+            RenderDataUtil.CreateShaderProgram("Fullscreen triangle vert", ShaderStage.Vertex, FullscreenTriangleVertexSource, out FullscreenTriangleVertex!);
         }
 
         public const string ErrorVertexSource = @"#version 450 core
@@ -72,5 +82,28 @@ void main(void)
     Color = vec4(1, 0, 1, 1);
 }
 ";
+
+        public const string FullscreenTriangleVertexSource = @"#version 460 core
+
+out gl_PerVertex
+{
+    out vec4 gl_Position;
+};
+
+out VertexOutput
+{
+    vec2 uv;
+};
+ 
+void main()
+{
+    float x = -1.0 + float((gl_VertexID & 1) << 2);
+    float y = -1.0 + float((gl_VertexID & 2) << 1);
+    uv.x = (x+1.0)*0.5;
+    uv.y = (y+1.0)*0.5;
+    gl_Position = vec4(x, y, 0, 1);
+}
+";
+
     }
 }

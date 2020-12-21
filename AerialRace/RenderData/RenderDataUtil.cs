@@ -131,6 +131,7 @@ namespace AerialRace.RenderData
         {
             FramebufferTarget.Read => GLFrameBufferTarget.ReadFramebuffer,
             FramebufferTarget.Draw => GLFrameBufferTarget.DrawFramebuffer,
+            FramebufferTarget.ReadDraw => GLFrameBufferTarget.Framebuffer,
             _ => throw new InvalidEnumArgumentException(nameof(target), (int)target, typeof(FramebufferTarget)),
         };
 
@@ -303,6 +304,16 @@ namespace AerialRace.RenderData
             DepthTextureCompareFunc.Never => (TextureCompareFunc)All.Never,
 
             _ => throw new InvalidEnumArgumentException(nameof(func), (int)func, typeof(DepthTextureCompareFunc)),
+        };
+
+        public static DepthFunction ToGLDepthFunction(DepthFunc func) => func switch
+        {
+            DepthFunc.AlwaysPass => DepthFunction.Always,
+            DepthFunc.NeverPass => DepthFunction.Never,
+            DepthFunc.PassIfLessOrEqual => DepthFunction.Lequal,
+            DepthFunc.PassIfEqual => DepthFunction.Equal,
+
+            _ => throw new InvalidEnumArgumentException(nameof(func), (int)func, typeof(DepthFunc)),
         };
 
         #endregion
@@ -902,6 +913,14 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static void DisableAllVertexAttributes()
+        {
+            for (int i = 0; i < Attributes.Length; i++)
+            {
+                DisableVertexAttribute(i);
+            }
+        }
+
         public static void SetAndEnableVertexAttributes(Span<AttributeSpecification> attribs)
         {
             for (int i = 0; i < attribs.Length; i++)
@@ -1250,6 +1269,50 @@ namespace AerialRace.RenderData
             }
         }
 
+        // FIXME: This might be too much state change in one function 
+        // making things harder to reason about...
+        // FIXME: Make our own ClearBufferMask enum
+        public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearBufferMask mask)
+        {
+            BindDrawFramebuffer(buffer);
+
+            // FIXME: We might want to store these values explicitly in our code.
+            GL.GetNamedFramebufferParameter(buffer.Handle, FramebufferDefaultParameter.FramebufferDefaultWidth, out int defaultWidth);
+            GL.GetNamedFramebufferParameter(buffer.Handle, FramebufferDefaultParameter.FramebufferDefaultHeight, out int defaultHeight);
+
+            bool hasAttachments = 
+                buffer.DepthAttachment != null ||
+                buffer.ColorAttachments != null;
+
+            int width = int.MaxValue;
+            int height = int.MaxValue;
+
+            if (hasAttachments)
+            {
+                if (buffer.DepthAttachment != null)
+                {
+                    width = Math.Min(width, buffer.DepthAttachment.Width);
+                    height = Math.Min(width, buffer.DepthAttachment.Height);
+                }
+
+                for (int i = 0; i < buffer.ColorAttachments?.Length; i++)
+                {
+                    width = Math.Min(width, buffer.ColorAttachments[i].ColorTexture.Width);
+                    height = Math.Min(width, buffer.ColorAttachments[i].ColorTexture.Height);
+                }
+            }
+            else
+            {
+                width = defaultWidth;
+                height = defaultHeight;
+            }
+
+            GL.Viewport(0, 0, width, height);
+
+            GL.ClearColor(clearColor);
+            GL.Clear(mask);
+        }
+
         #endregion
 
         // FIXME: Make our own primitive type enum
@@ -1298,6 +1361,20 @@ namespace AerialRace.RenderData
             }
         }
 
+        public enum DepthFunc
+        {
+            AlwaysPass,
+            NeverPass,
+            PassIfLessOrEqual,
+            PassIfEqual,
+        }
+
+        private static DepthFunc CurrentDepthFunc;
+        public static void SetDepthFunc(DepthFunc func)
+        {
+            GL.DepthFunc(ToGLDepthFunction(func));
+        }
+
         private static ColorChannels ColorWrite;
         public static void SetColorWrite(ColorChannels flags)
         {
@@ -1313,6 +1390,78 @@ namespace AerialRace.RenderData
             }
         }
 
+        public enum CullMode
+        {
+            None,
+            Front,
+            Back,
+            FrontAndBack
+        }
+
+        // FIXME: Make our own enum
+        private static bool CullingFaces = false;
+        private static CullMode Mode = CullMode.None;
+        public static void SetCullMode(CullMode mode)
+        {
+            if (Mode != mode)
+            {
+                if (mode == CullMode.None)
+                {
+                    GL.Disable(EnableCap.CullFace);
+                    CullingFaces = false;
+                }
+                else
+                {
+                    if (CullingFaces == false)
+                    {
+                        GL.Enable(EnableCap.CullFace);
+                        CullingFaces = true;
+                    }
+
+                    // FIXME: Make a "proper" convertion?
+                    switch (mode)
+                    {
+                        case CullMode.Front:
+                            GL.CullFace(CullFaceMode.Front);
+                            break;
+                        case CullMode.Back:
+                            GL.CullFace(CullFaceMode.Back);
+                            break;
+                        case CullMode.FrontAndBack:
+                            GL.CullFace(CullFaceMode.FrontAndBack);
+                            break;
+                        default:
+                            throw new Exception();
+                    }
+                }
+
+                Mode = mode;
+            }
+        }
+
+        public static void DisableBlending()
+        {
+            GL.Disable(EnableCap.Blend);
+        }
+
+        public static void SetNormalAlphaBlending()
+        {
+            const BlendEquationMode eq = BlendEquationMode.FuncAdd;
+            SetBlendModeFull(true, eq, eq, 
+                BlendingFactorSrc.SrcAlpha,
+                BlendingFactorDest.OneMinusSrcAlpha,
+                BlendingFactorSrc.One,
+                BlendingFactorDest.Zero);
+        }
+
+        public static void SetBlendModeFull(bool blending, BlendEquationMode colorEq, BlendEquationMode alphaEq, BlendingFactorSrc colorBlendSrc, BlendingFactorDest colorBlendDest, BlendingFactorSrc alphaBlendSrc, BlendingFactorDest alphaBlendDest)
+        {
+            if (blending) GL.Enable(EnableCap.Blend);
+            else          GL.Disable(EnableCap.Blend);
+            
+            GL.BlendEquationSeparate(colorEq, alphaEq);
+            GL.BlendFuncSeparate(colorBlendSrc, colorBlendDest, alphaBlendSrc, alphaBlendDest);
+        }
 
         #region Debug Regions
 

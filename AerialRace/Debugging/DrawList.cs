@@ -186,7 +186,7 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddRelativeIndices(int[] relativeIndicies)
+        public void AddRelativeIndices(Span<int> relativeIndicies)
         {
             int baseIndex = Vertices.Count;
             for (int i = 0; i < relativeIndicies.Length; i++)
