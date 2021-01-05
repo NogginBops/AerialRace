@@ -8,11 +8,12 @@ using System.Text;
 
 namespace AerialRace.Physics
 {
-    class MeshCollider : ICollider
+    class MeshCollider : IConvexCollider
     {
         public ConvexHull Hull;
 
-        public IConvexShape Shape => Hull;
+        public IShape Shape => Hull;
+        public IConvexShape ConvexShape => Hull;
         public TypedIndex TypedIndex { get; private set; }
         public Vector3 Center { get; private set; }
 

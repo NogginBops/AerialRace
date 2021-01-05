@@ -99,14 +99,6 @@ namespace AerialRace.Editor
                 list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
             }
 
-            static void Rect(DrawList list, Vector3 origin, Vector3 base1, Vector3 base2, Color4 color)
-            {
-                list.AddVertex(origin, (0, 0), color);
-                list.AddVertex(origin, (0, 0), color);
-                list.AddVertex(origin, (0, 0), color);
-                list.AddVertex(origin, (0, 0), color);
-            }
-
             static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
             {
                 Span<int> iArray = stackalloc int[6] { 0, 1, 2, 1, 3, 2 };

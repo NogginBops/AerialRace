@@ -18,6 +18,7 @@ namespace AerialRace
         public Color4 GroundColor;
     }
 
+    // FIXME: Add transparent switch!
     struct RenderPassSettings
     {
         public bool IsDepthPass;
@@ -81,6 +82,8 @@ namespace AerialRace
 
                 if (settings.IsDepthPass)
                 {
+                    // FIXME: Should materials with no depth pipeline be considered transparent.
+                    // i.e. not drawn in the depth pass?
                     RenderDataUtil.UsePipeline(material.DepthPipeline ?? material.Pipeline);
                 }
                 else
@@ -92,7 +95,7 @@ namespace AerialRace
                 //transform.GetTransformationMatrix(out var model);
                 var model = transform.LocalToWorld;
 
-                Transformations.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
+                Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
                 Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
                 Matrix4 modelToLightSpace = model * settings.LightSpace;

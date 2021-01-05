@@ -6,11 +6,15 @@ using System.Text;
 
 namespace AerialRace.Physics
 {
+    interface IConvexCollider : ICollider
+    {
+        public IConvexShape ConvexShape { get; }
+    }
+
     interface ICollider
     {
-        public IConvexShape Shape { get; }
+        public IShape Shape { get; }
         public TypedIndex TypedIndex { get; }
-
         public Vector3 Center { get; }
     }
 }

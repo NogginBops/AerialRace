@@ -1,7 +1,5 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.DebugGui;
-using AerialRace.Entities;
-using AerialRace.Entities.Systems;
 using AerialRace.Loading;
 using AerialRace.Physics;
 using AerialRace.RenderData;
@@ -38,6 +36,8 @@ namespace AerialRace
 
         ImGuiController ImGuiController;
 
+        Scene CurrentScene;
+
         Material Material;
         Mesh Mesh;
 
@@ -51,6 +51,7 @@ namespace AerialRace
 
         StaticSetpiece Floor;
         StaticSetpiece Rock;
+        StaticSetpiece Terrain;
 
         Camera Camera;
 
@@ -132,6 +133,7 @@ namespace AerialRace
             //Material = new Material("First Material", firstShader, null);
             Material = new Material("Debug Material", standardShader, depthPipeline);
             Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
+            Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
             // This should be the first refernce to StaticGeometry.
             StaticGeometry.Init();
@@ -166,10 +168,14 @@ namespace AerialRace
 
             Material shipMaterial = new Material("Ship", shipPipeline, depthPipeline);
             shipMaterial.Properties.SetTexture("AlbedoTex", ShipTexture, DebugSampler);
+            shipMaterial.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
+
+            var trailPipeline = RenderDataUtil.CreatePipeline("Trail", "./Shaders/Trail.vert", "./Shaders/Trail.frag");
+            var trailMat = new Material("Player Trail Mat", trailPipeline, null);
 
             Phys.Init();
 
-            Player = new Ship("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"), shipMaterial);
+            Player = new Ship("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"), shipMaterial, trailMat);
             Player.IsPlayerShip = true;
 
             //Camera.Transform.SetParent(Player.Transform);
@@ -186,6 +192,7 @@ namespace AerialRace
             {
                 var floorMat = new Material("Floor Mat", standardShader, depthPipeline);
                 floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
+                floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
                 // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
                 var FloorTransform = new Transform("Floor", new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
@@ -194,11 +201,40 @@ namespace AerialRace
             }
 
             {
+                var terrainMeshData = MeshLoader.LoadObjMesh("./Models/sketchfab/icy-terrain-export/source/Icy_Terrain_export.obj");
+                for (int i = 0; i < terrainMeshData.Vertices.Length; i++)
+                {
+                    terrainMeshData.Vertices[i].Position *= 400;
+                }
+                Mesh terrainMesh = RenderDataUtil.CreateMesh("Terrain", terrainMeshData);
+
+                var albedo = TextureLoader.LoadRgbaImage("Terrain Albedo", "./Models/sketchfab/icy-terrain-export/textures/SingleAsset_Terrain_C_Lowres_None_BaseColor.png", true, false);
+                var normal = TextureLoader.LoadRgbaImage("Terrain Normal", "./Models/sketchfab/icy-terrain-export/textures/SingleAsset_Terrain_C_Lowres_None_Normal_4.png", true, false);
+                var roughness = TextureLoader.LoadRgbaImage("Terrain Roughness", "./Models/sketchfab/icy-terrain-export/textures/SingleAsset_Terrain_C_Lowres_None_Roughnes.png", true, false);
+
+                var terrainMat = new Material("Terrain", standardShader, depthPipeline);
+                terrainMat.Properties.SetTexture("AlbedoTex", albedo);
+
+                var TerrainTransform = new Transform("Terrain", Vector3.Zero, Quaternion.Identity, Vector3.One);
+
+                SimpleMaterial physMatTerrain = new SimpleMaterial()
+                {
+                    FrictionCoefficient = 0.9f,
+                    MaximumRecoveryVelocity = 2f,
+                    SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+                };
+
+                Terrain = new StaticSetpiece(TerrainTransform, terrainMesh, terrainMat, new StaticMeshCollider(terrainMeshData), physMatTerrain);
+            }
+
+            {
                 var rockData = MeshLoader.LoadObjMesh("./Models/opengameart/rocks_02/rock_02_tri.obj");
                 Mesh rockMesh = RenderDataUtil.CreateMesh("Rock 2", rockData);
                 var rockMat = new Material("Rock 2", standardShader, depthPipeline);
                 var rockAlbedo = TextureLoader.LoadRgbaImage("Rock 2 Albedo", "./Models/opengameart/rocks_02/diffuse.tga", true, false);
+                var rockNormal = TextureLoader.LoadRgbaImage("Rock 2 Normal", "./Models/opengameart/rocks_02/normal.tga", true, false);
                 rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
+                rockMat.Properties.SetTexture("NormalTex", rockNormal, DebugSampler);
 
                 var rockTransform = new Transform("Rock", new Vector3(300f, 0f, -2f));
 
@@ -209,7 +245,7 @@ namespace AerialRace
                     SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
                 };
 
-                Rock = new StaticSetpiece(rockTransform, rockMesh, rockMat, new MeshCollider(rockData), physMatRock);
+                Rock = new StaticSetpiece(rockTransform, rockMesh, rockMat, new StaticMeshCollider(rockData), physMatRock);
             }
 
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
@@ -446,9 +482,50 @@ namespace AerialRace
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
                 RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfEqual);
 
-                // We only want to render the skybox when we are rendering the final colors
                 SkyRenderer.Render(ref colorPass);
                 MeshRenderer.Render(ref colorPass);
+                // FIXME: Add transparent switch to render pass thing!
+                //TrailRenderer.Render(ref colorPass);
+            }
+
+            using (_ = RenderDataUtil.PushColorPass("Transparent pass"))
+            {
+                RenderPassSettings transparentPass = new RenderPassSettings()
+                {
+                    IsDepthPass = false,
+                    View = camera.Transform.WorldToLocal,
+                    Projection = proj,
+                    LightSpace = lightSpace,
+                    ViewPos = camera.Transform.WorldPosition,
+
+                    NearPlane = camera.NearPlane,
+                    FarPlane = camera.FarPlane,
+
+                    Sky = skySettings,
+                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+
+                    UseShadows = true,
+                    ShadowMap = Shadowmap.DepthAttachment,
+                    ShadowSampler = ShadowSampler,
+                };
+
+                RenderDataUtil.SetDepthWrite(false);
+                RenderDataUtil.SetColorWrite(ColorChannels.All);
+                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                RenderDataUtil.SetBlendModeFull(true,
+                    BlendEquationMode.FuncAdd,
+                    BlendEquationMode.FuncAdd,
+                    BlendingFactorSrc.SrcAlpha,
+                    BlendingFactorDest.OneMinusSrcAlpha,
+                    BlendingFactorSrc.SrcAlpha,
+                    BlendingFactorDest.OneMinusSrcAlpha);
+
+                // FIXME: Add transparent switch to render pass thing!
+                //SkyRenderer.Render(ref transparentPass);
+                //MeshRenderer.Render(ref transparentPass);
+                TrailRenderer.Render(ref transparentPass);
+
+                RenderDataUtil.SetNormalAlphaBlending();
             }
 
             using (_ = RenderDataUtil.PushGenericPass("Scene Debug"))
@@ -477,7 +554,7 @@ namespace AerialRace
             }
         }
 
-        public Vector3 CameraOffset = new Vector3(0, 6f, 27f);
+        public Vector3 CameraOffset = new Vector3(0, 6f, 37f);
         public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
         void UpdateCamera(float deltaTime)
         {
@@ -508,57 +585,6 @@ namespace AerialRace
 
             Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
             //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
-        }
-
-        public EntityRef? SelectedEntity;
-        public void ShowEntityList(EntityManager manager)
-        {
-            if (ImGui.Begin("Entities"))
-            {
-                ImGui.Columns(2);
-
-                for (int i = 0; i < manager.EntityCount; i++)
-                {
-                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-
-                    if (SelectedEntity?.Handle == i)
-                    {
-                        flags |= ImGuiTreeNodeFlags.Selected;
-                    }
-
-                    flags |= ImGuiTreeNodeFlags.Leaf;
-
-                    bool open = ImGui.TreeNodeEx($"Entity #{i}", flags);
-
-                    if (ImGui.IsItemClicked())
-                    {
-                        SelectedEntity = new EntityRef(manager.Entities[i]);
-                    }
-
-                    if (open)
-                    {
-                        ImGui.TreePop();
-                    }
-                    else
-                    {
-
-                    }
-                }
-
-                ImGui.NextColumn();
-
-                if (SelectedEntity != null)
-                {
-                    var sig = manager.GetSignature(SelectedEntity.Value);
-                    ImGui.Text($"Signature field upper: {Convert.ToString((long)sig.ComponentMask.Field2, 2).PadLeft(64, '0')}");
-                    ImGui.Text($"Signature field lower: {Convert.ToString((long)sig.ComponentMask.Field1, 2).PadLeft(64, '0')}");
-                }
-                else
-                {
-                    ImGui.Text("No entity selected");
-                }
-            }
-            ImGui.End();
         }
 
         float TotalTime = 0;
@@ -616,62 +642,62 @@ namespace AerialRace
             float pitchForce = 0.05f;
             float yawForce = 0.05f;
             float rollForce = 0.08f;
-
-            if (IsKeyDown(Keys.A))
+            
+            if (keyboard.IsKeyDown(Keys.A))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, yawForce * MathHelper.TwoPi, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.D))
+            if (keyboard.IsKeyDown(Keys.D))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -yawForce * MathHelper.TwoPi, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.W))
+            if (keyboard.IsKeyDown(Keys.W))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-pitchForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.S))
+            if (keyboard.IsKeyDown(Keys.S))
             {
                 //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(pitchForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.Up))
+            if (keyboard.IsKeyDown(Keys.Up))
             {
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-yawForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.Down))
+            if (keyboard.IsKeyDown(Keys.Down))
             {
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(yawForce * MathHelper.TwoPi, 0, 0));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
             }
 
-            if (IsKeyDown(Keys.Q))
+            if (keyboard.IsKeyDown(Keys.Q))
             {
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, rollForce * MathHelper.TwoPi));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
             }
 
-            if (IsKeyDown(Keys.E))
+            if (keyboard.IsKeyDown(Keys.E))
             {
                 var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -rollForce * MathHelper.TwoPi));
                 Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
                 //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
             }
 
-            if (IsKeyDown(Keys.Space))
+            if (keyboard.IsKeyDown(Keys.Space))
             {
                 Player.AccelerationTimer += deltaTime;
                 if (Player.AccelerationTimer >= Player.AccelerationTime)

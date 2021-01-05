@@ -113,8 +113,14 @@ namespace AerialRace.Debugging
             System.Diagnostics.Debugger.Break();
         }
 
-
-
+        [System.Diagnostics.DebuggerHidden]
+        public static void Assert(bool mustBeTrue)
+        {
+            if (mustBeTrue == false)
+            {
+                Break();
+            }
+        }
 
         public const string DebugVertexSource = @"#version 450 core
 

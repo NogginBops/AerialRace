@@ -59,9 +59,9 @@ namespace AerialRace.Physics
                 new PositionLastTimestepper());
         }
 
-        public static BodyReference AddDynamicBody(RigidPose pose, ICollider collider, float mass, float speculativeMargin, BodyActivityDescription bodyActivityDesc, SimpleMaterial mat, SimpleBody bodyProp)
+        public static BodyReference AddDynamicBody(RigidPose pose, IConvexCollider collider, float mass, float speculativeMargin, BodyActivityDescription bodyActivityDesc, SimpleMaterial mat, SimpleBody bodyProp)
         {
-            collider.Shape.ComputeInertia(mass, out var inertia);
+            collider.ConvexShape.ComputeInertia(mass, out var inertia);
             var handle = Simulation.Bodies.Add(
                 BodyDescription.CreateDynamic(
                     pose,

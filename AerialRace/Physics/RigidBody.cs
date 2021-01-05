@@ -12,13 +12,13 @@ namespace AerialRace.Physics
         //public List<> Shapes;
 
         // FIXME!!
-        public ICollider Shape;
+        public IConvexCollider Shape;
 
         public BodyReference Body;
 
         public float Mass;
 
-        public RigidBody(ICollider shape, Transform transform, float mass, SimpleMaterial material, SimpleBody bodyProp)
+        public RigidBody(IConvexCollider shape, Transform transform, float mass, SimpleMaterial material, SimpleBody bodyProp)
         {
             Shape = shape;
             Body = Phys.AddDynamicBody(

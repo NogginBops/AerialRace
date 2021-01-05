@@ -6,98 +6,16 @@ using System.Text;
 
 namespace AerialRace
 {
-    struct TransformationData
+    public class Transform
     {
-        public int Parent;
-        public Vector3 Position;
-        public Vector3 Scale;
-        public Quaternion Rotation;
-
-        public TransformationData(int parent, Vector3 position, Vector3 scale, Quaternion rotation)
-        {
-            Parent = parent;
-            Position = position;
-            Scale = scale;
-            Rotation = rotation;
-        }
-    }
-
-    class Transformations
-    {
-        public List<Transform> TransformRoots = new List<Transform>();
-
-        public static void LinearizeTransformations(List<Transform> roots, TransformationData[] placed)
-        {
-            Stack<Transform> stack = new Stack<Transform>();
-
-            for (int i = 0; i < roots.Count; i++)
-            {
-                stack.Push(roots[i]);
-            }
-
-            int index = 0;
-
-            while (stack.Count > 0)
-            {
-                Transform transform = stack.Pop();
-
-                transform.LinearizedIndex = index;
-
-                index++;
-
-                // Push all of the children to the stack
-                for (int i = 0; i < transform.Children?.Count; i++)
-                {
-                    stack.Push(transform.Children[i]);
-                }
-
-                placed[index] = new TransformationData(
-                    transform.Parent?.LinearizedIndex ?? 0,
-                    transform.LocalPosition,
-                    transform.LocalScale,
-                    transform.LocalRotation);
-            }
-        }
-
-        public static void ResolveTransformations(TransformationData[] transforms, Matrix4[] resolved)
-        {
-            for (int i = 0; i < transforms.Length; i++)
-            {
-                ref TransformationData data = ref transforms[i];
-                ref Matrix4 matrix = ref resolved[i];
-
-                // FIXME: Make this more efficient!!!
-                Matrix3.CreateFromQuaternion(data.Rotation, out Matrix3 rotation);
-
-                var scale = data.Scale;
-                matrix.Row0 = new Vector4(rotation.Row0 * scale.X, 0);
-                matrix.Row1 = new Vector4(rotation.Row1 * scale.Y, 0);
-                matrix.Row2 = new Vector4(rotation.Row2 * scale.Z, 0);
-                matrix.Row3 = new Vector4(data.Position, 1);
-
-                if (data.Parent != 0)
-                {
-                    Debug.Assert(data.Parent < i);
-
-                    ref Matrix4 parent = ref resolved[data.Parent];
-
-                    // Left multiply by the parent matrix
-                    Matrix4.Mult(in matrix, in parent, out matrix);
-                }
-            }
-        }
+        // FIXME: We want a good way to Create and Delete entities
+        public static List<Transform> Transforms = new List<Transform>();
 
         public static void MultMVP(ref Matrix4 model, ref Matrix4 view, ref Matrix4 projection, out Matrix4 mv, out Matrix4 mvp)
         {
             Matrix4.Mult(model, view, out mv);
             Matrix4.Mult(mv, projection, out mvp);
         }
-    }
-
-    public class Transform
-    {
-        // FIXME: We want a good way to Create and Delete entities
-        public static List<Transform> Transforms = new List<Transform>();
 
         public string Name = "Default Name";
 
@@ -117,7 +35,7 @@ namespace AerialRace
         public Matrix4 LocalToWorld;
         public Matrix4 WorldToLocal;
 
-        //public Vector3 Forward2 => Rotation * -Vector3.UnitZ;
+        // FIXME: Make WorldForward, and ParentForward different things!
         public Vector3 Forward => Vector3.TransformVector(-Vector3.UnitZ, LocalToWorld);//Transformations.MultDirection(-Vector3.UnitZ, ref LocalToWorld);
         public Vector3 Right   => Vector3.TransformVector( Vector3.UnitX, LocalToWorld);//Transformations.MultDirection( Vector3.UnitX, ref LocalToWorld);
         public Vector3 Up      => Vector3.TransformVector( Vector3.UnitY, LocalToWorld);//Transformations.MultDirection( Vector3.UnitY, ref LocalToWorld);
@@ -239,6 +157,16 @@ namespace AerialRace
         public Vector3 WorldDirectionToLocal(Vector3 worldDir)
         {
             return Vector3.TransformVector(worldDir, WorldToLocal);
+        }
+
+        public Vector3 LocalPositionToWorld(in Vector3 localPos)
+        {
+            return Vector3.TransformPosition(localPos, LocalToWorld);
+        }
+
+        public Vector3 WorldPositionToLocal(in Vector3 worldPos)
+        {
+            return Vector3.TransformPosition(worldPos, WorldToLocal);
         }
     }
 }

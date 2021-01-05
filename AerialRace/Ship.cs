@@ -15,10 +15,15 @@ namespace AerialRace
         public Transform Transform;
 
         public MeshRenderer MeshRenderer;
+        public TrailRenderer LeftTrailRenderer;
+        public TrailRenderer RightTrailRenderer;
 
         public Mesh Model;
 
-        public ICollider Collider;
+        public Trail LeftTrail;
+        public Trail RightTrail;
+
+        public IConvexCollider Collider;
         public RigidBody RigidBody;
 
         public Material Material;
@@ -28,7 +33,7 @@ namespace AerialRace
         public float MaxSpeed;
 
         public float AccelerationTimer;
-        public float AccelerationTime = 2f;
+        public float AccelerationTime = 0.5f;
         public float CurrentAcceleration;
         public float MaxAcceleration = 1;
 
@@ -45,7 +50,7 @@ namespace AerialRace
 
         public bool Stalling = false;
 
-        public Ship(string name, MeshData meshData, Material material)
+        public Ship(string name, MeshData meshData, Material material, Material trailMaterial)
         {
             Transform = new Transform("Ship", new Vector3(0, 50f, 0));
             Model = RenderDataUtil.CreateMesh(name, meshData);
@@ -53,9 +58,16 @@ namespace AerialRace
 
             MeshRenderer = new MeshRenderer(Transform, Model, Material);
 
+            float trailLength = 5f;
+            int trailSegments = 2000;
+            LeftTrail  = new Trail("Ship trail left", trailLength, 0.1f, trailSegments);
+            LeftTrailRenderer = new TrailRenderer(LeftTrail, trailMaterial);
+            RightTrail = new Trail("Ship trail right", trailLength, 0.1f, trailSegments);
+            RightTrailRenderer = new TrailRenderer(RightTrail, trailMaterial);
+
             SimpleMaterial playerPhysMat = new SimpleMaterial()
             {
-                FrictionCoefficient = 0.2f,
+                FrictionCoefficient = 1f,
                 MaximumRecoveryVelocity = 2f,
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
@@ -122,6 +134,10 @@ namespace AerialRace
             RigidBody.Body.ApplyLinearImpulse((Transform.Forward * CurrentAcceleration * RigidBody.Mass).ToNumerics());
 
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
+
+            float separation = 4.5f;
+            LeftTrail.Update(-Transform.Right * separation + Transform.WorldPosition, deltaTime);
+            RightTrail.Update(Transform.Right * separation + Transform.WorldPosition, deltaTime);
 
             {
                 if (ImGui.Begin("Plane Stats", ImGuiWindowFlags.NoFocusOnAppearing))

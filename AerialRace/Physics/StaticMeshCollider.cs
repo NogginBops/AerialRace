@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AerialRace.Physics
 {
-    class StaticMeshCollider
+    class StaticMeshCollider : ICollider
     {
         public BepuPhysics.Collidables.Mesh Mesh;
 
@@ -23,7 +23,9 @@ namespace AerialRace.Physics
         {
             // FIXME: We might want to make this faster!
             var positions = mesh.Vertices.Select(v => v.Position.ToNumerics()).ToArray();
-            Mesh = new BepuPhysics.Collidables.Mesh();
+            var tris = AllocateTriangles(mesh);
+
+            Mesh = new BepuPhysics.Collidables.Mesh(tris, Vector3.One.ToNumerics(), Phys.BufferPool);
 
             TypedIndex = Phys.Simulation.Shapes.Add(Mesh);
 
@@ -34,22 +36,13 @@ namespace AerialRace.Physics
 
         public static Buffer<Triangle> AllocateTriangles(MeshData data)
         {
-            int triangleCount = 0;
-            switch (data.IndexType)
+            var triangleCount = data.IndexType switch
             {
-                case RenderData.IndexBufferType.UInt8:
-                    triangleCount = data.Int8Indices!.Length / 3;
-                    break;
-                case RenderData.IndexBufferType.UInt16:
-                    triangleCount = data.Int16Indices!.Length / 3;
-                    break;
-                case RenderData.IndexBufferType.UInt32:
-                    triangleCount = data.Int32Indices!.Length / 3;
-                    break;
-                default:
-                    throw new System.Exception();
-            }
-            
+                RenderData.IndexBufferType.UInt8 => data.Int8Indices!.Length / 3,
+                RenderData.IndexBufferType.UInt16 => data.Int16Indices!.Length / 3,
+                RenderData.IndexBufferType.UInt32 => data.Int32Indices!.Length / 3,
+                _ => throw new System.Exception(),
+            };
             Phys.BufferPool.Take<Triangle>(triangleCount, out var buffer);
 
             for (int i = 0; i < triangleCount; i++)
@@ -58,10 +51,10 @@ namespace AerialRace.Physics
                 int i2 = GetIndexFromMesh(i * 3 + 1, data);
                 int i3 = GetIndexFromMesh(i * 3 + 2, data);
 
-                buffer[0] = new Triangle(
+                buffer[i] = new Triangle(
                     data.Vertices[i1].Position.ToNumerics(),
-                    data.Vertices[i2].Position.ToNumerics(),
-                    data.Vertices[i3].Position.ToNumerics()
+                    data.Vertices[i3].Position.ToNumerics(),
+                    data.Vertices[i2].Position.ToNumerics()
                     );
             }
 

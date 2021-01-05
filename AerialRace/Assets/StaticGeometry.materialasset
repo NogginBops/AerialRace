@@ -1,7 +1,5 @@
-Name: Static Geometry
-AssetID: 
-Shader: b3036ddc-0af3-448b-8252-78b10067b29c
-Properties:
-{
-    [Texture]Albedo: 
-}
+﻿Name: Static Geometry
+AssetID: cc27b615-34bb-4cf6-941b-cca81fbd636f
+Pipeline: b3036ddc-0af3-448b-8252-78b10067b29c
+DepthPipeline: 9ee47a2a-94a0-4ec0-8831-486222cf596a
+

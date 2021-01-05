@@ -14,6 +14,8 @@ uniform vec3 ViewPos;
 
 uniform sampler2D AlbedoTex;
 
+uniform sampler2D NormalTex;
+
 uniform struct Sky {
     vec3 SunDirection;
     vec3 SunColor;
@@ -66,6 +68,20 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 void main(void)
 {
     vec3 normal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
+    
+    vec3 q1 = dFdx(fragPos.xyz);
+    vec3 q2 = dFdy(fragPos.xyz);
+    vec2 st1 = dFdx(fragUV);
+    vec2 st2 = dFdy(fragUV);
+
+    vec3 tangent = normalize(q1 * st2.t - q2 * st1.t);
+    vec3 bitangent = normalize(-q1 * st2.s + q2 * st1.s);
+
+    mat3 tangentToWorld = mat3(tangent, bitangent, normal);
+    vec3 N = texture(NormalTex, fragUV).rgb;
+    N = N * 2.0 - 1.0;
+    // FIXME: Why is this the multiplication order?
+    normal =  normalize(tangentToWorld * N);
 
     vec3 lightDir = sky.SunDirection;
     vec3 viewDir = normalize(ViewPos - fragPos.xyz);
@@ -73,10 +89,10 @@ void main(void)
 
     vec3 albedo = vec3(texture(AlbedoTex, fragUV));
 
-    vec3 norm = normalize(normal);
-    float diff = max(dot(norm, lightDir), 0.0f);
+    float diff = max(dot(normal, halfwayDir), 0.0f);
     vec3 diffuse = sky.SunColor * diff * albedo;
-    vec3 ambient = skyColor(normal) * albedo;
+    vec3 skyVec = normalize(normal + lightDir + reflect(-viewDir, normal));
+    vec3 ambient = skyColor(skyVec) * albedo;
 
     float shadow = 1f - ShadowCalculation(lightSpacePosition, normal, sky.SunDirection);
 

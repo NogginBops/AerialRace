@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
@@ -681,6 +682,14 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static ShaderPipeline CreatePipeline(string name, string vertexPath, string fragmentPath)
+        {
+            CreateShaderProgram($"{name}: Vertex", ShaderStage.Vertex, File.ReadAllText(vertexPath), out var vertProgram);
+            CreateShaderProgram($"{name}: Fragment", ShaderStage.Fragment, File.ReadAllText(fragmentPath), out var fragProgram);
+            CreatePipeline(name, vertProgram, null, fragProgram, out var pipeline);
+            return pipeline;
+        }
+
         public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
         {
             GLUtil.CreateSampler(name, out int sampler);
@@ -778,6 +787,16 @@ namespace AerialRace.RenderData
 
         #endregion
 
+        // FIXME: Typesafe buffers?
+        public static void UploadBufferData<T>(Buffer buffer, int elementOffset, Span<T> data) where T : unmanaged
+        {
+            if (data.Length != 0)
+            {
+                int size = Unsafe.SizeOf<T>();
+                GL.NamedBufferSubData(buffer.Handle, (IntPtr)(elementOffset * size), data.Length * size, ref data[0]);
+            }
+        }
+
         public static void ReallocBuffer(ref Buffer buffer, int newElementCount)
         {
             GL.DeleteBuffer(buffer.Handle);
@@ -839,7 +858,7 @@ namespace AerialRace.RenderData
             public int Offset;
         }
 
-        const int MinimumNumberOfVertexAttributes = 16;
+        public const int MinimumNumberOfVertexAttributes = 16;
 
         // Represents the state of the 16 guaranteed vertex attributes
         public static VertexAttribute[] Attributes = new VertexAttribute[MinimumNumberOfVertexAttributes];
@@ -976,11 +995,11 @@ namespace AerialRace.RenderData
             }
         }
 
-        public static void BindIndexBuffer(IndexBuffer buffer)
+        public static void BindIndexBuffer(IndexBuffer? buffer)
         {
             if (CurrentIndexBuffer != buffer)
             {
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, buffer.Handle);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, buffer?.Handle ?? 0);
                 CurrentIndexBuffer = buffer;
             }
         }
@@ -1318,6 +1337,8 @@ namespace AerialRace.RenderData
         // FIXME: Make our own primitive type enum
         public static void DrawElements(PrimitiveType type, int elements, IndexBufferType indexType, int offset)
         {
+            if (CurrentIndexBuffer == null) throw new Exception("Cannot draw all elements if there is no element buffer bound!");
+
             GL.DrawElements(type, elements, ToGLDrawElementsType(indexType), offset);
         }
 
@@ -1326,6 +1347,14 @@ namespace AerialRace.RenderData
             if (CurrentIndexBuffer == null) throw new Exception("Cannot draw all elements if there is no element buffer bound!");
 
             GL.DrawElements(type, CurrentIndexBuffer.Elements, ToGLDrawElementsType(CurrentIndexBuffer.IndexType), 0);
+        }
+
+        public static void DrawArrays(PrimitiveType type, int offset, int vertices)
+        {
+            if (CurrentIndexBuffer != null)
+                Debug.WriteLine("WARNING: Calling DrawArrays while there is an index buffer bound. This is probably not intentional.");
+
+            GL.DrawArrays(type, offset, vertices);
         }
 
         public static Recti CurrentScissor = Recti.Empty;

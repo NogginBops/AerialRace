@@ -18,15 +18,23 @@ namespace AerialRace.Loading
         Mesh,
         Shader,
         Material,
+        Scene,
     }
 
-    public struct AssetRef
+    struct AssetRef<T> where T : Asset
     {
         public Guid AssetID;
+
+        public bool HasRef => AssetID != Guid.Empty;
 
         public AssetRef(Guid id)
         {
             AssetID = id;
+        }
+
+        public override string ToString()
+        {
+            return AssetID.ToString();
         }
     }
 
@@ -50,9 +58,11 @@ namespace AerialRace.Loading
     // FIXME: Check that the Giud that we get are actually unique!!
     class AssetDB
     {
+        public Dictionary<Guid, Asset> AssetDictionary = new Dictionary<Guid, Asset>();
         public List<TextureAsset> TextureAssets = new List<TextureAsset>();
         public List<MeshAsset> MeshAssets = new List<MeshAsset>();
         public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
+        public List<MaterialAsset> MaterialAssets = new List<MaterialAsset>();
 
         private string BaseDirectory = Directory.GetCurrentDirectory();
         private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser() { /*CurrentPath = Directory.GetCurrentDirectory()*/ };
@@ -118,6 +128,7 @@ namespace AerialRace.Loading
                     if (asset != null)
                     {
                         TextureAssets.Add(asset);
+                        AssetDictionary.Add(asset.AssetID, asset);
                     }
                 }
             }
@@ -132,6 +143,7 @@ namespace AerialRace.Loading
                     if (asset != null)
                     {
                         MeshAssets.Add(asset);
+                        AssetDictionary.Add(asset.AssetID, asset);
                     }
                 }
             }
@@ -146,8 +158,38 @@ namespace AerialRace.Loading
                     if (asset != null)
                     {
                         ShaderAssets.Add(asset);
+                        AssetDictionary.Add(asset.AssetID, asset);
                     }
                 }
+            }
+
+            // Material assets
+            {
+                var assetFiles = directory.GetFiles("*.materialasset", seachOpt);
+                MaterialAssets = new List<MaterialAsset>();
+                foreach (var assetFile in assetFiles)
+                {
+                    var asset = MaterialAsset.Parse(directory, assetFile);
+                    if (asset != null)
+                    {
+                        MaterialAssets.Add(asset);
+                        AssetDictionary.Add(asset.AssetID, asset);
+                    }
+                }
+            }
+        }
+
+        public T? ResolveReference<T>(AssetRef<T> @ref) where T : Asset
+        {
+            if (@ref.HasRef == false) return null;
+
+            if (AssetDictionary.TryGetValue(@ref.AssetID, out var asset))
+            {
+                return (T)asset;
+            }
+            else
+            {
+                return null;
             }
         }
 
@@ -207,12 +249,17 @@ namespace AerialRace.Loading
                     ImGui.TreePop();
                 }
 
+                if (ImGui.TreeNodeEx("Materials", flags))
+                {
+                    AssetList(MaterialAssets, ref SelectedAsset);
+
+                    ImGui.TreePop();
+                }
+
                 // After all asset lists
                 ImGui.NextColumn();
 
                 AssetInspector(SelectedAsset);
-
-                
             }
             ImGui.End();
         }
@@ -263,6 +310,9 @@ namespace AerialRace.Loading
                     break;
                 case ShaderAsset sa:
                     ShaderAssetInspector(sa);
+                    break;
+                case MaterialAsset ma:
+                    MaterialAssetInspector(ma);
                     break;
                 default:
                     {
@@ -402,6 +452,28 @@ namespace AerialRace.Loading
                     asset.MarkDirty();
                 }
             }
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    //RenderDataUtil.DeleteTexture(ref asset.LoadedTexture);
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+        }
+
+        public void MaterialAssetInspector(MaterialAsset asset)
+        {
+            BasicAssetInspector(asset);
+
+            // FIXME: Asset ref fields
+            ImGui.LabelText("Pipeline", $"{{{asset.Pipeline}}}");
+            ImGui.LabelText("Depth Pipeline", $"{{{asset.DepthPipeline}}}");
 
             if (asset.IsDirty)
             {
@@ -569,9 +641,11 @@ namespace AerialRace.Loading
 
         public abstract void WriteAssetProperties(TextWriter writer);
 
-        public AssetRef GetRef()
+        public AssetRef<T> GetRef<T>() where T : Asset
         {
-            return new AssetRef(AssetID);
+            if (GetType().IsAssignableTo(typeof(T)) == false)
+                throw new Exception("Can't convert this asset into a ref of that type!");
+            return new AssetRef<T>(AssetID);
         }
     }
 
@@ -818,6 +892,102 @@ namespace AerialRace.Loading
 
             RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment, out LoadedPipeline);
             return true;
+        }
+    }
+
+    class MaterialAsset : Asset
+    {
+        public override AssetType Type => AssetType.Material;
+
+        public AssetRef<ShaderAsset> Pipeline;
+        public AssetRef<ShaderAsset> DepthPipeline;
+
+        // FIXME: Material properties
+        //public 
+
+        public Material? LoadedMaterial;
+
+        public MaterialAsset(in AssetBaseInfo assetInfo, AssetRef<ShaderAsset> pipeline, AssetRef<ShaderAsset> depthPipeline) : base(assetInfo)
+        {
+            Pipeline = pipeline;
+            DepthPipeline = depthPipeline;
+        }
+
+        public static MaterialAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
+        {
+            // FIXME: We don't want assets without a guid to pass this!
+            using var textReader = assetFile.OpenText();
+            AssetBaseInfo info = default;
+            info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
+            AssetRef<ShaderAsset> pipeline = default;
+            AssetRef<ShaderAsset> depthPipeline = default;
+            while (textReader.EndOfStream == false)
+            {
+                var line = textReader.ReadLine()!;
+                if (line.StartsWith("Name: "))
+                {
+                    info.Name = line.Substring("Name: ".Length);
+                }
+                else if (line.StartsWith("AssetID: "))
+                {
+                    if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("Pipeline: "))
+                {
+                    pipeline = new AssetRef<ShaderAsset>(Guid.Parse(line["Pipeline: ".Length..]));
+                }
+                else if (line.StartsWith("DepthPipeline: "))
+                {
+                    depthPipeline = new AssetRef<ShaderAsset>(Guid.Parse(line["DepthPipeline: ".Length..]));
+                }
+            }
+
+            return new MaterialAsset(info, pipeline, depthPipeline);
+        }
+
+        public override void WriteAssetProperties(TextWriter writer)
+        {
+            if (Pipeline.HasRef) writer.WriteLine($"Pipeline: {Pipeline.AssetID}");
+            if (DepthPipeline.HasRef) writer.WriteLine($"DepthPipeline: {DepthPipeline.AssetID}");
+        }
+
+        // FIXME: Properties
+        public bool LoadMaterial(AssetDB db)
+        {
+            var pipeline = db.ResolveReference(Pipeline);
+            var depthPipeline = db.ResolveReference(DepthPipeline);
+
+            // If both are null there is nothing to load really
+            if (pipeline == null && depthPipeline == null)
+                return false;
+
+            if (pipeline == null || pipeline.LoadShader() == false)
+                return false;
+
+            if (depthPipeline == null || depthPipeline.LoadShader() == false)
+                return false;
+
+            LoadedMaterial = new Material(Name, pipeline.LoadedPipeline!, depthPipeline.LoadedPipeline);
+            return true;
+        }
+    }
+
+    class StaticSetpieceAsset : Asset
+    {
+        public override AssetType Type => throw new NotImplementedException();
+
+        public StaticSetpieceAsset(in AssetBaseInfo assetInfo) : base(assetInfo)
+        {
+
+        }
+
+        public override void WriteAssetProperties(TextWriter writer)
+        {
+            throw new NotImplementedException();
         }
     }
 }
