@@ -90,6 +90,21 @@ namespace AerialRace.Loading
             return false;
         }
 
+        public void AssetField<T>(ref AssetRef<T> assetRef) where T : Asset
+        {
+            T? t = ResolveReference(assetRef);
+            ImGui.LabelText("Pipeline", $"{(t == null ? "" : $"{t.Name} ")}{{{t.AssetID}}}");
+            ImGui.SameLine();
+            ImGui.PushID(assetRef.AssetID.ToString());
+
+            if (ImGui.Button("Browse..."))
+            {
+                
+            }
+            
+            ImGui.PopID();
+        }
+
         private bool ShowBrowser(string filter = "*.*")
         {
             return FileBrowser.ShowFileDialog("Open File", DialogMode.Open, new System.Numerics.Vector2(700, 310), filter);
@@ -471,9 +486,8 @@ namespace AerialRace.Loading
         {
             BasicAssetInspector(asset);
 
-            // FIXME: Asset ref fields
-            ImGui.LabelText("Pipeline", $"{{{asset.Pipeline}}}");
-            ImGui.LabelText("Depth Pipeline", $"{{{asset.DepthPipeline}}}");
+            AssetField(ref asset.Pipeline);
+            AssetField(ref asset.DepthPipeline);
 
             if (asset.IsDirty)
             {
