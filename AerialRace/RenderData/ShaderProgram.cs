@@ -27,8 +27,9 @@ namespace AerialRace.RenderData
     // FIXME: We could add layout data here but I think we will only use std140
     struct UniformBlockInfo
     {
-        public string BlockName;
-        public UniformFieldInfo[] BlockUniforms;
+        public string Name;
+        public int Index;
+        public UniformFieldInfo[] Members;
     }
 
     // This is a opengl program. 
@@ -39,17 +40,17 @@ namespace AerialRace.RenderData
         public int Handle;
         public ShaderStage Stage;
         public Dictionary<string, int> UniformLocations;
-        public Dictionary<string, int> UniformBlockLocations;
+        public Dictionary<string, int> UniformBlockIndices;
         public UniformFieldInfo[]? UniformInfo;
         public UniformBlockInfo[]? UniformBlockInfo;
 
-        public ShaderProgram(string name, int handle, ShaderStage stage, Dictionary<string, int> uniformLocations, Dictionary<string, int> uniformBlockLocations, UniformFieldInfo[]? uniformInfo, UniformBlockInfo[]? uniformBlockInfo)
+        public ShaderProgram(string name, int handle, ShaderStage stage, Dictionary<string, int> uniformLocations, Dictionary<string, int> uniformBlockBindings, UniformFieldInfo[]? uniformInfo, UniformBlockInfo[]? uniformBlockInfo)
         {
             Name = name;
             Handle = handle;
             Stage = stage;
             UniformLocations = uniformLocations;
-            UniformBlockLocations = uniformBlockLocations;
+            UniformBlockIndices = uniformBlockBindings;
             UniformInfo = uniformInfo;
             UniformBlockInfo = uniformBlockInfo;
         }

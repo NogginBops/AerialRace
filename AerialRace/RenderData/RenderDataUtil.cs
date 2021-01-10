@@ -355,6 +355,19 @@ namespace AerialRace.RenderData
             return new Buffer(name, Handle, bufferType, elementSize, elements, flags);
         }
 
+        public static Buffer CreateDataBuffer(string name, int bytes, BufferFlags flags)
+        {
+            GLUtil.CreateBuffer(name, out int Handle);
+
+            BufferDataType bufferType = BufferDataType.Custom;
+
+            BufferStorageFlags glFlags = ToGLStorageFlags(flags);
+            // GLEXT: ARB_direct_access
+            GL.NamedBufferStorage(Handle, bytes, IntPtr.Zero, glFlags);
+
+            return new Buffer(name, Handle, bufferType, -1, bytes, flags);
+        }
+
         public static IndexBuffer CreateIndexBuffer(string name, Span<byte> data, BufferFlags flags)
         {
             GLUtil.CreateBuffer(name, out int Handle);
@@ -489,18 +502,14 @@ namespace AerialRace.RenderData
             fbo.StencilAttachment = depthStencilTexture;
         }
 
-        public static ShaderProgram CreateEmptyShaderProgram(string name, ShaderStage stage, bool separable)
-        {
-            GLUtil.CreateProgram(name, out int shader);
-            GL.ProgramParameter(shader, ProgramParameterName.ProgramSeparable, separable ? 1 : 0);
-            return new ShaderProgram(name, shader, stage, new Dictionary<string, int>(), new Dictionary<string, int>(), null, null);
-        }
-
         // FIXME: Make error handling for shader that don't compile better!
-        public static bool CreateShaderProgram(string name, ShaderStage stage, string source, [NotNullWhen(true)] out ShaderProgram? program)
+        public static ShaderProgram CreateShaderProgram(string name, ShaderStage stage, string source)
         {
-            program = CreateEmptyShaderProgram(name, stage, true);
-            
+            GLUtil.CreateProgram(name, out int handle);
+            GL.ProgramParameter(handle, ProgramParameterName.ProgramSeparable, 1);
+
+            //program = new ShaderProgram(name, handle, stage, new Dictionary<string, int>(), new Dictionary<string, int>(), null, null);
+
             GLUtil.CreateShader(name, ToGLShaderType(stage), out var shader);
             GL.ShaderSource(shader, source);
 
@@ -513,28 +522,27 @@ namespace AerialRace.RenderData
                 Debug.WriteLine($"Error in {stage} shader '{name}':\n{info}");
 
                 // Do some gl cleanup
-                GL.DeleteProgram(program.Handle);
+                GL.DeleteProgram(handle);
                 GL.DeleteShader(shader);
 
-                program = null;
-                return false;
+                // FIXME: return null?
+                throw new Exception();
             }
 
-            GL.AttachShader(program.Handle, shader);
-            GL.LinkProgram(program.Handle);
+            GL.AttachShader(handle, shader);
+            GL.LinkProgram(handle);
 
-            GL.DetachShader(program.Handle, shader);
+            GL.DetachShader(handle, shader);
             GL.DeleteShader(shader);
 
-            GL.GetProgram(program.Handle, GetProgramParameterName.LinkStatus, out int isLinked);
+            GL.GetProgram(handle, GetProgramParameterName.LinkStatus, out int isLinked);
             if (isLinked == 0)
             {
-                string info = GL.GetProgramInfoLog(program.Handle);
+                string info = GL.GetProgramInfoLog(handle);
                 Debug.WriteLine($"Error in {stage} program '{name}':\n{info}");
 
-                GL.DeleteProgram(program.Handle);
-                program = null;
-                return false;
+                GL.DeleteProgram(handle);
+                throw new Exception();
             }
 
             // Now we can inspect this shader!
@@ -542,15 +550,18 @@ namespace AerialRace.RenderData
             //Debug.WriteLine($"Uniforms for shader '{name}':");
             //Debug.Indent();
 
-            {
-                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
+            Dictionary<string, int> uniformLocations = new Dictionary<string, int>();
 
-                program.UniformInfo = new UniformFieldInfo[uniformCount];
+            UniformFieldInfo[] uniformInfo;
+            {
+                GL.GetProgram(handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
+
+                uniformInfo = new UniformFieldInfo[uniformCount];
 
                 for (int i = 0; i < uniformCount; i++)
                 {
-                    string uniformName = GL.GetActiveUniform(program.Handle, i, out int size, out ActiveUniformType type);
-                    var location = GL.GetUniformLocation(program.Handle, uniformName);
+                    string uniformName = GL.GetActiveUniform(handle, i, out int size, out ActiveUniformType type);
+                    var location = GL.GetUniformLocation(handle, uniformName);
 
                     UniformFieldInfo fieldInfo;
                     fieldInfo.Location = location;
@@ -558,43 +569,50 @@ namespace AerialRace.RenderData
                     fieldInfo.Size = size;
                     fieldInfo.Type = type;
 
-                    program.UniformInfo[i] = fieldInfo;
-                    program.UniformLocations.Add(uniformName, location);
+                    uniformInfo[i] = fieldInfo;
+                    uniformLocations.Add(uniformName, location);
 
                     //Debug.WriteLine($"{name} uniform {location} '{uniformName}' {type} ({size})");
                 }
             }
 
-            {
-                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniformBlocks, out int uniformBlockCount);
+            Dictionary<string, int> uniformBlockBindings = new Dictionary<string, int>();
 
-                UniformBlockInfo[] blockInfo = new UniformBlockInfo[uniformBlockCount];
-                program.UniformBlockInfo = blockInfo;
+            UniformBlockInfo[] blockInfo;
+            {
+                GL.GetProgram(handle, GetProgramParameterName.ActiveUniformBlocks, out int uniformBlockCount);
+
+                blockInfo = new UniformBlockInfo[uniformBlockCount];
 
                 for (int i = 0; i < uniformBlockCount; i++)
                 {
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniforms, out int uniformsInBlockCount);
+                    GL.GetActiveUniformBlock(handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniforms, out int uniformsInBlockCount);
 
                     Span<int> uniformIndices = stackalloc int[uniformsInBlockCount];
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, out uniformIndices[0]);
+                    GL.GetActiveUniformBlock(handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, out uniformIndices[0]);
 
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockNameLength, out int nameLength);
-                    GL.GetActiveUniformBlockName(program.Handle, i, nameLength, out _, out string uniformBlockName);
+                    GL.GetActiveUniformBlock(handle, i, ActiveUniformBlockParameter.UniformBlockNameLength, out int nameLength);
+                    GL.GetActiveUniformBlockName(handle, i, nameLength, out _, out string uniformBlockName);
 
-                    blockInfo[i].BlockName = uniformBlockName;
-                    blockInfo[i].BlockUniforms = new UniformFieldInfo[uniformIndices.Length];
+                    int blockIndex = GL.GetUniformBlockIndex(handle, uniformBlockName);
+
+                    blockInfo[i].Name = uniformBlockName;
+                    blockInfo[i].Index = blockIndex;
+                    blockInfo[i].Members = new UniformFieldInfo[uniformIndices.Length];
+
+                    uniformBlockBindings.Add(uniformBlockName, blockIndex);
 
                     //Debug.WriteLine($"Block {i} '{uniformBlockName}':");
                     //Debug.Indent();
-                    var uniformInfo = blockInfo[i].BlockUniforms;
+                    var blockMember = blockInfo[i].Members;
                     for (int j = 0; j < uniformIndices.Length; j++)
                     {
-                        string uniformName = GL.GetActiveUniform(program.Handle, uniformIndices[j], out int uniformSize, out var uniformType);
+                        string uniformName = GL.GetActiveUniform(handle, uniformIndices[j], out int uniformSize, out var uniformType);
 
-                        uniformInfo[j].Location = uniformIndices[j];
-                        uniformInfo[j].Name = uniformName;
-                        uniformInfo[j].Size = uniformSize;
-                        uniformInfo[j].Type = uniformType;
+                        blockMember[j].Location = uniformIndices[j];
+                        blockMember[j].Name = uniformName;
+                        blockMember[j].Size = uniformSize;
+                        blockMember[j].Type = uniformType;
 
                         //Debug.WriteLine($"{name} uniform {uniformIndices[j]} '{uniformName}' {uniformType} ({uniformSize})");
                     }
@@ -603,7 +621,7 @@ namespace AerialRace.RenderData
                 //Debug.Unindent();
             }
 
-            return true;
+            return new ShaderProgram(name, handle, stage, uniformLocations, uniformBlockBindings, uniformInfo, blockInfo);
         }
 
         public static ShaderPipeline CreateEmptyPipeline(string name)
@@ -684,8 +702,8 @@ namespace AerialRace.RenderData
 
         public static ShaderPipeline CreatePipeline(string name, string vertexPath, string fragmentPath)
         {
-            CreateShaderProgram($"{name}: Vertex", ShaderStage.Vertex, File.ReadAllText(vertexPath), out var vertProgram);
-            CreateShaderProgram($"{name}: Fragment", ShaderStage.Fragment, File.ReadAllText(fragmentPath), out var fragProgram);
+            var vertProgram = CreateShaderProgram($"{name}: Vertex", ShaderStage.Vertex, File.ReadAllText(vertexPath));
+            var fragProgram = CreateShaderProgram($"{name}: Fragment", ShaderStage.Fragment, File.ReadAllText(fragmentPath));
             CreatePipeline(name, vertProgram, null, fragProgram, out var pipeline);
             return pipeline;
         }
@@ -788,13 +806,19 @@ namespace AerialRace.RenderData
         #endregion
 
         // FIXME: Typesafe buffers?
-        public static void UploadBufferData<T>(Buffer buffer, int elementOffset, Span<T> data) where T : unmanaged
+        public static void UploadBufferData<T>(Buffer buffer, int byteOffset, Span<T> data) where T : unmanaged
         {
             if (data.Length != 0)
             {
                 int size = Unsafe.SizeOf<T>();
-                GL.NamedBufferSubData(buffer.Handle, (IntPtr)(elementOffset * size), data.Length * size, ref data[0]);
+                GL.NamedBufferSubData(buffer.Handle, (IntPtr)byteOffset, data.Length * size, ref data[0]);
             }
+        }
+
+        public static void UploadBufferData<T>(Buffer buffer, int byteOffset, ref T data, int elements) where T : unmanaged
+        {
+            int size = Unsafe.SizeOf<T>();
+            GL.NamedBufferSubData(buffer.Handle, (IntPtr)byteOffset, elements * size, ref data);
         }
 
         public static void ReallocBuffer(ref Buffer buffer, int newElementCount)
@@ -1070,21 +1094,6 @@ namespace AerialRace.RenderData
             return prog;
         }
 
-        public static int GetUniformLocation(string uniform, ShaderStage stage)
-        {
-            var prog = GetPipelineStage(stage);
-
-            if (prog == null)
-            {
-                Debug.Print($"Looking for a uniform '{uniform}' in a shader stage ({stage}) in the pipeline '{CurrentPipeline!.Name}' which doesn't have a shader for that stage!");
-                return -1;
-            }
-            else
-            {
-                return GetUniformLocation(uniform, prog);
-            }
-        }
-
         public static int GetUniformLocation(string uniform, ShaderProgram program)
         {
             if (program.UniformLocations.TryGetValue(uniform, out int location))
@@ -1093,7 +1102,7 @@ namespace AerialRace.RenderData
             }
             else
             {
-                Debug.Print($"The uniform '{uniform}' does not exist in the shader '{program.Name}'!");
+                //Debug.Print($"The uniform '{uniform}' does not exist in the shader '{program.Name}'!");
                 program.UniformLocations.Add(uniform, -1);
                 return -1;
             }
@@ -1147,29 +1156,18 @@ namespace AerialRace.RenderData
             GL.ProgramUniform1(prog.Handle, location, f);
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 16)]
-        struct CameraData
+        public static void UniformBlock(string blockName, ShaderStage stage, Buffer buffer)
         {
-            public Matrix4 Projection;
-            public Matrix4 View;
-            public Matrix4 VP;
-            // X = Fov
-            // Y = Aspect
-            // Z = NearPlane
-            // W = FarPlane
-            public Vector4 Data;
-        }
+            var program = GetPipelineStage(stage);
 
-        /*
-        public static void UniformCameraData(string blockName, ShaderStage stage, ref CameraData data)
-        {
-
-        }*/
-
-        public static void UniformBlock<T>(string blockName, ShaderStage stage, ref T data) where T : unmanaged
-        {
-            var prog = GetPipelineStage(stage);
-            //GL.BindBufferRange(BufferTarget.UniformBuffer, )
+            if (program.UniformBlockIndices.TryGetValue(blockName, out int index))
+            {
+                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, index, buffer.Handle);
+            }
+            else
+            {
+                //throw new Exception($"There was no block called {blockName}.");
+            }
         }
 
         #endregion

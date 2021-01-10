@@ -72,6 +72,8 @@ namespace AerialRace
 
         SkyRenderer Sky;
 
+        public Lights Lights;
+
         //EntityManager Manager = new EntityManager();
 
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
@@ -109,6 +111,21 @@ namespace AerialRace
             BuiltIn.StaticCtorTrigger();
             Debug.Init(Width, Height);
 
+            Lights = new Lights();
+            var light1 = Lights.AddPointLight("Light 1", new Vector3(1, 5, 1), Color4.AntiqueWhite, 30);
+
+            Transform randLights = new Transform("Lights");
+            Random rand = new Random();
+            for (int i = 0; i < 20; i++)
+            {
+                var pos = rand.NextPosition((-150, 1f, -150), (150, 30, 150));
+                var color = rand.NextColorHue(1, 1);
+                var radius = Util.MapRange(rand.NextFloat(), 0, 1, 30, 100);
+                var light = Lights.AddPointLight($"Light {i+2}", pos, color, radius);
+
+                light.Transform.SetParent(randLights);
+            }
+
             Camera = new Camera(100, Width / (float)Height, 0.1f, 10000f, Color4.DarkBlue);
             Camera.Transform.Name = "Camera";
             Camera.Transform.LocalPosition = CameraOffset;
@@ -117,12 +134,12 @@ namespace AerialRace
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
-            RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Depth/StandardDepth.vert"), out ShaderProgram? depthVertProgram);
-            RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Depth/StandardDepth.frag"), out ShaderProgram? depthFragProgram);
+            var depthVertProgram = RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Depth/StandardDepth.vert"));
+            var depthFragProgram = RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Depth/StandardDepth.frag"));
             RenderDataUtil.CreatePipeline("Standard Depth", depthVertProgram, null, depthFragProgram, out var depthPipeline);
 
-            RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, File.ReadAllText("./Shaders/Standard.vert"), out ShaderProgram? standardVertex);
-            RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, File.ReadAllText("./Shaders/Standard.frag"), out ShaderProgram? standardFragment);
+            var standardVertex = RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, File.ReadAllText("./Shaders/Standard.vert"));
+            var standardFragment = RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, File.ReadAllText("./Shaders/Standard.frag"));
 
             RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment, out var standardShader);
 
@@ -281,15 +298,15 @@ namespace AerialRace
 
             ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
 
-            RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Sky.vert"), out var skyVertexProgram);
-            RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Sky.frag"), out var skyFragmentProgram);
+            var skyVertexProgram = RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Sky.vert"));
+            var skyFragmentProgram = RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Sky.frag"));
 
             RenderDataUtil.CreatePipeline("Sky", skyVertexProgram, null, skyFragmentProgram, out var skyPipeline);
 
             Material skyMat = new Material("Sky Material", skyPipeline, null);
 
             var sunPosition = new Vector3(100, 100, 0);
-            Sky = new SkyRenderer(skyMat, sunPosition.Normalized(), new Color4(1f, 1f, 1f, 1f));
+            Sky = new SkyRenderer(skyMat, sunPosition.Normalized(), new Color4(.1f, .1f, .1f, 1f));
 
             Editor.Editor.InitEditor(this);
 
@@ -326,6 +343,8 @@ namespace AerialRace
 
             UpdateCamera(deltaTime);
             Camera.Transform.UpdateMatrices();
+
+            Lights.UpdateBufferData();
 
             if (Editor.Editor.InEditorMode)
             {
@@ -384,8 +403,8 @@ namespace AerialRace
             {
                 SunDirection = directionalLightDir,
                 SunColor = directionalLightColor,
-                SkyColor = new Color4(0.2f, 0.3f, 0.6f, 1f),
-                GroundColor = new Color4(0.15f, 0.1f, 0.05f, 1f),
+                SkyColor = new Color4(0.02f, 0.03f, 0.06f, 1f),
+                GroundColor = new Color4(0.015f, 0.01f, 0.005f, 1f),
             };
 
             var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
@@ -396,6 +415,7 @@ namespace AerialRace
             // Then do a z prepass from the normal camera
             // Then do the final color pass
 
+            // FIXME: Do shadow passes for the lights that need them
             using (_ = RenderDataUtil.PushDepthPass("Directional Shadow"))
             {
                 RenderPassSettings shadowPass = new RenderPassSettings()
@@ -411,6 +431,8 @@ namespace AerialRace
 
                     Sky = skySettings,
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+
+                    Lights = Lights,
                 };
 
                 RenderDataUtil.BindDrawFramebuffer(Shadowmap);
@@ -444,6 +466,8 @@ namespace AerialRace
 
                     Sky = skySettings,
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+
+                    Lights = Lights,
                 };
 
                 //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
@@ -476,6 +500,8 @@ namespace AerialRace
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment,
                     ShadowSampler = ShadowSampler,
+
+                    Lights = Lights,
                 };
 
                 RenderDataUtil.SetDepthWrite(false);
@@ -507,6 +533,8 @@ namespace AerialRace
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment,
                     ShadowSampler = ShadowSampler,
+
+                    Lights = Lights,
                 };
 
                 RenderDataUtil.SetDepthWrite(false);

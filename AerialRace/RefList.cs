@@ -45,6 +45,15 @@ namespace AerialRace
             Count++;
         }
 
+        public ref T this[int i]
+        {
+            get 
+            {
+                if (i < Count) throw new IndexOutOfRangeException();
+                return ref Data[i];
+            }
+        }
+
         public void Clear() => Count = 0;
 
         public IEnumerator<T> GetEnumerator()
@@ -63,6 +72,11 @@ namespace AerialRace
         public override string ToString()
         {
             return $"[{string.Join(", ", this)}]";
+        }
+
+        public Span<T> AsSpan()
+        {
+            return new Span<T>(Data, 0, Count);
         }
     }
 }

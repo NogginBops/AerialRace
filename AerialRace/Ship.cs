@@ -93,6 +93,7 @@ namespace AerialRace
         public void Update(float deltaTime)
         {
             RigidBody.UpdateTransform(Transform);
+            Transform.UpdateMatrices();
 
             // For now only the player ship is updated
             if (IsPlayerShip == false) return;

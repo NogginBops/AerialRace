@@ -27,15 +27,13 @@ namespace AerialRace.Debugging
             Width = width;
             Height = height;
 
-            RenderDataUtil.CreateShaderProgram("Debug Vertex", 
+            var vertexProg = RenderDataUtil.CreateShaderProgram("Debug Vertex", 
                 ShaderStage.Vertex,
-                DebugVertexSource,
-                out var vertexProg);
+                DebugVertexSource);
 
-            RenderDataUtil.CreateShaderProgram("Debug Fragment",
+            var fragProg = RenderDataUtil.CreateShaderProgram("Debug Fragment",
                 ShaderStage.Fragment,
-                DebugFragmentSource,
-                out var fragProg);
+                DebugFragmentSource);
 
             DebugPipeline = RenderDataUtil.CreateEmptyPipeline("Debug Pipeline");
             RenderDataUtil.AssembleProgramPipeline(DebugPipeline, vertexProg, null, fragProg);
@@ -163,7 +161,9 @@ uniform sampler2D tex;
 
 void main(void)
 {
-    Color = vec4(texture(tex, fragUV).rgb * fragColor.rgb, 1f);
+    vec4 tex = texture(tex, fragUV);
+    if (tex.a == 0) discard;
+    Color = tex * fragColor;
 }
 ";
     }

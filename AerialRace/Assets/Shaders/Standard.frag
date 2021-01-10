@@ -30,6 +30,18 @@ uniform struct Scene {
 uniform bool UseShadows;
 uniform sampler2DShadow ShadowMap;
 
+struct PointLight
+{
+    vec4 posAndInvSqrRadius;
+    vec4 intensity;
+};
+
+layout(row_major) uniform LightBlock
+{
+    int lightCount;
+    PointLight light[256];
+} lights;
+
 vec3 skyColor(vec3 direction)
 {
     vec3 sun = sky.SunColor * pow(max(dot(direction, sky.SunDirection), 0f), 200);
@@ -65,6 +77,24 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
     return pcf1;
 }
 
+vec3 CalcDirectionalDiffuse(vec3 L, vec3 N, vec3 lightColor, vec3 surfaceAlbedo)
+{
+    float diff = max(dot(N, L), 0.0f);
+    return lightColor * diff * surfaceAlbedo;
+}
+
+// FIXME: Make our own attenuation curve?
+// Atm we are using the unity version as described by catlikecoding
+float CalcPointLightAttenuation(vec3 L, float invSqrRadius)
+{
+    float distanceSqr = dot(L, L);
+    float dist2OverRad2 = distanceSqr * invSqrRadius;
+    float attenSqrt = max(0, 1 - (dist2OverRad2 * dist2OverRad2));
+    float attenuation = attenSqrt * attenSqrt;
+
+    return attenuation;
+}
+
 void main(void)
 {
     vec3 normal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
@@ -89,13 +119,33 @@ void main(void)
 
     vec3 albedo = vec3(texture(AlbedoTex, fragUV));
 
-    float diff = max(dot(normal, halfwayDir), 0.0f);
+    float diff = max(dot(normal, lightDir), 0.0f);
     vec3 diffuse = sky.SunColor * diff * albedo;
     vec3 skyVec = normalize(normal + lightDir + reflect(-viewDir, normal));
     vec3 ambient = skyColor(skyVec) * albedo;
+    ambient = scene.ambientLight * albedo;
+
+    vec3 lightColor = vec3(0);
+    for (int i = 0; i < lights.lightCount; i++)
+    {
+        PointLight light = lights.light[i];
+        vec3 L = light.posAndInvSqrRadius.xyz - fragPos.xyz;
+
+        // FIXME: Make our own attenuation curve?
+        float attenuation = CalcPointLightAttenuation(L, light.posAndInvSqrRadius.w);
+        
+        float diff = max(dot(normal, normalize(L)), 0.0f);
+        vec3 diffuse = diff * attenuation * albedo * lights.light[i].intensity.rgb;
+
+        vec3 reflectDir = reflect(-lightDir, normal);
+        float spec = max(dot(viewDir, reflectDir), 0.0f);
+        vec3 specular = spec * attenuation * albedo * lights.light[i].intensity.rgb;
+
+        lightColor += diffuse + specular;
+    }
 
     float shadow = 1f - ShadowCalculation(lightSpacePosition, normal, sky.SunDirection);
 
-    Color = vec4(ambient + diffuse * shadow, 1);
+    Color = vec4(ambient + diffuse * shadow + lightColor, 1);
 }
 

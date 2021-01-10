@@ -3,17 +3,13 @@ using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Buffer = AerialRace.RenderData.Buffer;
 
 namespace AerialRace
 {
-    struct TrailVertex
-    {
-        public Vector3 Position;
-    }
-
     class TrailRenderer : SelfCollection<TrailRenderer>
     {
         public static readonly AttributeSpecification PositionAttributeSpec = new AttributeSpecification("Trail Position", 3, AttributeType.Float, false, 0);
@@ -176,7 +172,7 @@ namespace AerialRace
                     var second = positions[0..RingBuffer.WriteHead];
                     Debugging.Debug.Assert((first.Length + second.Length) == RingBuffer.Count);
                     RenderDataUtil.UploadBufferData(VertexBuffer, 0, first);
-                    RenderDataUtil.UploadBufferData(VertexBuffer, first.Length, second);
+                    RenderDataUtil.UploadBufferData(VertexBuffer, first.Length * Unsafe.SizeOf<Vector3>(), second);
                     return first.Length + second.Length;
                 }
             }

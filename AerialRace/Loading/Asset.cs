@@ -883,26 +883,23 @@ namespace AerialRace.Loading
             
             // FIXME: Check for errors and display them in the shader inspector!!
             
-            if (VertexShaderPath != null) 
-                RenderDataUtil.CreateShaderProgram(
+            if (VertexShaderPath != null)
+                vertex = RenderDataUtil.CreateShaderProgram(
                     Name + " Vertex",
                     ShaderStage.Vertex,
-                    File.ReadAllText(VertexShaderPath),
-                    out vertex);
+                    File.ReadAllText(VertexShaderPath));
 
             if (GeometryShaderPath != null)
-                RenderDataUtil.CreateShaderProgram(
+                geometry = RenderDataUtil.CreateShaderProgram(
                     Name + " Geometry",
                     ShaderStage.Geometry,
-                    File.ReadAllText(GeometryShaderPath),
-                    out geometry);
+                    File.ReadAllText(GeometryShaderPath));
 
             if (FragmentShaderPath != null)
-                RenderDataUtil.CreateShaderProgram(
+                fragment = RenderDataUtil.CreateShaderProgram(
                     Name + " Fragment",
                     ShaderStage.Fragment,
-                    File.ReadAllText(FragmentShaderPath),
-                    out fragment);
+                    File.ReadAllText(FragmentShaderPath));
 
             RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment, out LoadedPipeline);
             return true;

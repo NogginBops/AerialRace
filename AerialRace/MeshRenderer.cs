@@ -1,5 +1,6 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.RenderData;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using SixLabors.ImageSharp.Processing;
 using System;
@@ -36,6 +37,8 @@ namespace AerialRace
         public bool UseShadows;
         public Texture? ShadowMap;
         public ShadowSampler? ShadowSampler;
+
+        public Lights? Lights;
     }
 
     abstract class SelfCollection<TSelf> where TSelf : SelfCollection<TSelf>
@@ -100,6 +103,11 @@ namespace AerialRace
 
                 Matrix4 modelToLightSpace = model * settings.LightSpace;
 
+                if (settings.Lights != null)
+                {
+                    RenderDataUtil.UniformBlock("LightBlock", ShaderStage.Fragment, settings.Lights!.PointLightBuffer);
+                }
+                
                 RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
                 RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
                 RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref settings.Projection);

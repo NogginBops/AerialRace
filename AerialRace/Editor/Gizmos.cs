@@ -30,7 +30,7 @@ namespace AerialRace.Editor
         public static void Init()
         {
             // Setup the overlay shader
-            RenderDataUtil.CreateShaderProgram("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag, out var overlayFrag);
+            var overlayFrag = RenderDataUtil.CreateShaderProgram("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag);
             RenderDataUtil.CreatePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, null, overlayFrag, out GizmoOverlayPipeline);
 
             // FIXME: RESIZE: We want to handle screen resize!!
@@ -61,9 +61,6 @@ namespace AerialRace.Editor
 
         public static void TransformHandle(Transform transform)
         {
-            Vector4 worldPos = new Vector4(transform.WorldPosition, 1);
-            Camera.CalcViewProjection(out var vp);
-
             const float arrowLength = 2;
 
             Matrix4 l2w = transform.LocalToWorld;
@@ -121,8 +118,40 @@ namespace AerialRace.Editor
 
                 list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, faces * 6, BuiltIn.WhiteTex);
             }
-
         }
+
+        // FIXME: Find a better way to render icons so that the alpha blending becomes correct!
+        // When we fix this we should remove the discard from the DebugPipeline fragment shader.
+        public static void LightIcon(Light light)
+        {
+            Vector3 right = Camera.Transform.Right;
+            Vector3 up = Camera.Transform.Up;
+
+            Vector3 pos = light.Transform.WorldPosition;
+
+            float depth = Vector3.Dot(Camera.Transform.Forward, light.Transform.WorldPosition - Camera.Transform.WorldPosition);
+            float size = Util.LinearStep(depth, 4, 1000);
+            size = Util.MapRange(size, 0, 1, 0.8f, 100);
+
+            var color = new Color4(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
+            Billboard(GizmoDrawList, pos, right, up, size, EditorResources.PointLightIcon, color);
+        }
+
+        public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4 color)
+        {
+            list.Prewarm(4);
+
+            float size2 = size / 2f;
+            var right2 = right * size2;
+            var up2 = up * size2;
+            list.AddVertexWithIndex(position - right2 - up2, (0, 0), color);
+            list.AddVertexWithIndex(position + right2 - up2, (1, 0), color);
+            list.AddVertexWithIndex(position - right2 + up2, (0, 1), color);
+            list.AddVertexWithIndex(position + right2 + up2, (1, 1), color);
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.TriangleStrip, 4, texture);
+        }
+
 
         struct Ray
         {

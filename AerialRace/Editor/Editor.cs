@@ -19,7 +19,7 @@ namespace AerialRace.Editor
 
         public static bool InEditorMode;
         public static Camera EditorCamera;
-        public static float EditorCameraSpeed = 20;
+        public static float EditorCameraSpeed = 100;
 
         public static void InitEditor(Window window)
         {
@@ -83,7 +83,13 @@ namespace AerialRace.Editor
                     direction += -Vector3.UnitY;
                 }
 
-                EditorCamera.Transform.LocalPosition += direction * EditorCameraSpeed * deltaTime;
+                float speed = EditorCameraSpeed;
+                if (keyboard.IsKeyDown(Keys.LeftControl))
+                {
+                    speed /= 2f;
+                }
+
+                EditorCamera.Transform.LocalPosition += direction * speed * deltaTime;
             }
 
             static void UpdateCameraDirection(MouseState mouse, float deltaTime)
@@ -115,13 +121,21 @@ namespace AerialRace.Editor
                 Gizmos.TransformHandle(SelectedTransform);
             }
 
+            foreach (var light in Window.Lights.LightsList)
+            {
+                Gizmos.LightIcon(light);
+            }
+
             // Gizmos drawlist rendering
             using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
             {
                 // We need to enable writing to both depth and color for the clear to work.
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
-                
+
+                // Enable alpha blending
+                RenderDataUtil.SetNormalAlphaBlending();
+
                 // FIXME: Make our own enum
                 RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
                     Gizmos.GizmosOverlay,
@@ -133,6 +147,7 @@ namespace AerialRace.Editor
 
                 RenderDataUtil.UsePipeline(Debug.DebugPipeline);
                 EditorCamera.CalcViewProjection(out var vp);
+
                 DrawListSettings settings = new DrawListSettings()
                 {
                     DepthTest = true,
@@ -146,28 +161,31 @@ namespace AerialRace.Editor
                 RenderDataUtil.BindDrawFramebuffer(null);
 
                 // FIXME: Reset viewport
+
+                using (var gizmosOverlayOverlay = RenderDataUtil.PushGenericPass("Scene overlay"))
+                {
+                    // Here we overlay the gizmo FBO ontop of the default FBO.
+                    RenderDataUtil.UsePipeline(Gizmos.GizmoOverlayPipeline);
+
+                    RenderDataUtil.SetNormalAlphaBlending();
+
+                    // FIXME: We might want a better way of binding textures...
+                    RenderDataUtil.Uniform1("overlayTex", ShaderStage.Fragment, 0);
+                    RenderDataUtil.BindTexture(0, Gizmos.GizmosOverlay.ColorAttachments![0].ColorTexture, (ISampler?)null);
+
+                    RenderDataUtil.DisableAllVertexAttributes();
+
+                    // FIXME: Setup correct blend mode
+
+                    OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
+
+                    // Important to unbind this texture so that we can draw to it later.
+                    RenderDataUtil.BindTexture(0, null);
+
+                    // Just in case we disable blending.
+                    RenderDataUtil.DisableBlending();
+                }
             }
-
-            // Here we overlay the gizmo FBO ontop of the default FBO.
-            RenderDataUtil.UsePipeline(Gizmos.GizmoOverlayPipeline);
-
-            RenderDataUtil.SetNormalAlphaBlending();
-
-            // FIXME: We might want a better way of binding textures...
-            RenderDataUtil.Uniform1("overlayTex", ShaderStage.Fragment, 0);
-            RenderDataUtil.BindTexture(0, Gizmos.GizmosOverlay.ColorAttachments![0].ColorTexture, (ISampler?)null);
-
-            RenderDataUtil.DisableAllVertexAttributes();
-
-            // FIXME: Setup correct blend mode
-
-            OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
-
-            // Important to unbind this texture so that we can draw to it later.
-            RenderDataUtil.BindTexture(0, null);
-
-            // Just in case we disable blending.
-            RenderDataUtil.DisableBlending();
         }
 
         public static Transform? SelectedTransform;
@@ -201,6 +219,15 @@ namespace AerialRace.Editor
                     if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
                         SelectedTransform.LocalScale = Vector3.ComponentMax(scale.ToOpenTK(), (MinScale, MinScale, MinScale));
 
+                    Light? light = Window.Lights.LightsList.Find(l => l.Transform == SelectedTransform);
+                    if (light != null)
+                    {
+                        ImGui.DragFloat("Radius", ref light.Radius, 1, 0.0001f, 10000, null, ImGuiSliderFlags.ClampOnInput);
+
+                        var intensity = light.Intensity.ToNumerics();
+                        if (ImGui.ColorEdit3("Intensity", ref intensity, ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float))
+                            light.Intensity = intensity.ToOpenTK();
+                    }
                 }
                 else
                 {

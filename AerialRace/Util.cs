@@ -127,5 +127,47 @@ namespace AerialRace
 
         public static Vector3 Abs(this Vector3 vec3) =>
             new Vector3(MathF.Abs(vec3.X), MathF.Abs(vec3.Y), MathF.Abs(vec3.Z));
+
+        public static float LinearStep(float x, float edge0, float edge1)
+        {
+            x = MathHelper.Clamp((x - edge0) / (edge1 - edge0), 0, 1);
+            return x;
+        }
+
+        public static float SmoothStep(float x, float edge0, float edge1)
+        {
+            x = MathHelper.Clamp((x - edge0) / (edge1 - edge0), 0, 1);
+            return x * x * (3 - 2 * x);
+        }
+
+        public static float SmootherStep(float x, float edge0, float edge1)
+        {
+            x = MathHelper.Clamp((x - edge0) / (edge1 - edge0), 0, 1);
+            return x * x * x * (x * (x * 6 - 15) - 10);
+        }
+
+        // FIXME: MathHelper.MapRange is wrong in this version of opentk.
+        // Change to that when the function is fixed.
+        public static float MapRange(float value, float valueMin, float valueMax, float resultMin, float resultMax)
+        {
+            float inRange = valueMax - valueMin;
+            float resultRange = resultMax - resultMin;
+            return resultMin + (resultRange * ((value - valueMin) / inRange));
+        }
+
+        public static float NextFloat(this Random rand) => (float)rand.NextDouble();
+
+        public static Vector3 NextPosition(this Random rand, Vector3 min, Vector3 max)
+        {
+            Vector3 pos = new Vector3(rand.NextFloat(), rand.NextFloat(), rand.NextFloat());
+            return (pos * (max - min)) + min;
+            Vector3 mappedPos = Vector3.Divide(pos - min, max - min);
+            return mappedPos;
+        }
+
+        public static Color4 NextColorHue(this Random rand, float saturation, float value)
+        {
+            return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
+        }
     }
 }
