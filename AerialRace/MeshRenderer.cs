@@ -127,6 +127,9 @@ namespace AerialRace
 
                 RenderDataUtil.UniformVector3("scene.ambientLight", ShaderStage.Fragment, settings.AmbientLight);
 
+                RenderDataUtil.Uniform1("AttenuationType", ShaderStage.Fragment, Window.LightFalloff);
+                RenderDataUtil.Uniform1("LightCutout", ShaderStage.Fragment, Window.LightCutout);
+
                 int textureStartIndex = 0;
 
                 // FIXME!! Make binding texture better!
@@ -154,6 +157,12 @@ namespace AerialRace
                     RenderDataUtil.Uniform1(name, ShaderStage.Vertex, ioff);
                     RenderDataUtil.Uniform1(name, ShaderStage.Fragment, ioff);
                     RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
+                }
+
+                foreach (var (name, property) in matProperties.Properties)
+                {
+                    var prop = property;
+                    RenderDataUtil.UniformProperty(name, ref prop);
                 }
 
                 RenderDataUtil.DrawElements(

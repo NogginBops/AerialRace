@@ -67,9 +67,48 @@ namespace AerialRace.Loading
     {
         public struct Face
         {
-            public int vertex1, vertex2, vertex3;
-            public int uv1, uv2, uv3;
-            public int normal1, normal2, normal3;
+            public VertexIndices v1;
+            public VertexIndices v2;
+            public VertexIndices v3;
+        }
+
+        public struct VertexIndices : IEquatable<VertexIndices>
+        {
+            public int posIdx, uvIdx, normalIdx;
+
+            public VertexIndices(int posIdx, int uvIdx, int normalIdx)
+            {
+                this.posIdx = posIdx;
+                this.uvIdx = uvIdx;
+                this.normalIdx = normalIdx;
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is VertexIndices indices && Equals(indices);
+            }
+
+            public bool Equals(VertexIndices other)
+            {
+                return posIdx == other.posIdx &&
+                       uvIdx == other.uvIdx &&
+                       normalIdx == other.normalIdx;
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(posIdx, uvIdx, normalIdx);
+            }
+
+            public static bool operator ==(VertexIndices left, VertexIndices right)
+            {
+                return left.Equals(right);
+            }
+
+            public static bool operator !=(VertexIndices left, VertexIndices right)
+            {
+                return !(left == right);
+            }
         }
 
         public static MeshData LoadObjMesh(string filename)
@@ -88,8 +127,7 @@ namespace AerialRace.Loading
             {
                 string line = lines[i];
                 if (string.IsNullOrEmpty(line)) continue;
-                //string[] tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
+                
                 if (line.StartsWithFast("v "))
                 {
                     int index1 = line.IndexOf(' ') + 1;
@@ -141,47 +179,31 @@ namespace AerialRace.Loading
                     int index31 = line.IndexOf('/', index3, line.Length - index3) + 1;
                     int index32 = line.IndexOf('/', index31, line.Length - index31) + 1;
 
-                    f.vertex1 = Util.ParseIntFast(line, index1, (index11 - 1) - index1) - 1;
-                    f.uv1 = Util.ParseIntFast(line, index11, (index12 - 1) - index11) - 1;
-                    f.normal1 = Util.ParseIntFast(line, index12, (index2 - 1) - index12) - 1;
+                    f.v1.posIdx = Util.ParseIntFast(line, index1, (index11 - 1) - index1) - 1;
+                    f.v1.uvIdx = Util.ParseIntFast(line, index11, (index12 - 1) - index11) - 1;
+                    f.v1.normalIdx = Util.ParseIntFast(line, index12, (index2 - 1) - index12) - 1;
 
-                    f.vertex2 = Util.ParseIntFast(line, index2, (index21 - 1) - index2) - 1;
-                    f.uv2 = Util.ParseIntFast(line, index21, (index22 - 1) - index21) - 1;
-                    f.normal2 = Util.ParseIntFast(line, index22, (index3 - 1) - index22) - 1;
+                    f.v2.posIdx = Util.ParseIntFast(line, index2, (index21 - 1) - index2) - 1;
+                    f.v2.uvIdx = Util.ParseIntFast(line, index21, (index22 - 1) - index21) - 1;
+                    f.v2.normalIdx = Util.ParseIntFast(line, index22, (index3 - 1) - index22) - 1;
 
-                    f.vertex3 = Util.ParseIntFast(line, index3, (index31 - 1) - index3) - 1;
-                    f.uv3 = Util.ParseIntFast(line, index31, (index32 - 1) - index31) - 1;
-                    f.normal3 = Util.ParseIntFast(line, index32, line.Length - index32) - 1;
+                    f.v3.posIdx = Util.ParseIntFast(line, index3, (index31 - 1) - index3) - 1;
+                    f.v3.uvIdx = Util.ParseIntFast(line, index31, (index32 - 1) - index31) - 1;
+                    f.v3.normalIdx = Util.ParseIntFast(line, index32, line.Length - index32) - 1;
 
                     faces.Add(f);
                 }
                 else continue;
             }
 
-            Dictionary<StandardVertex, int> verticesIndexDict = new Dictionary<StandardVertex, int>();
+            Dictionary<VertexIndices, int> verticesIndexDict = new Dictionary<VertexIndices, int>();
             List<int> indices = new List<int>();
 
             int dups = 0;
             int index = 0;
             foreach (var face in faces)
             {
-                Vector3 p1 = verts[face.vertex1];
-                Vector3 p2 = verts[face.vertex2];
-                Vector3 p3 = verts[face.vertex3];
-
-                Vector2 uv1 = uvs[face.uv1];
-                Vector2 uv2 = uvs[face.uv2];
-                Vector2 uv3 = uvs[face.uv3];
-
-                Vector3 n1 = norms[face.normal1];
-                Vector3 n2 = norms[face.normal2];
-                Vector3 n3 = norms[face.normal3];
-
-                StandardVertex v1 = new StandardVertex(p1, uv1, n1);
-                StandardVertex v2 = new StandardVertex(p2, uv2, n2);
-                StandardVertex v3 = new StandardVertex(p3, uv3, n3);
-
-                if (verticesIndexDict.TryGetValue(v1, out int i1))
+                if (verticesIndexDict.TryGetValue(face.v1, out int i1))
                 {
                     indices.Add(i1);
                     dups++;
@@ -189,11 +211,15 @@ namespace AerialRace.Loading
                 else
                 {
                     indices.Add(index);
-                    vertices.Add(v1);
-                    verticesIndexDict.Add(v1, index++);
+                    verticesIndexDict.Add(face.v1, index++);
+
+                    Vector3 pos = verts[face.v1.posIdx];
+                    Vector2 uv = uvs[face.v1.uvIdx];
+                    Vector3 norm = norms[face.v1.normalIdx];
+                    vertices.Add(new StandardVertex(pos, uv, norm));
                 }
 
-                if (verticesIndexDict.TryGetValue(v2, out int i2))
+                if (verticesIndexDict.TryGetValue(face.v2, out int i2))
                 {
                     indices.Add(i2);
                     dups++;
@@ -201,11 +227,14 @@ namespace AerialRace.Loading
                 else
                 {
                     indices.Add(index);
-                    vertices.Add(v2);
-                    verticesIndexDict.Add(v2, index++);
+                    verticesIndexDict.Add(face.v2, index++);
+                    Vector3 pos = verts[face.v2.posIdx];
+                    Vector2 uv = uvs[face.v2.uvIdx];
+                    Vector3 norm = norms[face.v2.normalIdx];
+                    vertices.Add(new StandardVertex(pos, uv, norm));
                 }
 
-                if (verticesIndexDict.TryGetValue(v3, out int i3))
+                if (verticesIndexDict.TryGetValue(face.v3, out int i3))
                 {
                     indices.Add(i3);
                     dups++;
@@ -213,8 +242,11 @@ namespace AerialRace.Loading
                 else
                 {
                     indices.Add(index);
-                    vertices.Add(v3);
-                    verticesIndexDict.Add(v3, index++);
+                    verticesIndexDict.Add(face.v3, index++);
+                    Vector3 pos = verts[face.v3.posIdx];
+                    Vector2 uv = uvs[face.v3.uvIdx];
+                    Vector3 norm = norms[face.v3.normalIdx];
+                    vertices.Add(new StandardVertex(pos, uv, norm));
                 }
             }
 

@@ -7,8 +7,8 @@ namespace AerialRace
 {
     static class Util
     {
-        public const float D2R = (float)(Math.PI / 180);
-        public const float R2D = (float)(180 / Math.PI);
+        public const float D2R = MathF.PI / 180f;
+        public const float R2D = 180f / MathF.PI;
 
         public const float Sqrt3 = 1.73205080757f;
 
@@ -66,7 +66,7 @@ namespace AerialRace
                 fractionNumber += c - '0';
             }
 
-            return negative * (wholeNumber + (fractionNumber / (float)Math.Pow(10, decimals)));
+            return negative * (wholeNumber + (fractionNumber / MathF.Pow(10, decimals)));
         }
 
         // TODO: We might want some error handling!

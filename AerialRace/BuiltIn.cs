@@ -37,7 +37,7 @@ namespace AerialRace
             FlatNormalTex = RenderDataUtil.Create1PixelTexture("BuiltIn.FlatNormal", new Color4(.5f, .5f, 1f, 1f));
 
             // FIXME: This might fail... do we want to load this here?
-            UVTest = TextureLoader.LoadRgbaImage("Builtin UV Test", "./Textures/uvtest.png", true, false);
+            UVTest = TextureLoader.LoadRgbaImage("Builtin UV Test", "./Textures/uvtest.png", true, true);
 
             // These are attributes defined in the "standard" vertex stream.
             StandardAttributes = new[]
@@ -51,7 +51,7 @@ namespace AerialRace
             ErrorVertexProgram = RenderDataUtil.CreateShaderProgram("Error vertex", ShaderStage.Vertex, ErrorVertexSource);
             ErrorFragmentProgram = RenderDataUtil.CreateShaderProgram("Error fragment", ShaderStage.Fragment, ErrorFragmentSource);
 
-            RenderDataUtil.CreatePipeline("Error pipeline", ErrorVertexProgram, null, ErrorFragmentProgram, out ErrorShaderPipeline);
+            ErrorShaderPipeline = RenderDataUtil.CreatePipeline("Error pipeline", ErrorVertexProgram, null, ErrorFragmentProgram);
 
             FullscreenTriangleVertex = RenderDataUtil.CreateShaderProgram("Fullscreen triangle vert", ShaderStage.Vertex, FullscreenTriangleVertexSource);
         }

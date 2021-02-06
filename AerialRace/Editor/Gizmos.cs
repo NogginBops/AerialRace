@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.Mathematics;
 using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace AerialRace.Editor
 {
-    static class Gizmos
+    static partial class Gizmos
     {
         public static Framebuffer GizmosOverlay;
 
@@ -24,14 +25,16 @@ namespace AerialRace.Editor
         public static Vector2 MousePos;
         public static Vector2 MouseDelta;
 
-        public static Vector2 ScreenSize;
+        public static Ray MouseRay;
+
+        public static Vector2i ScreenSize;
         public static Vector2 InvScreenSize;
 
         public static void Init()
         {
             // Setup the overlay shader
             var overlayFrag = RenderDataUtil.CreateShaderProgram("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag);
-            RenderDataUtil.CreatePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, null, overlayFrag, out GizmoOverlayPipeline);
+            GizmoOverlayPipeline = RenderDataUtil.CreatePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, null, overlayFrag);
 
             // FIXME: RESIZE: We want to handle screen resize!!
             var color = RenderDataUtil.CreateEmpty2DTexture("Gizmo overlay color", TextureFormat.Rgba8, Debug.Width, Debug.Height);
@@ -48,7 +51,7 @@ namespace AerialRace.Editor
             }
         }
 
-        public static void UpdateInput(MouseState mouse, KeyboardState keyboard, Vector2 screenSize, Camera camera)
+        public static void UpdateInput(MouseState mouse, KeyboardState keyboard, Vector2i screenSize, Camera camera)
         {
             MousePos = mouse.Position;
             MouseDelta = mouse.Delta;
@@ -56,12 +59,16 @@ namespace AerialRace.Editor
             ScreenSize = screenSize;
             InvScreenSize = Vector2.Divide(Vector2.One, screenSize);
 
+            MouseRay = camera.RayFromPixel(MousePos, ScreenSize);
+            Debug.WriteLine($"Pixel: {MousePos}, Ray: {MouseRay.Origin} + t{MouseRay.Direction}");
+
             Camera = camera;
         }
 
         public static void TransformHandle(Transform transform)
         {
             const float arrowLength = 2;
+            const float radius = 0.2f;
 
             Matrix4 l2w = transform.LocalToWorld;
 
@@ -69,14 +76,23 @@ namespace AerialRace.Editor
             Vector3 axisY = l2w.Row1.Xyz.Normalized();
             Vector3 axisZ = l2w.Row2.Xyz.Normalized();
             Vector3 translation = l2w.Row3.Xyz;
+            
+            // FIXME: Make cylinder intersection work
+            Cylinder xAxisCylinder = new Cylinder(translation, translation + axisX * arrowLength, radius);
+            float t = Cylinder.Intersect(MouseRay, xAxisCylinder);
+            //Debug.WriteLine($"Cylinder: A={xAxisCylinder.A}, B={xAxisCylinder.B}, r={xAxisCylinder.Radius}, t={t}");
+            Color4 xAxisColor = Color4.Red;
+            xAxisColor = t < 0 ? Color4.Pink : Color4.White;
 
+            DebugHelper.Cylinder(GizmoDrawList, xAxisCylinder, 20, xAxisColor);
+            
             Direction(GizmoDrawList, translation, axisX, arrowLength, Color4.Red);
             Direction(GizmoDrawList, translation, axisY, arrowLength, Color4.Lime);
             Direction(GizmoDrawList, translation, axisZ, arrowLength, Color4.Blue);
 
-            DebugHelper.Cone(GizmoDrawList, translation + axisX * arrowLength, 0.2f, 0.5f, axisX, 20, Color4.Red);
-            DebugHelper.Cone(GizmoDrawList, translation + axisZ * arrowLength, 0.2f, 0.5f, axisZ, 20, Color4.Blue);
-            DebugHelper.Cone(GizmoDrawList, translation + axisY * arrowLength, 0.2f, 0.5f, axisY, 20, Color4.Lime);
+            DebugHelper.Cone(GizmoDrawList, translation + axisX * arrowLength, radius, 0.5f, axisX, 20, xAxisColor);
+            DebugHelper.Cone(GizmoDrawList, translation + axisZ * arrowLength, radius, 0.5f, axisZ, 20, Color4.Blue);
+            DebugHelper.Cone(GizmoDrawList, translation + axisY * arrowLength, radius, 0.5f, axisY, 20, Color4.Lime);
 
             Matrix3 rotation = new Matrix3(axisX, axisY, axisZ);
 
@@ -129,12 +145,21 @@ namespace AerialRace.Editor
 
             Vector3 pos = light.Transform.WorldPosition;
 
+            var color = new Color4(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
+
+            //OutlineSphere(GizmoDrawList, pos, CalcRadius(light.Candela), 50, color);
+
             float depth = Vector3.Dot(Camera.Transform.Forward, light.Transform.WorldPosition - Camera.Transform.WorldPosition);
             float size = Util.LinearStep(depth, 4, 1000);
             size = Util.MapRange(size, 0, 1, 0.8f, 100);
 
-            var color = new Color4(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
             Billboard(GizmoDrawList, pos, right, up, size, EditorResources.PointLightIcon, color);
+
+            static float CalcRadius(float candela)
+            {
+                //const float LightCutout = 0.005f;
+                return MathF.Max(MathF.Sqrt(candela / Window.LightCutout) - 1, 0);
+            }
         }
 
         public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4 color)
@@ -152,19 +177,52 @@ namespace AerialRace.Editor
             list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.TriangleStrip, 4, texture);
         }
 
-
-        struct Ray
+        public static void OutlineSphere(DrawList list, Vector3 pos, float radius, int segments, Color4 color)
         {
-            public Vector3 Origin;
-            public Vector3 Direction;
-        }
+            if (segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {segments}", nameof(segments));
+            list.Prewarm(segments);
 
-        struct Cylinder
-        {
-            public Vector3 Origin;
-            public Vector3 Direction;
-            public float Radius;
-            public float Height;
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                float x = MathF.Cos(t * 2 * MathF.PI);
+                float y = MathF.Sin(t * 2 * MathF.PI);
+
+                Vector3 offset = new Vector3(x, y, 0) * radius;
+
+                list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
+            }
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                float x = MathF.Cos(t * 2 * MathF.PI);
+                float y = MathF.Sin(t * 2 * MathF.PI);
+
+                Vector3 offset = new Vector3(x, 0, y) * radius;
+
+                list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
+            }
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                float x = MathF.Cos(t * 2 * MathF.PI);
+                float y = MathF.Sin(t * 2 * MathF.PI);
+
+                Vector3 offset = new Vector3(0, x, y) * radius;
+
+                list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
+            }
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
         }
 
         public const string OverlayFrag = @"#version 460 core

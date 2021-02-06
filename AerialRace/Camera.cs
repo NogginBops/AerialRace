@@ -1,4 +1,5 @@
-﻿using AerialRace.RenderData;
+﻿using AerialRace.Mathematics;
+using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -81,6 +82,17 @@ namespace AerialRace
             data.Aspect = Aspect;
             data.NearPlane = NearPlane;
             data.FarPlane = FarPlane;
+        }
+
+        public Ray RayFromPixel(Vector2 pixel, Vector2i resolution)
+        {
+            Vector3 pixelVec = new Vector3(pixel.X, pixel.Y, 0f);
+            CalcViewProjection(out var vp);
+            vp.Invert();
+            var res = Vector3.Unproject(pixelVec, 0, 0, resolution.X, resolution.Y, NearPlane, FarPlane, vp);
+            var pos = Transform.WorldPosition;
+            var direction = Vector3.Normalize(res - pos);
+            return new Ray(pos, direction);
         }
     }
 }

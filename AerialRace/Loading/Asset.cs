@@ -887,21 +887,21 @@ namespace AerialRace.Loading
                 vertex = RenderDataUtil.CreateShaderProgram(
                     Name + " Vertex",
                     ShaderStage.Vertex,
-                    File.ReadAllText(VertexShaderPath));
+                    ShaderPreprocessor.PreprocessSource(VertexShaderPath));
 
             if (GeometryShaderPath != null)
                 geometry = RenderDataUtil.CreateShaderProgram(
                     Name + " Geometry",
                     ShaderStage.Geometry,
-                    File.ReadAllText(GeometryShaderPath));
+                    ShaderPreprocessor.PreprocessSource(GeometryShaderPath));
 
             if (FragmentShaderPath != null)
                 fragment = RenderDataUtil.CreateShaderProgram(
                     Name + " Fragment",
                     ShaderStage.Fragment,
-                    File.ReadAllText(FragmentShaderPath));
+                    ShaderPreprocessor.PreprocessSource(FragmentShaderPath));
 
-            RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment, out LoadedPipeline);
+            LoadedPipeline = RenderDataUtil.CreatePipeline(Name, vertex, geometry, fragment);
             return true;
         }
     }

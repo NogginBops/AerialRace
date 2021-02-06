@@ -86,7 +86,7 @@ namespace AerialRace.Editor
                 float speed = EditorCameraSpeed;
                 if (keyboard.IsKeyDown(Keys.LeftControl))
                 {
-                    speed /= 2f;
+                    speed /= 4f;
                 }
 
                 EditorCamera.Transform.LocalPosition += direction * speed * deltaTime;
@@ -193,6 +193,8 @@ namespace AerialRace.Editor
         {
             if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoFocusOnAppearing))
             {
+                ImGui.DragFloat("Light cutoff", ref Window.LightCutout, 0.001f, 0, 0.5f);
+
                 ImGui.Columns(2);
 
                 // FIXME!!!!! Keep a list of roots...
@@ -227,6 +229,8 @@ namespace AerialRace.Editor
                         var intensity = light.Intensity.ToNumerics();
                         if (ImGui.ColorEdit3("Intensity", ref intensity, ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float))
                             light.Intensity = intensity.ToOpenTK();
+
+                        ImGui.DragFloat("Intensity (candela)", ref light.Candela, 1, 0, 100000);
                     }
                 }
                 else

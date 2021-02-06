@@ -663,11 +663,11 @@ namespace AerialRace.RenderData
             }
         }
 
-        public static bool CreatePipeline(string name, ShaderProgram? vertex, ShaderProgram? geometry, ShaderProgram? fragment, out ShaderPipeline pipeline)
+        public static ShaderPipeline CreatePipeline(string name, ShaderProgram? vertex, ShaderProgram? geometry, ShaderProgram? fragment)
         {
             GLUtil.CreateProgramPipeline(name, out var handle);
 
-            pipeline = new ShaderPipeline(name, handle, null, null, null);
+            var pipeline = new ShaderPipeline(name, handle, null, null, null);
 
             if (vertex != null)
                 GL.UseProgramStages(pipeline.Handle, ProgramStageMask.VertexShaderBit, vertex.Handle);
@@ -692,20 +692,17 @@ namespace AerialRace.RenderData
 
                 // FIXME: Consider using this for debug!!
                 // GL.DebugMessageInsert()
-                return false;
+                throw new Exception();
             }
-            else
-            {
-                return true;
-            }
+
+            return pipeline;
         }
 
         public static ShaderPipeline CreatePipeline(string name, string vertexPath, string fragmentPath)
         {
             var vertProgram = CreateShaderProgram($"{name}: Vertex", ShaderStage.Vertex, File.ReadAllText(vertexPath));
             var fragProgram = CreateShaderProgram($"{name}: Fragment", ShaderStage.Fragment, File.ReadAllText(fragmentPath));
-            CreatePipeline(name, vertProgram, null, fragProgram, out var pipeline);
-            return pipeline;
+            return CreatePipeline(name, vertProgram, null, fragProgram);
         }
 
         public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
@@ -1094,8 +1091,9 @@ namespace AerialRace.RenderData
             return prog;
         }
 
-        public static int GetUniformLocation(string uniform, ShaderProgram program)
+        public static int GetUniformLocation(string uniform, ShaderProgram? program)
         {
+            if (program == null) return -1;
             if (program.UniformLocations.TryGetValue(uniform, out int location))
             {
                 return location;
@@ -1105,6 +1103,61 @@ namespace AerialRace.RenderData
                 //Debug.Print($"The uniform '{uniform}' does not exist in the shader '{program.Name}'!");
                 program.UniformLocations.Add(uniform, -1);
                 return -1;
+            }
+        }
+
+        public static void UniformProperty(string uniformName, ref Property property)
+        {
+            if (CurrentPipeline == null) throw new Exception();
+            var pipeline = CurrentPipeline;
+
+            // FIXME: Remove the need to set uniforms for both vertex and fragment stages!!
+
+            var vert = pipeline.VertexProgram!;
+            var vertLoc = GetUniformLocation(uniformName, vert);
+
+            var frag = pipeline.FramgmentProgram!;
+            var fragLoc = GetUniformLocation(uniformName, frag);
+
+            switch (property.Type)
+            {
+                case PropertyType.Invalid:
+                    throw new Exception("You probably forgot the set the property type.");
+                case PropertyType.Int:
+                    GL.ProgramUniform1(vert.Handle, vertLoc, property.IntValue);
+                    GL.ProgramUniform1(frag.Handle, fragLoc, property.IntValue);
+                    break;
+                case PropertyType.Float:
+                    GL.ProgramUniform1(vert.Handle, vertLoc, property.FloatValue);
+                    GL.ProgramUniform1(frag.Handle, fragLoc, property.FloatValue);
+                    break;
+                case PropertyType.Float2:
+                    GL.ProgramUniform2(vert.Handle, vertLoc, property.Vector2Value);
+                    GL.ProgramUniform2(frag.Handle, fragLoc, property.Vector2Value);
+                    break;
+                case PropertyType.Float3:
+                    GL.ProgramUniform3(vert.Handle, vertLoc, property.Vector3Value);
+                    GL.ProgramUniform3(frag.Handle, fragLoc, property.Vector3Value);
+                    break;
+                case PropertyType.Float4:
+                    GL.ProgramUniform4(vert.Handle, vertLoc, property.Vector4Value);
+                    GL.ProgramUniform4(frag.Handle, fragLoc, property.Vector4Value);
+                    break;
+                case PropertyType.Color:
+                    // FIXME: Is this a vec3 or vec4????
+                    GL.ProgramUniform4(vert.Handle, vertLoc, property.ColorValue);
+                    GL.ProgramUniform4(frag.Handle, fragLoc, property.ColorValue);
+                    break;
+                case PropertyType.Matrix3:
+                    GL.ProgramUniformMatrix3(vert.Handle, vertLoc, true, ref property.Matrix3Value);
+                    GL.ProgramUniformMatrix3(frag.Handle, fragLoc, true, ref property.Matrix3Value);
+                    break;
+                case PropertyType.Matrix4:
+                    GL.ProgramUniformMatrix4(vert.Handle, vertLoc, true, ref property.Matrix4Value);
+                    GL.ProgramUniformMatrix4(frag.Handle, fragLoc, true, ref property.Matrix4Value);
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -1286,18 +1339,15 @@ namespace AerialRace.RenderData
             }
         }
 
-        // FIXME: This might be too much state change in one function 
-        // making things harder to reason about...
-        // FIXME: Make our own ClearBufferMask enum
-        public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearBufferMask mask)
+        public static void BindDrawFramebufferSetViewport(Framebuffer buffer)
         {
             BindDrawFramebuffer(buffer);
 
             // FIXME: We might want to store these values explicitly in our code.
             GL.GetNamedFramebufferParameter(buffer.Handle, FramebufferDefaultParameter.FramebufferDefaultWidth, out int defaultWidth);
             GL.GetNamedFramebufferParameter(buffer.Handle, FramebufferDefaultParameter.FramebufferDefaultHeight, out int defaultHeight);
-
-            bool hasAttachments = 
+            
+            bool hasAttachments =
                 buffer.DepthAttachment != null ||
                 buffer.ColorAttachments != null;
 
@@ -1325,7 +1375,14 @@ namespace AerialRace.RenderData
             }
 
             GL.Viewport(0, 0, width, height);
+        }
 
+        // FIXME: This might be too much state change in one function 
+        // making things harder to reason about...
+        // FIXME: Make our own ClearBufferMask enum
+        public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearBufferMask mask)
+        {
+            BindDrawFramebufferSetViewport(buffer);
             GL.ClearColor(clearColor);
             GL.Clear(mask);
         }

@@ -1,4 +1,5 @@
-﻿using AerialRace.RenderData;
+﻿using AerialRace.Mathematics;
+using AerialRace.RenderData;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
@@ -241,7 +242,7 @@ namespace AerialRace.Debugging
             for (int i = 0; i < segments; i++)
             {
                 float t = i / (float)(segments - 1);
-
+                
                 float x = MathF.Cos(t * 2 * MathF.PI) * radius;
                 float y = MathF.Sin(t * 2 * MathF.PI) * radius;
                 Vector3 pos = @base + (x * v1) + (y * v2);
@@ -261,6 +262,65 @@ namespace AerialRace.Debugging
             }
 
             list.AddCommand(PrimitiveType.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
+        }
+
+        public static void Cylinder(DrawList list, Cylinder cylinder, int segments, Color4 color)
+        {
+            list.AddVertex(cylinder.A, new Vector2(0, 0), color);
+            int AVert = list.TakeIndexOfLastVertex();
+
+            list.AddVertex(cylinder.B, new Vector2(1, 0), color);
+            int BVert = list.TakeIndexOfLastVertex();
+
+            // We might want to fully defined rotation in the future
+            var v0 = (cylinder.A - cylinder.B).Normalized();
+            var (v1, v2) = GetAny2Perp(v0);
+
+            int ABase = AVert + 2;
+            int BBase = BVert + 2;
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)(segments - 1);
+
+                float x = MathF.Cos(t * 2 * MathF.PI) * cylinder.Radius;
+                float y = MathF.Sin(t * 2 * MathF.PI) * cylinder.Radius;
+                var vec = (x * v1) + (y * v2);
+
+                Vector3 Apos = cylinder.A + vec;
+                list.AddVertex(Apos, (0, 1), color);
+                var ACurr = list.TakeIndexOfLastVertex();
+
+                Vector3 Bpos = cylinder.B + vec;
+                list.AddVertex(Bpos, (0, 1), color);
+                var BCurr = list.TakeIndexOfLastVertex();
+
+                var AOffset = (ACurr - ABase) / 2;
+                var ANext = ABase + ((AOffset + 1) % segments) * 2;
+
+                var BOffset = (BCurr - BBase) / 2;
+                var BNext = BBase + ((BOffset + 1) % segments) * 2;
+
+                // This is one of the triangles of the A circle
+                // It goes from the circle center, to the current pos, and ends a the next pos
+                // The % is so that we loop back to 0 when we get to the end.
+                list.AddIndex(AVert);
+                list.AddIndex(ACurr);
+                list.AddIndex(ANext);
+
+                list.AddIndex(BVert);
+                list.AddIndex(BNext);
+                list.AddIndex(BCurr);
+                
+                list.AddIndex(ACurr);
+                list.AddIndex(BNext);
+                list.AddIndex(ANext);
+                
+                list.AddIndex(ACurr);
+                list.AddIndex(BCurr);
+                list.AddIndex(BNext);
+            }
+
+            list.AddCommand(PrimitiveType.Triangles, segments * 3 * 4, BuiltIn.WhiteTex);
         }
     }
 }

@@ -21,12 +21,14 @@ namespace AerialRace
         public Transform Transform;
         public Vector3 Intensity;
         public float Radius;
+        public float Candela;
 
-        public Light(Transform transform, Color4 intensity, float radius)
+        public Light(Transform transform, Color4 intensity, float radius, float candela)
         {
             Transform = transform;
             Intensity = new Vector3(intensity.R, intensity.G, intensity.B);
             Radius = radius;
+            Candela = candela;
         }
     }
 
@@ -52,7 +54,7 @@ namespace AerialRace
             {
                 ref var lightData = ref PointLights[i++];
                 lightData.PositionAndInvSqrRadius = new Vector4(light.Transform.WorldPosition, 1f / (light.Radius * light.Radius));
-                lightData.Intensity = new Vector4(light.Intensity, 1);
+                lightData.Intensity = new Vector4(light.Intensity, light.Candela);
             }
 
             RenderData.RenderDataUtil.UploadBufferData(PointLightBuffer, 0, ref i, 1);
@@ -61,10 +63,10 @@ namespace AerialRace
 
         // FIXME: Some way to reference a light. 
         // We want to be able to change and and delete lights after all...
-        public Light AddPointLight(string name, Vector3 pos, Color4 intensity, float radius)
+        public Light AddPointLight(string name, Vector3 pos, Color4 intensity, float radius, float candela)
         {
             Transform transform = new Transform(name, pos);
-            Light light = new Light(transform, intensity, radius);
+            Light light = new Light(transform, intensity, radius, candela);
             LightsList.Add(light);
             return light;
         }

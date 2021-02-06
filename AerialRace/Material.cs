@@ -36,6 +36,7 @@ namespace AerialRace
 
     enum PropertyType : int
     {
+        Invalid,
         Int,
 
         Float,
