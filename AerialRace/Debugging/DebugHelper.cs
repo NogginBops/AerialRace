@@ -68,7 +68,7 @@ namespace AerialRace.Debugging
 
         public static void OutlineCircle(DrawList list, Vector2 Position, float Radius, Color4 color, int Segments)
         {
-            if (Segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {Segments}", nameof(Segments));
+            Debug.Assert(Segments >= 3, $"Segments cannot be less than 3. {Segments}");
 
             list.Prewarm(Segments);
 
@@ -162,7 +162,7 @@ namespace AerialRace.Debugging
 
         public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4 color)
         {
-            if (segments < 3) throw new InvalidOperationException();
+            Debug.Assert(segments >= 3, $"A cone cannot have less than 3 segments. {segments}");
 
             list.PrewarmVertices(segments + 2);
             list.PrewarmIndices(segments * 6);
@@ -220,7 +220,7 @@ namespace AerialRace.Debugging
 
         public static void Cone(DrawList list, Vector3 tip, float radius, float height, in Vector3 direction, int segments, Color4 color)
         {
-            if (segments < 3) throw new InvalidOperationException();
+            Debug.Assert(segments >= 3, $"A cone cannot have less than 3 segments. {segments}");
 
             list.PrewarmVertices(segments + 2);
             list.PrewarmIndices(segments * 6);
@@ -266,6 +266,8 @@ namespace AerialRace.Debugging
 
         public static void Cylinder(DrawList list, Cylinder cylinder, int segments, Color4 color)
         {
+            Debug.Assert(segments >= 3, $"A cylinder cannot have less than 3 segments. {segments}");
+
             list.AddVertex(cylinder.A, new Vector2(0, 0), color);
             int AVert = list.TakeIndexOfLastVertex();
 

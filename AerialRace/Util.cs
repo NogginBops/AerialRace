@@ -69,6 +69,55 @@ namespace AerialRace
             return negative * (wholeNumber + (fractionNumber / MathF.Pow(10, decimals)));
         }
 
+        public static float ParseFloatFast(ReadOnlySpan<char> str)
+        {
+            float negative = 1;
+            if (str[0] == '-')
+            {
+                negative = -1;
+                str = str[1..];
+            }
+
+            long wholeNumber = 0;
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
+
+                if (c == '.')
+                {
+                    str = str[(i + 1)..];
+                    break;
+                }
+
+                if (c < '0' || c > '9')
+                {
+                    return float.NaN;
+                }
+
+                wholeNumber *= 10;
+                wholeNumber += c - '0';
+            }
+
+            int decimals = str.Length;
+            long fractionNumber = 0;
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
+
+                if (c < '0' || c > '9' || c == '.')
+                {
+                    return float.NaN;
+                }
+
+                fractionNumber *= 10;
+                fractionNumber += c - '0';
+            }
+
+            return negative * (wholeNumber + (fractionNumber / MathF.Pow(10, decimals)));
+        }
+
         // TODO: We might want some error handling!
         public static int ParseIntFast(string str, int offset, int length)
         {
@@ -85,6 +134,34 @@ namespace AerialRace
             for (int i = 0; i < length; i++)
             {
                 char c = str[offset + i];
+
+                if (c < '0' || c > '9')
+                {
+                    // TODO: Proper error handling?!
+                    return -1;
+                }
+
+                number *= 10;
+                number += c - '0';
+            }
+
+            return negative * number;
+        }
+
+        public static int ParseIntFast(ReadOnlySpan<char> str)
+        {
+            int negative = 1;
+            if (str[0] == '-')
+            {
+                negative = -1;
+                str = str[1..];
+            }
+
+            int number = 0;
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
 
                 if (c < '0' || c > '9')
                 {
@@ -118,11 +195,29 @@ namespace AerialRace
         public static Vector3 ToOpenTK(this System.Numerics.Vector3 vec3) =>
             new Vector3(vec3.X, vec3.Y, vec3.Z);
 
+        public static System.Numerics.Vector4 ToNumerics(this Vector4 vec4) =>
+            new System.Numerics.Vector4(vec4.X, vec4.Y, vec4.Z, vec4.W);
+
+        public static Vector4 ToOpenTK(this System.Numerics.Vector4 vec4) =>
+            new Vector4(vec4.X, vec4.Y, vec4.Z, vec4.W);
+
         public static System.Numerics.Quaternion ToNumerics(this Quaternion quat) =>
             new System.Numerics.Quaternion(quat.X, quat.Y, quat.Z, quat.W);
 
         public static Quaternion ToOpenTK(this System.Numerics.Quaternion quat) =>
             new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
+
+        public static System.Numerics.Vector4 ToNumerics4(this Color4 col) =>
+            new System.Numerics.Vector4(col.R, col.G, col.B, col.A);
+
+        public static System.Numerics.Vector3 ToNumerics3(this Color4 col) =>
+            new System.Numerics.Vector3(col.R, col.G, col.B);
+
+        public static Color4 ToOpenTKColor4(this System.Numerics.Vector3 vec3) =>
+            new Color4(vec3.X, vec3.Y, vec3.Z, 1f);
+
+        public static Color4 ToOpenTKColor4(this System.Numerics.Vector4 vec4) =>
+            new Color4(vec4.X, vec4.Y, vec4.Z, vec4.W);
 
 
         public static Vector3 Abs(this Vector3 vec3) =>

@@ -3,12 +3,14 @@ using AerialRace.RenderData;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.Serialization.Formatters;
 using System.Text;
+using Debug = AerialRace.Debugging.Debug;
 
 namespace AerialRace.Loading
 {
@@ -113,6 +115,9 @@ namespace AerialRace.Loading
 
         public static MeshData LoadObjMesh(string filename)
         {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+
             // TODO: Figure out if reading lines or reading the whole file is faster for this!
             string[] lines = File.ReadAllLines(filename);
 
@@ -126,6 +131,7 @@ namespace AerialRace.Loading
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
+                var lineSpan = line.AsSpan();
                 if (string.IsNullOrEmpty(line)) continue;
                 
                 if (line.StartsWithFast("v "))
@@ -134,10 +140,10 @@ namespace AerialRace.Loading
                     int index2 = line.IndexOf(' ', index1) + 1;
                     int index3 = line.IndexOf(' ', index2) + 1;
 
-                    float f1 = Util.ParseFloatFast(line, index1, (index2 - 1) - index1);
-                    float f2 = Util.ParseFloatFast(line, index2, (index3 - 1) - index2);
-                    float f3 = Util.ParseFloatFast(line, index3, line.Length - index3);
-
+                    float f1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                    float f2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                    float f3 = Util.ParseFloatFast(lineSpan[index3..]);
+                    
                     verts.Add(new Vector3(f1, f2, f3));
                 }
                 else if (line.StartsWithFast("vt "))
@@ -145,9 +151,9 @@ namespace AerialRace.Loading
                     int index1 = line.IndexOf(' ') + 1;
                     int index2 = line.IndexOf(' ', index1) + 1;
 
-                    float u = Util.ParseFloatFast(line, index1, (index2 - 1) - index1);
-                    float v = Util.ParseFloatFast(line, index2, line.Length - index2);
-
+                    float u = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                    float v = Util.ParseFloatFast(lineSpan[index2..]);
+                    
                     uvs.Add(new Vector2(u, v));
                 }
                 else if (line.StartsWithFast("vn "))
@@ -156,10 +162,10 @@ namespace AerialRace.Loading
                     int index2 = line.IndexOf(' ', index1) + 1;
                     int index3 = line.IndexOf(' ', index2) + 1;
 
-                    float n1 = Util.ParseFloatFast(line, index1, (index2 - 1) - index1);
-                    float n2 = Util.ParseFloatFast(line, index2, (index3 - 1) - index2);
-                    float n3 = Util.ParseFloatFast(line, index3, line.Length - index3);
-
+                    float n1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                    float n2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                    float n3 = Util.ParseFloatFast(lineSpan[index3..]);
+                    
                     norms.Add(new Vector3(n1, n2, n3));
                 }
                 else if (line.StartsWithFast("f "))
@@ -179,17 +185,17 @@ namespace AerialRace.Loading
                     int index31 = line.IndexOf('/', index3, line.Length - index3) + 1;
                     int index32 = line.IndexOf('/', index31, line.Length - index31) + 1;
 
-                    f.v1.posIdx = Util.ParseIntFast(line, index1, (index11 - 1) - index1) - 1;
-                    f.v1.uvIdx = Util.ParseIntFast(line, index11, (index12 - 1) - index11) - 1;
-                    f.v1.normalIdx = Util.ParseIntFast(line, index12, (index2 - 1) - index12) - 1;
+                    f.v1.posIdx = Util.ParseIntFast(lineSpan[index1..(index11 - 1)]) - 1;
+                    f.v1.uvIdx = Util.ParseIntFast(lineSpan[index11..(index12 - 1)]) - 1;
+                    f.v1.normalIdx = Util.ParseIntFast(lineSpan[index12..(index2 - 1)]) - 1;
 
-                    f.v2.posIdx = Util.ParseIntFast(line, index2, (index21 - 1) - index2) - 1;
-                    f.v2.uvIdx = Util.ParseIntFast(line, index21, (index22 - 1) - index21) - 1;
-                    f.v2.normalIdx = Util.ParseIntFast(line, index22, (index3 - 1) - index22) - 1;
+                    f.v2.posIdx = Util.ParseIntFast(lineSpan[index2..(index21 - 1)]) - 1;
+                    f.v2.uvIdx = Util.ParseIntFast(lineSpan[index21..(index22 - 1)]) - 1;
+                    f.v2.normalIdx = Util.ParseIntFast(lineSpan[index22..(index3 - 1)]) - 1;
 
-                    f.v3.posIdx = Util.ParseIntFast(line, index3, (index31 - 1) - index3) - 1;
-                    f.v3.uvIdx = Util.ParseIntFast(line, index31, (index32 - 1) - index31) - 1;
-                    f.v3.normalIdx = Util.ParseIntFast(line, index32, line.Length - index32) - 1;
+                    f.v3.posIdx = Util.ParseIntFast(lineSpan[index3..(index31 - 1)]) - 1;
+                    f.v3.uvIdx = Util.ParseIntFast(lineSpan[index31..(index32 - 1)]) - 1;
+                    f.v3.normalIdx = Util.ParseIntFast(lineSpan[index32..]) - 1;
 
                     faces.Add(f);
                 }
@@ -249,6 +255,9 @@ namespace AerialRace.Loading
                     vertices.Add(new StandardVertex(pos, uv, norm));
                 }
             }
+
+            watch.Stop();
+            Debug.WriteLine($"Loaded '{filename}' in {watch.ElapsedMilliseconds}ms");
 
             return new MeshData()
             {

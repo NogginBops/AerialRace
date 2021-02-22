@@ -4,7 +4,10 @@ using OpenTK.Windowing.Desktop;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 namespace AerialRace
 {
@@ -58,7 +61,7 @@ namespace AerialRace
                 StartFocused = true,
                 StartVisible = true,
                 Title = "AerialRacer",
-                WindowBorder = WindowBorder.Fixed,
+                //WindowBorder = WindowBorder.Fixed,
                 WindowState = WindowState.Normal,
             };
 

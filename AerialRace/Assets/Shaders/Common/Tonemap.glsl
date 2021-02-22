@@ -5,6 +5,14 @@ vec3 gammaCorrect(vec3 color, float gamma)
     return pow(color, vec3(1.0/gamma));
 }
 
+vec3 apply_sRGB_gamma(vec3 color)
+{
+    // https://en.wikipedia.org/wiki/SRGB#Specification_of_the_transformation
+    bvec3 isLinear = lessThan(color, vec3(0.0031308));
+    vec3 gamma = 1.055 * pow(color, vec3(1/2.4)) - 0.055;
+    return mix(gamma, 12.92 * color, isLinear);
+}
+
 vec3 reinhard(vec3 color)
 {
     color = color / (color + vec3(1.0f));

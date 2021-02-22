@@ -112,11 +112,22 @@ namespace AerialRace.Debugging
         }
 
         [System.Diagnostics.DebuggerHidden]
+        [System.Diagnostics.Conditional("DEBUG")]
         public static void Assert(bool mustBeTrue)
         {
             if (mustBeTrue == false)
             {
-                Break();
+                throw new Exception("Assert failed!");
+            }
+        }
+
+        [System.Diagnostics.DebuggerHidden]
+        [System.Diagnostics.Conditional("DEBUG")]
+        public static void Assert(bool mustBeTrue, FormattableString message)
+        {
+            if (mustBeTrue == false)
+            {
+                throw new Exception(message.ToString());
             }
         }
 

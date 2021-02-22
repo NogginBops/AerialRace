@@ -27,8 +27,11 @@ namespace AerialRace
         public static int LightFalloff = 1;
         public static float LightCutout = 0.01f;
 
-        enum Tonemap
+        public static Tonemap CurrentTonemap;
+
+        public enum Tonemap
         {
+            Half,
             ASCESApprox,
             Reinhard,
         }
@@ -57,8 +60,6 @@ namespace AerialRace
         StaticSetpiece Rock;
         StaticSetpiece Terrain;
 
-        Camera Camera;
-
         Texture TestTexture;
         Sampler DebugSampler;
 
@@ -76,16 +77,9 @@ namespace AerialRace
 
         ShadowSampler ShadowSampler;
 
-        SkyRenderer Sky;
+        public SkyRenderer Sky;
 
         public Lights Lights;
-
-        ParticleSystem<
-            ConstantSize,
-            ConstantColor,
-            SimpleIntegrateVelocity,
-            NoVelocity>
-                    TestParticleSystem;
 
         //EntityManager Manager = new EntityManager();
 
@@ -118,6 +112,7 @@ namespace AerialRace
             Debug.WriteLine(Matrix3d.Transpose(ColorSpace.CalcConvertionMatrix(ColorSpace.Linear_sRGB, ColorSpace.ACEScg)).ToString());
 
             Screen.UpdateScreenSize(Size);
+            Screen.NewFrame();
 
             AssetDB = new AssetDB();
             AssetDB.LoadAllAssetsFromDirectory("./", true);
@@ -143,15 +138,11 @@ namespace AerialRace
             {
                 var pos = rand.NextPosition((-150, 1f, -150), (150, 30, 150));
                 var color = rand.NextColorHue(1, 1);
-                var radius = Util.MapRange(rand.NextFloat(), 0, 1, 10, 40);
-                var light = Lights.AddPointLight($"Light {i+2}", pos, color, radius, rand.NextFloat() * 100);
+                var radius = Util.MapRange(rand.NextFloat(), 0, 1, 40, 200);
+                var light = Lights.AddPointLight($"Light {i+2}", pos, color, radius, rand.NextFloat() * 1000);
 
                 light.Transform.SetParent(randLights);
             }
-
-            Camera = new Camera(100, Width / (float)Height, 0.1f, 10000f, Color4.DarkBlue);
-            Camera.Transform.Name = "Camera";
-            Camera.Transform.LocalPosition = CameraOffset;
 
             var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
 
@@ -175,8 +166,8 @@ namespace AerialRace
             Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
             Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
-            Material.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.2f });
-            Material.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.5f });
+            Material.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.02f });
+            Material.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.9f });
 
             // This should be the first refernce to StaticGeometry.
             StaticGeometry.Init();
@@ -240,8 +231,8 @@ namespace AerialRace
                 floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
                 floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
-                floorMat.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.2f });
-                floorMat.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.7f });
+                floorMat.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.8f });
+                floorMat.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.5f });
 
 
                 // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
@@ -319,6 +310,8 @@ namespace AerialRace
                 var depthTex = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, Width, Height);
                 RenderDataUtil.AddDepthAttachment(HDRSceneBuffer, depthTex, 0);
 
+                Screen.RegisterFramebuffer(HDRSceneBuffer);
+
                 var status = RenderDataUtil.CheckFramebufferComplete(HDRSceneBuffer, RenderData.FramebufferTarget.Draw);
                 if (status != FramebufferStatus.FramebufferComplete)
                 {
@@ -337,6 +330,9 @@ namespace AerialRace
                 var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
                 RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
 
+                // The shadowmap should not resize with the size of the screen!
+                // Screen.RegisterFramebuffer(Shadowmap);
+
                 var status = RenderDataUtil.CheckFramebufferComplete(Shadowmap, RenderData.FramebufferTarget.Draw);
                 if (status != FramebufferStatus.FramebufferComplete)
                 {
@@ -354,7 +350,12 @@ namespace AerialRace
             Material skyMat = new Material("Sky Material", skyPipeline, null);
 
             var sunPosition = new Vector3(100, 100, 0);
-            Sky = new SkyRenderer(skyMat, sunPosition.Normalized(), new Color4(5f, 5f, 5f, 1f));
+            Sky = new SkyRenderer(skyMat,
+                sunPosition.Normalized(),
+                new Color4(1f, 1f, 1f, 1f),
+                //new Color4(2f, 3f, 6f, 1f),
+                new Color4(2f/6f, 3f/6f, 6f/6f, 1f),
+                new Color4(0.188f, 0.082f, 0.016f, 1f));
 
             Editor.Editor.InitEditor(this);
 
@@ -365,6 +366,8 @@ namespace AerialRace
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             base.OnRenderFrame(args);
+
+            Screen.NewFrame();
 
             float deltaTime = (float)args.Time;
 
@@ -389,9 +392,6 @@ namespace AerialRace
                 Transform.Transforms[i].UpdateMatrices();
             }
 
-            UpdateCamera(deltaTime);
-            Camera.Transform.UpdateMatrices();
-
             Lights.UpdateBufferData();
 
             if (Editor.Editor.InEditorMode)
@@ -404,7 +404,7 @@ namespace AerialRace
             }
             else
             {
-                RenderScene(Camera);
+                RenderScene(Player.Camera);
             }
 
             ImGui.EndFrame();
@@ -442,19 +442,16 @@ namespace AerialRace
             GL.ClearColor(camera.ClearColor);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            // FIXME: Make SkyRenderer take a SkySettings instead.
-            Color4 directionalLightColor = SkyRenderer.Instance.SunColor;
-            Vector3 directionalLightDir = SkyRenderer.Instance.SunDirection;
-            Vector3 directionalLightPos = directionalLightDir * 100f;
-
             SkySettings skySettings = new SkySettings()
             {
-                SunDirection = directionalLightDir,
-                SunColor = directionalLightColor,
-                SkyColor = new Color4(2f, 3f, 6f, 1f),
-                GroundColor = new Color4(0.15f, 0.1f, 0.05f, 1f),
+                SunDirection = Sky.SunDirection,
+                SunColor = Sky.SunColor,
+                SkyColor = Sky.SkyColor,
+                GroundColor = Sky.GroundColor,
             };
 
+            // FIXME: This is a hack until we fit this to the camera frustum
+            Vector3 directionalLightPos = Sky.SunDirection * 100f;
             var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
             var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
             var lightSpace = lightView * proj;
@@ -483,8 +480,11 @@ namespace AerialRace
                     Lights = Lights,
                 };
 
+                //Screen.ResizeToScreenSizeIfNecessary(Shadowmap);
+
                 RenderDataUtil.BindDrawFramebuffer(Shadowmap);
-                GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Width, Shadowmap.DepthAttachment!.Height);
+                // FIXME: Clean this up
+                GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Value.Texture.Width, Shadowmap.DepthAttachment!.Value.Texture.Height);
 
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.None);
@@ -496,6 +496,8 @@ namespace AerialRace
 
             using (_ = RenderDataUtil.PushDepthPass("Depth prepass"))
             {
+                Screen.ResizeToScreenSizeIfNecessary(HDRSceneBuffer);
+
                 RenderDataUtil.BindDrawFramebufferSetViewport(HDRSceneBuffer);
 
                 camera.CalcProjectionMatrix(out proj);
@@ -546,7 +548,7 @@ namespace AerialRace
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
-                    ShadowMap = Shadowmap.DepthAttachment,
+                    ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
                     ShadowSampler = ShadowSampler,
 
                     Lights = Lights,
@@ -581,7 +583,7 @@ namespace AerialRace
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
-                    ShadowMap = Shadowmap.DepthAttachment,
+                    ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
                     ShadowSampler = ShadowSampler,
 
                     Lights = Lights,
@@ -620,7 +622,7 @@ namespace AerialRace
 
                 RenderDataUtil.UsePipeline(HDRToLDRPipeline);
 
-                RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, 0);
+                RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
                 RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
                 RenderDataUtil.BindTexture(0, HDRSceneBuffer.ColorAttachments![0].ColorTexture, HDRSampler);
 
@@ -651,39 +653,6 @@ namespace AerialRace
                     DrawListRenderer.RenderDrawList(Debug.List, ref settings);
                 }
             }
-        }
-
-        public Vector3 CameraOffset = new Vector3(0, 6f, 37f);
-        public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
-        void UpdateCamera(float deltaTime)
-        {
-            MouseInfluenceTimeout -= deltaTime;
-            if (MouseInfluenceTimeout < 0.001f)
-            {
-                MouseInfluenceTimeout = 0;
-
-                Camera.XAxisRotation -= Camera.XAxisRotation * deltaTime * 3f;
-                if (Math.Abs(Camera.XAxisRotation) < 0.001f) Camera.XAxisRotation = 0;
-                Camera.YAxisRotation -= Camera.YAxisRotation * deltaTime * 3f;
-                if (Math.Abs(Camera.YAxisRotation) < 0.001f) Camera.YAxisRotation = 0;
-            }
-
-            //var targetPos = Vector3.TransformPosition(CameraOffset, Player.Transform.LocalToWorld);
-
-            var targetPos = Player.Transform.LocalPosition;
-
-            Quaternion rotation =
-                    Player.Transform.LocalRotation *
-                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
-                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation) *
-                    RotationOffset;
-
-            targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
-
-            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 30f * deltaTime);
-
-            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
-            //Debug.Print($"Player Local Y: {Player.Transform.LocalPosition.Y}, Player Y: {Player.Transform.WorldPosition.Y}, Camera Y: {Camera.Transform.WorldPosition.Y}");
         }
 
         float TotalTime = 0;
@@ -723,6 +692,18 @@ namespace AerialRace
                 }
             }
 
+            if (IsKeyPressed(Keys.F11))
+            {
+                if (WindowState == WindowState.Fullscreen)
+                {
+                    WindowState = WindowState.Normal;
+                }
+                else
+                {
+                    WindowState = WindowState.Fullscreen;
+                }
+            }
+
             // Toggle editor mode
             var ctrlDown = KeyboardState.IsKeyDown(Keys.LeftControl) | KeyboardState.IsKeyDown(Keys.Right);
             if (ctrlDown && KeyboardState.IsKeyPressed(Keys.E))
@@ -731,6 +712,8 @@ namespace AerialRace
                 
             }
 
+            // FIXME: Make a keyboard input thing that has a on/off toggle to
+            // make this easier.
             var io = ImGui.GetIO();
             if (io.WantCaptureKeyboard)
             {
@@ -748,126 +731,29 @@ namespace AerialRace
             }
         }
 
+
         public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
         {
-            float pitchForce = 0.05f;
-            float yawForce = 0.05f;
-            float rollForce = 0.08f;
-            
-            if (keyboard.IsKeyDown(Keys.A))
+            var io = ImGui.GetIO();
+            if (io.WantCaptureKeyboard)
             {
-                //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * 2 * MathF.PI * 0.5f, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, yawForce * MathHelper.TwoPi, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
+                return;
             }
 
-            if (keyboard.IsKeyDown(Keys.D))
-            {
-                //Player.Transform.LocalRotation *= new Quaternion(0, deltaTime * -2 * MathF.PI * 0.5f, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, -yawForce * MathHelper.TwoPi, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-            }
-
-            if (keyboard.IsKeyDown(Keys.W))
-            {
-                //Player.Transform.LocalRotation *= new Quaternion(deltaTime * -2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-pitchForce * MathHelper.TwoPi, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-            }
-
-            if (keyboard.IsKeyDown(Keys.S))
-            {
-                //Player.Transform.LocalRotation *= new Quaternion(deltaTime * 2 * MathF.PI * 0.2f, 0, 0);
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(pitchForce * MathHelper.TwoPi, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-            }
-
-            if (keyboard.IsKeyDown(Keys.Up))
-            {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(-yawForce * MathHelper.TwoPi, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-            }
-
-            if (keyboard.IsKeyDown(Keys.Down))
-            {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(yawForce * MathHelper.TwoPi, 0, 0));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-            }
-
-            if (keyboard.IsKeyDown(Keys.Q))
-            {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, rollForce * MathHelper.TwoPi));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-                //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * 2 * MathF.PI * 0.5f);
-            }
-
-            if (keyboard.IsKeyDown(Keys.E))
-            {
-                var axis = Player.Transform.LocalDirectionToWorld(new Vector3(0, 0, -rollForce * MathHelper.TwoPi));
-                Player.RigidBody.Body.ApplyAngularImpulse(axis.ToNumerics() * Player.RigidBody.Mass);
-                //Player.Transform.LocalRotation *= new Quaternion(0, 0, deltaTime * -2 * MathF.PI * 0.5f);
-            }
-
-            if (keyboard.IsKeyDown(Keys.Space))
-            {
-                Player.AccelerationTimer += deltaTime;
-                if (Player.AccelerationTimer >= Player.AccelerationTime)
-                {
-                    Player.AccelerationTimer = Player.AccelerationTime;
-                }
-            }
-            else
-            {
-                Player.AccelerationTimer -= deltaTime * 2;
-                if (Player.AccelerationTimer <= 0)
-                {
-                    Player.AccelerationTimer = 0;
-                }
-            }
-
-            float timerPercent = Player.AccelerationTimer / Player.AccelerationTime;
-            Player.CurrentAcceleration = MathHelper.Lerp(0, Player.MaxAcceleration, timerPercent);
+            Player.UpdateControls(keyboard, deltaTime);
         }
 
-        public float MouseInfluenceTimeout = 0f;
-
-        public float MouseSpeedX = 0.2f;
-        public float MouseSpeedY = 0.2f;
-        public float CameraMinY = -75f;
-        public float CameraMaxY =  75f;
         public void HandleMouse(MouseState mouse, float deltaTime)
         {
+            // FIXME: Make this better so that we don't have to split mouse and keyboard input!
             var io = ImGui.GetIO();
             if (io.WantCaptureMouse)
                 return;
 
-            // Move the camera
-            if (mouse.IsButtonDown(MouseButton.Right))
-            {
-                MouseInfluenceTimeout = 1f;
-
-                var delta = mouse.Delta;
-
-                Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
-                Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;
-                Camera.XAxisRotation = MathHelper.Clamp(Camera.XAxisRotation, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
-
-                var targetPos = Player.Transform.LocalPosition;
-
-                Quaternion rotation = 
-                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
-                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
-
-                //Camera.Transform.LocalPosition = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
-
-                //Camera.Transform.LocalRotation = rotation;
-
-                //Camera.Transform.LocalRotation =
-                //    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
-                //    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
-            }
+            Player.UpdateCamera(mouse, deltaTime);
         }
 
+        // This calls the Screen.UpdateScreenSize which calls the above callback.
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);

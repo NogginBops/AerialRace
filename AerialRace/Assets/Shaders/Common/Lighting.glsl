@@ -68,10 +68,23 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 
 uniform float LightCutout;
 
+float Luminance(vec4 color)
+{
+    // https://en.wikipedia.org/wiki/Relative_luminance
+    // These values are for Rec.709 primaries
+    // FIXME: Don't assume Rec.709 primaries...
+    return dot(color.rgb, vec3(0.2126, 0.7152, 0.0722)) * color.a;
+}
+
+float CalcLightRadius(float lightness)
+{
+    return max(sqrt(lightness / LightCutout) - 1, 0);
+}
+
 // What is the unit for lightness?
 float CalcPointLightAttenuation(float distance, float lightness)
 {
-    return lightness / distance;
+    //return lightness / distance;
     //const float LightCutout = 0.005f;
     float radius = max(sqrt(lightness / LightCutout) - 1, 0);
     float xplus1 = distance + 1;
@@ -79,7 +92,7 @@ float CalcPointLightAttenuation(float distance, float lightness)
     float denom = radius * (xplus1 * xplus1);
     return numerator;
     float attenuation = numerator / denom;
-    return attenuation;
+    return max(attenuation, 0);
 }
 
 float CalcPointLightAttenuation2(float distance, float radius)
@@ -89,3 +102,29 @@ float CalcPointLightAttenuation2(float distance, float radius)
     float attenuation = 1f / denom;
     return attenuation;
 }
+
+float CalcPointLightAttenuation3(float distance)
+{
+    const float PI = 3.14159265359;
+    float d1pi4 = 4 * PI * distance + 1;
+    return 1 / (d1pi4 * d1pi4);
+}
+
+float CalcPointLightAttenuation4(float distance, float luminance)
+{
+    const float PI = 3.14159265359;
+    float dmax = (sqrt(luminance / LightCutout) - 1);
+    float dprim = 2.1 * tan((PI * distance)/(2*dmax));
+    float dprim1 = dprim + 1;
+    if (LightCutout == 0) return CalcPointLightAttenuation3(distance);
+    if (distance > dmax) return 0;
+    return 1 / (dprim1 * dprim1);
+}
+
+// https://seblagarde.files.wordpress.com/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf
+float CalcPointLightAttenuation5(float distance, float invRadius)
+{
+    float factor = clamp(1 - pow(distance * invRadius, 4), 0, 1);
+    return (factor * factor) / (distance * distance);
+}
+

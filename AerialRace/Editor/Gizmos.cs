@@ -44,6 +44,8 @@ namespace AerialRace.Editor
             RenderDataUtil.AddColorAttachment(GizmosOverlay, color, 0, 0);
             RenderDataUtil.AddDepthAttachment(GizmosOverlay, depth, 0);
 
+            Screen.RegisterFramebuffer(GizmosOverlay);
+
             var status = RenderDataUtil.CheckFramebufferComplete(GizmosOverlay, FramebufferTarget.ReadDraw);
             if (status != OpenTK.Graphics.OpenGL4.FramebufferStatus.FramebufferComplete)
             {
@@ -147,19 +149,13 @@ namespace AerialRace.Editor
 
             var color = new Color4(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
 
-            //OutlineSphere(GizmoDrawList, pos, CalcRadius(light.Candela), 50, color);
+            //OutlineSphere(GizmoDrawList, pos, light.Radius, 50, color);
 
             float depth = Vector3.Dot(Camera.Transform.Forward, light.Transform.WorldPosition - Camera.Transform.WorldPosition);
             float size = Util.LinearStep(depth, 4, 1000);
             size = Util.MapRange(size, 0, 1, 0.8f, 100);
 
             Billboard(GizmoDrawList, pos, right, up, size, EditorResources.PointLightIcon, color);
-
-            static float CalcRadius(float candela)
-            {
-                //const float LightCutout = 0.005f;
-                return MathF.Max(MathF.Sqrt(candela / Window.LightCutout) - 1, 0);
-            }
         }
 
         public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4 color)

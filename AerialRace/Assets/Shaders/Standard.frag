@@ -37,7 +37,7 @@ uniform sampler2DShadow ShadowMap;
 
 struct PointLight
 {
-    vec4 posAndInvSqrRadius;
+    vec4 posAndInvRadius;
     vec4 intensity;
 };
 
@@ -100,7 +100,7 @@ void main(void)
     vec3 viewDir = normalize(ViewPos - fragPos.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 
-    vec3 albedo = vec3(texture_ACES(AlbedoTex, fragUV));
+    vec3 albedo = vec3(texture(AlbedoTex, fragUV));
 
     float diff = max(dot(normal, lightDir), 0.0f);
     vec3 diffuse = sky.SunColor * diff * albedo;
@@ -117,15 +117,21 @@ void main(void)
     for (int i = 0; i < lights.lightCount; i++)
     {
         PointLight light = lights.light[i];
-        vec3 L = light.posAndInvSqrRadius.xyz - fragPos.xyz;
+        vec3 L = light.posAndInvRadius.xyz - fragPos.xyz;
         float distance = length(L);
         L = normalize(L);
 
         vec3 H = normalize(V + L);
 
+        //float radius = CalcLightRadius(Luminance(light.intensity));
+        //if (distance > radius) continue;
+
         // FIXME: Make our own attenuation curve?
-        float attenuation = CalcPointLightAttenuation2(distance, light.posAndInvSqrRadius.w);
-        vec3 radiance = light.intensity.rgb * attenuation;
+        //float attenuation = CalcPointLightAttenuation2(distance, light.posAndInvRadius.w);
+        //float attenuation = CalcPointLightAttenuation(distance, Luminance(light.intensity));
+        //float attenuation = CalcPointLightAttenuation3(distance);
+        float attenuation = CalcPointLightAttenuation5(distance, light.posAndInvRadius.w);
+        vec3 radiance = light.intensity.rgb * light.intensity.w * attenuation;
 
         vec3 F0 = vec3(0.04f);
         vec3 F  = fresnelSchlick(max(dot(H, V), 0.0f), F0);

@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace AerialRace.Debugging
 {
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = (3 + 2 + 4) * sizeof(float))]
     struct DrawListVertex
     {
         public static readonly int SizeInBytes = Marshal.SizeOf(typeof(DrawListVertex));

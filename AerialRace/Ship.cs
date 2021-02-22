@@ -4,6 +4,7 @@ using AerialRace.Physics;
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK.Mathematics;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,6 +19,8 @@ namespace AerialRace
         public TrailRenderer LeftTrailRenderer;
         public TrailRenderer RightTrailRenderer;
 
+        public Camera Camera;
+
         public Mesh Model;
 
         public Trail LeftTrail;
@@ -31,11 +34,6 @@ namespace AerialRace
         public bool IsPlayerShip;
 
         public float MaxSpeed;
-
-        public float AccelerationTimer;
-        public float AccelerationTime = 0.5f;
-        public float CurrentAcceleration;
-        public float MaxAcceleration = 1;
 
         public float ForwardStallSpeed = 40;
 
@@ -56,6 +54,10 @@ namespace AerialRace
             Model = RenderDataUtil.CreateMesh(name, meshData);
             Material = material;
 
+            Camera = new Camera(100, 0.1f, 10_000f, new Color4(1f, 0, 1f, 1f));
+            Camera.Transform.Name = "Player Camera";
+            Camera.Transform.LocalPosition = CameraOffset;
+
             MeshRenderer = new MeshRenderer(Transform, Model, Material);
 
             float trailLength = 5f;
@@ -75,7 +77,7 @@ namespace AerialRace
             SimpleBody playerBodyProp = new SimpleBody()
             {
                 HasGravity = true,
-                LinearDamping = 0.3f,
+                LinearDamping = 0.03f,
                 AngularDamping = 0.8f,
             };
 
@@ -143,7 +145,8 @@ namespace AerialRace
             {
                 if (ImGui.Begin("Plane Stats", ImGuiWindowFlags.NoFocusOnAppearing))
                 {
-                    ImGui.Text($"Acceleration: {ReadablePercentage(AccelerationTimer / AccelerationTime)}");
+                    ImGui.Text($"Acceleration: {ReadablePercentage(AccelerationPercent)}%");
+                    ImGui.Text($"Boosting: {BoostTimer}s left");
                     ImGui.Text($"Stalling: {stalling}");
                     ImGui.Text($"Velocity: ({ReadableString(Velocity)}) - {Velocity.Length}");
                     ImGui.Text($"Vertical Velocity: ({ReadableString(verticalVel)}) - {ReadablePercentage(verticalVel.Length / Velocity.Length)}");
@@ -195,6 +198,117 @@ namespace AerialRace
             //Vector3 drag = 0.5f * speed * speed * DragCoefficient * ForwardArea;
 
             Transform.LocalPosition += Velocity * deltaTime;
+        }
+
+
+        public float BoostTimer = 0f;
+        public float BoostTime = 0.4f;
+        public float BoostForce = 500000;
+
+        public float AccelerationTime = 0.5f;
+        public float DeccelerationTime = 0.2f;
+        public float MaxAcceleration = 1;
+
+        public float AccelerationPercent = 0f;
+        public float CurrentAcceleration;
+        public void UpdateControls(KeyboardState keyboard, float deltaTime)
+        {
+            float pitchForce = 1000;
+            float yawForce = 2500;
+            float rollForce = 2000;
+
+            float pitch = GetAxis(keyboard, Keys.W, Keys.S) * pitchForce;
+            float yaw = GetAxis(keyboard, Keys.A, Keys.D) * yawForce;
+            float roll = GetAxis(keyboard, Keys.Q, Keys.E) * rollForce;
+
+            pitch += GetAxis(keyboard, Keys.Up, Keys.Down) * pitchForce * 2;
+
+            var pitchMoment = Transform.LocalDirectionToWorld((-pitch * MathHelper.TwoPi, 0, 0));
+            var yawMoment = Transform.LocalDirectionToWorld((0, yaw * MathHelper.TwoPi, 0));
+            var rollMoment = Transform.LocalDirectionToWorld((0, 0, roll * MathHelper.TwoPi));
+
+            RigidBody.Body.ApplyAngularImpulse(pitchMoment.ToNumerics() * deltaTime);
+            RigidBody.Body.ApplyAngularImpulse(yawMoment.ToNumerics() * deltaTime);
+            RigidBody.Body.ApplyAngularImpulse(rollMoment.ToNumerics() * deltaTime);
+
+            float accelerationDelta = -(1f / DeccelerationTime) * deltaTime;
+            if (keyboard.IsKeyDown(Keys.Space))
+            {
+                accelerationDelta = (1f / AccelerationTime) * deltaTime;
+            }
+
+            if (keyboard.IsKeyPressed(Keys.LeftShift) && BoostTimer == 0)
+            {
+                BoostTimer = BoostTime;
+            }
+
+            if (BoostTimer > 0)
+            {
+                RigidBody.Body.ApplyLinearImpulse(Transform.Forward.ToNumerics() * BoostForce * deltaTime);
+
+                BoostTimer -= deltaTime;
+                if (BoostTimer < 0) BoostTimer = 0;
+            }
+
+            CurrentAcceleration += accelerationDelta;
+            CurrentAcceleration = MathHelper.Clamp(CurrentAcceleration, 0, MaxAcceleration);
+
+            static float GetAxis(KeyboardState keyboard, Keys positive, Keys negative)
+            {
+                float axis = 0f;
+                if (keyboard.IsKeyDown(positive)) axis += 1;
+                if (keyboard.IsKeyDown(negative)) axis -= 1;
+                return axis;
+            }
+        }
+
+        public Vector3 CameraOffset = new Vector3(0, 6f, 37f);
+        public Quaternion RotationOffset = Quaternion.FromAxisAngle(Vector3.UnitX, MathHelper.DegreesToRadians(-20f));
+
+        public float MouseInfluenceTimeout = 0f;
+        public float MouseSpeedX = 0.2f;
+        public float MouseSpeedY = 0.2f;
+        public float CameraMinY = -75f;
+        public float CameraMaxY = 75f;
+
+        public void UpdateCamera(MouseState mouse, float deltaTime)
+        {
+            // Move the camera
+            if (mouse.IsButtonDown(MouseButton.Right))
+            {
+                MouseInfluenceTimeout = 1f;
+
+                var delta = mouse.Delta;
+
+                Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
+                Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;
+                Camera.XAxisRotation = MathHelper.Clamp(Camera.XAxisRotation, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
+            }
+
+            MouseInfluenceTimeout -= deltaTime;
+            if (MouseInfluenceTimeout < 0.001f)
+            {
+                MouseInfluenceTimeout = 0;
+
+                Camera.XAxisRotation -= Camera.XAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.XAxisRotation) < 0.001f) Camera.XAxisRotation = 0;
+                Camera.YAxisRotation -= Camera.YAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.YAxisRotation) < 0.001f) Camera.YAxisRotation = 0;
+            }
+
+            var targetPos = Transform.LocalPosition;
+
+            Quaternion rotation =
+                    Transform.LocalRotation * RotationOffset *
+                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation)
+                    ;
+
+            targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
+
+            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 30f * deltaTime);
+
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
         }
     }
 }

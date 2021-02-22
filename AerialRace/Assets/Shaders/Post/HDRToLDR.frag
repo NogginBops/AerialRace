@@ -21,9 +21,13 @@ void main(void)
     LDRColor = gammaCorrect(LDRColor, 2.2f);
     if (Tonemap == 0)
     {
-        LDRColor = reinhard(HDRColor);
+        LDRColor = clamp(apply_sRGB_gamma(HDRColor / vec3(2f)), 0f, 1f);
     }
     else if (Tonemap == 1)
+    {
+        LDRColor = ACESFitted(HDRColor);
+    }
+    else if (Tonemap == 2)
     {
         LDRColor = reinhard(HDRColor);
     }

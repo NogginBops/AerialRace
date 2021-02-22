@@ -25,7 +25,7 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(90, window.Width / (float)window.Height, 0.1f, 10000f, Color4.Black);
+            EditorCamera = new Camera(90, 0.1f, 10000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
 
             Gizmos.Init();
@@ -116,6 +116,8 @@ namespace AerialRace.Editor
 
             ShowTransformHierarchy();
 
+            ShowSceneSettings();
+
             if (SelectedTransform != null)
             {
                 Gizmos.TransformHandle(SelectedTransform);
@@ -136,10 +138,12 @@ namespace AerialRace.Editor
                 // Enable alpha blending
                 RenderDataUtil.SetNormalAlphaBlending();
 
+                Screen.ResizeToScreenSizeIfNecessary(Gizmos.GizmosOverlay);
+
                 // FIXME: Make our own enum
                 RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
                     Gizmos.GizmosOverlay,
-                    default,
+                    default(Color4),
                     OpenTK.Graphics.OpenGL4.ClearBufferMask.ColorBufferBit |
                     OpenTK.Graphics.OpenGL4.ClearBufferMask.DepthBufferBit);
 
@@ -193,8 +197,6 @@ namespace AerialRace.Editor
         {
             if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoFocusOnAppearing))
             {
-                ImGui.DragFloat("Light cutoff", ref Window.LightCutout, 0.001f, 0, 0.5f);
-
                 ImGui.Columns(2);
 
                 // FIXME!!!!! Keep a list of roots...
@@ -224,13 +226,16 @@ namespace AerialRace.Editor
                     Light? light = Window.Lights.LightsList.Find(l => l.Transform == SelectedTransform);
                     if (light != null)
                     {
-                        ImGui.DragFloat("Radius", ref light.Radius, 1, 0.0001f, 10000, null, ImGuiSliderFlags.ClampOnInput);
+                        ImGui.DragFloat("Radius", ref light.Radius, 1, 0.01f, 10000, null, ImGuiSliderFlags.ClampOnInput);
 
                         var intensity = light.Intensity.ToNumerics();
                         if (ImGui.ColorEdit3("Intensity", ref intensity, ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float))
                             light.Intensity = intensity.ToOpenTK();
 
                         ImGui.DragFloat("Intensity (candela)", ref light.Candela, 1, 0, 100000);
+
+                        float error = 1 - Light.CalculatePointLightPercentageAccuracyFromRadius(light.Radius);
+                        ImGui.Text($"Error: {error * 100:0.00000}%% ({light.Candela * error:0.00000} units)");
                     }
                 }
                 else
@@ -279,6 +284,52 @@ namespace AerialRace.Editor
 
                     ImGui.TreePop();
                 }
+            }
+        }
+
+        public static void ShowSceneSettings()
+        {
+            if (ImGui.Begin("Scene settings"))
+            {
+                EnumCombo("Tonemap", ref Window.CurrentTonemap);
+                ImGui.DragFloat("Light cutoff", ref Window.LightCutout, 0.001f, 0, 0.5f);
+
+                
+
+                var flags = ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float;
+                ColorEdit3("Sun color", ref Window.Sky.SunColor, flags);
+                ColorEdit3("Sky color", ref Window.Sky.SkyColor, flags);
+                ColorEdit3("Ground color", ref Window.Sky.GroundColor, flags);
+            }
+            ImGui.End();
+
+            static bool ColorEdit3(string label, ref Color4 color, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
+            {
+                var vec = color.ToNumerics3();
+                bool result = ImGui.ColorEdit3(label, ref vec, flags);
+                if (result) color = vec.ToOpenTKColor4();
+                return result;
+            }
+
+            static void EnumCombo<T>(string label, ref T currValue) where T : struct, Enum
+            {
+                string[] names = Enum.GetNames<T>();
+                int selectedIndex = Unsafe.As<T, int>(ref currValue);
+                if (ImGui.BeginCombo(label, names[selectedIndex]))
+                {
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        bool selected = i == selectedIndex;
+                        if (ImGui.Selectable(names[i], selected))
+                        {
+                            currValue = Enum.GetValues<T>()[i];
+                        }
+
+                        if (selected) ImGui.SetItemDefaultFocus();
+                    }
+                    ImGui.EndCombo();
+                }
+                
             }
         }
     }

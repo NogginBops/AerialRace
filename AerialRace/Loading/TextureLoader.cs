@@ -5,6 +5,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace AerialRace.Loading
@@ -13,8 +14,13 @@ namespace AerialRace.Loading
     {
         public static Texture LoadRgbaImage(string name, string path, bool generateMipmap, bool srgb)
         {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+
             // ImageSharp supports Jpeg, Png, Bmp, Gif, and Tga file formats.
             var image = Image.Load<Rgba32>(path);
+
+            var loadTime = watch.ElapsedMilliseconds;
 
             var mipmapLevels = generateMipmap ?
                 MathF.ILogB(Math.Max(image.Width, image.Height)) :
@@ -47,6 +53,9 @@ namespace AerialRace.Loading
             // glTextureStorage2D already sets TextureBaseLevel = 0 and TextureMaxLevel = mipmaplevels - 1
             // so we don't need to call anything here!
             // GL.TextureParameter(texture, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
+
+            watch.Stop();
+            Debug.WriteLine($"Loaded texture '{path}' in {watch.ElapsedMilliseconds}ms ({loadTime}ms load time)");
 
             return new Texture(name, texture, TextureType.Texture2D, TextureFormat.Rgba8, image.Width, image.Height, 1, 0, mipmapLevels - 1, mipmapLevels);
         }

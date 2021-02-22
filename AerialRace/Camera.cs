@@ -37,21 +37,22 @@ namespace AerialRace
         public Color4 ClearColor;
 
         public float Fov;
-        public float Aspect;
+        public Box2 Viewport;
         public float NearPlane;
         public float FarPlane;
 
+        public float Aspect => (Viewport.Size.X * Screen.Width) / (Viewport.Size.Y * Screen.Height);
 
         // Used by the mouse controls for cameras
         // We can remove this later
         public float YAxisRotation, XAxisRotation;
 
-        public Camera(float fov, float aspect, float near, float far, Color4 clear)
+        public Camera(float fov, float near, float far, Color4 clear)
         {
             Transform = new Transform();
             ClearColor = clear;
             Fov = fov;
-            Aspect = aspect;
+            Viewport = new Box2((0, 0), (1, 1));
             NearPlane = near;
             FarPlane = far;
         }
@@ -79,7 +80,7 @@ namespace AerialRace
         {
             data.Pos = Transform.WorldPosition;
             data.Fov = Fov;
-            data.Aspect = Aspect;
+            data.Aspect = Screen.Aspect;
             data.NearPlane = NearPlane;
             data.FarPlane = FarPlane;
         }

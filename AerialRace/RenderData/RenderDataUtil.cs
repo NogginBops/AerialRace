@@ -476,30 +476,47 @@ namespace AerialRace.RenderData
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.ColorAttachment0 + index, colorAttachment.Handle, mipLevel);
 
-            // Extend the array, add the attachment, sort the attachments by index
-            fbo.ColorAttachments ??= Array.Empty<ColorAttachement>();
-            Array.Resize(ref fbo.ColorAttachments, fbo.ColorAttachments.Length + 1);
-            fbo.ColorAttachments[^1] = new ColorAttachement(index, colorAttachment);
-            Array.Sort(fbo.ColorAttachments, (a1, a2) => a1.Index - a2.Index);
+            var attachment = new ColorAttachement(index, mipLevel, colorAttachment);
+
+            // First we check if this index already exists for this framebuffer
+            bool addNew = true;
+            for (int i = 0; i < fbo.ColorAttachments?.Length; i++)
+            {
+                if (fbo.ColorAttachments[i].Index == index)
+                {
+                    fbo.ColorAttachments[i] = attachment;
+                    addNew = false;
+                }
+            }
+
+            if (addNew)
+            {
+                // Extend the array, add the attachment, sort the attachments by index
+                fbo.ColorAttachments ??= Array.Empty<ColorAttachement>();
+                Array.Resize(ref fbo.ColorAttachments, fbo.ColorAttachments.Length + 1);
+                fbo.ColorAttachments[^1] = attachment;
+                Array.Sort(fbo.ColorAttachments, (a1, a2) => a1.Index - a2.Index);
+            }
         }
 
         public static void AddDepthAttachment(Framebuffer fbo, Texture depthTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthAttachment, depthTexture.Handle, mipLevel);
-            fbo.DepthAttachment = depthTexture;
+            fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel);
         }
 
         public static void AddStencilAttachment(Framebuffer fbo, Texture stencilTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.StencilAttachment, stencilTexture.Handle, mipLevel);
-            fbo.StencilAttachment = stencilTexture;
+            fbo.StencilAttachment = new FramebufferAttachmentTexture(stencilTexture, mipLevel);
         }
 
         public static void AddDepthStencilAttachment(Framebuffer fbo, Texture depthStencilTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthStencilAttachment, depthStencilTexture.Handle, mipLevel);
-            fbo.DepthAttachment = depthStencilTexture;
-            fbo.StencilAttachment = depthStencilTexture;
+            var depthStencil = new FramebufferAttachmentTexture(depthStencilTexture, mipLevel);
+            fbo.DepthAttachment = depthStencil;
+            fbo.StencilAttachment = depthStencil;
         }
 
         // FIXME: Make error handling for shader that don't compile better!
@@ -839,6 +856,56 @@ namespace AerialRace.RenderData
             // GLEXT: ARB_direct_access
             GL.NamedBufferStorage(buffer.Handle, newSize * SizeInBytes(buffer.IndexType), IntPtr.Zero, glFlags);
             buffer.Elements = newSize;
+        }
+
+        /// <summary>
+        /// Resizes all attachments of a framebuffer to the new size
+        /// </summary>
+        public static void ResizeFramebuffer(Framebuffer buffer, Vector2i newSize)
+        {
+            ColorAttachement[]? newAttachments = 
+                buffer.ColorAttachments == null ? null :
+                new ColorAttachement[buffer.ColorAttachments.Length];
+            for (int i = 0; i < buffer.ColorAttachments?.Length; i++)
+            {
+                var original = buffer.ColorAttachments[i].ColorTexture;
+                var tex = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+
+                // newAttachments will not be null, because we won't get into this loop
+                AddColorAttachment(buffer, tex, buffer.ColorAttachments[i].Index, buffer.ColorAttachments[i].MipLevel);
+                newAttachments![i] = new ColorAttachement(buffer.ColorAttachments[i].Index, buffer.ColorAttachments[i].MipLevel, tex);
+            }
+            buffer.ColorAttachments = newAttachments;
+
+            bool combinedDepthStencil = buffer.DepthAttachment?.Texture == buffer.StencilAttachment?.Texture;
+            if (combinedDepthStencil && buffer.DepthAttachment.HasValue)
+            {
+                var original = buffer.DepthAttachment.Value.Texture;
+                var combined = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                AddDepthStencilAttachment(buffer, combined, buffer.DepthAttachment.Value.MipLevel);
+            }
+            else
+            {
+                if (buffer.DepthAttachment.HasValue)
+                {
+                    var original = buffer.DepthAttachment.Value.Texture;
+                    var depth = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                    AddDepthAttachment(buffer, depth, buffer.DepthAttachment.Value.MipLevel);
+                }
+
+                if (buffer.StencilAttachment.HasValue)
+                {
+                    var original = buffer.StencilAttachment.Value.Texture;
+                    var stencil = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                    AddStencilAttachment(buffer, stencil, buffer.StencilAttachment.Value.MipLevel);
+                }
+            }
+
+            var status = CheckFramebufferComplete(buffer, FramebufferTarget.ReadDraw);
+            if (status != FramebufferStatus.FramebufferComplete)
+            {
+                Debug.WriteLine($"Fame buffer not complete after resize! {status}");
+            }
         }
 
         #region Deletion
@@ -1358,8 +1425,14 @@ namespace AerialRace.RenderData
             {
                 if (buffer.DepthAttachment != null)
                 {
-                    width = Math.Min(width, buffer.DepthAttachment.Width);
-                    height = Math.Min(width, buffer.DepthAttachment.Height);
+                    width = Math.Min(width, buffer.DepthAttachment.Value.Texture.Width);
+                    height = Math.Min(width, buffer.DepthAttachment.Value.Texture.Height);
+                }
+
+                if (buffer.StencilAttachment != null)
+                {
+                    width = Math.Min(width, buffer.StencilAttachment.Value.Texture.Width);
+                    height = Math.Min(width, buffer.StencilAttachment.Value.Texture.Height);
                 }
 
                 for (int i = 0; i < buffer.ColorAttachments?.Length; i++)
@@ -1379,7 +1452,7 @@ namespace AerialRace.RenderData
 
         // FIXME: This might be too much state change in one function 
         // making things harder to reason about...
-        // FIXME: Make our own ClearBufferMask enum
+        // FIXME: Make our own ClearBufferMask enum (leaking enum)
         public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearBufferMask mask)
         {
             BindDrawFramebufferSetViewport(buffer);

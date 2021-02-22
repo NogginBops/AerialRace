@@ -36,13 +36,15 @@ namespace AerialRace
             FarPlaneNDCQuadBuffer = RenderDataUtil.CreateDataBuffer<Vector3>("Sky far plane quad", FarPlaneNDCQuad, BufferFlags.None);
         }
 
-        public static SkyRenderer? Instance;
+        public static SkyRenderer Instance;
 
         public Material SkyMaterial;
         public Vector3 SunDirection;
         public Color4 SunColor;
+        public Color4 SkyColor;
+        public Color4 GroundColor;
 
-        public SkyRenderer(Material skyMat, Vector3 sunDir, Color4 sunColor)
+        public SkyRenderer(Material skyMat, Vector3 sunDir, Color4 sunColor, Color4 skyColor, Color4 groundColor)
         {
             // FIXME: We might not want this later but it's fine for now.
             if (Instance == null)
@@ -57,6 +59,8 @@ namespace AerialRace
             SkyMaterial = skyMat;
             SunDirection = sunDir;
             SunColor = sunColor;
+            SkyColor = skyColor;
+            GroundColor = groundColor;
         }
 
         public static void Render(ref RenderPassSettings settings)
