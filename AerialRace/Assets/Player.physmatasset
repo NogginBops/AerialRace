@@ -1,0 +1,6 @@
+﻿Name: Player
+AssetID: 3810802a-2b24-4cf2-b17a-0671cdef5b0d
+Frequency: 30.0
+DampingRatio: 1.0
+FrictionCoefficient: 1.0
+MaximumRecoveryVelocity: 2.0

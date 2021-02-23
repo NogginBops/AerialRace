@@ -14,15 +14,40 @@ namespace AerialRace
 
         public List<StaticSetpiece> Setpieces;
 
-        public Scene(string name, List<StaticSetpiece> setpieces)
+        public Ship Player;
+
+        public SkyRenderer Sky;
+
+        public Scene(string name, Ship player, SkyRenderer sky, List<StaticSetpiece> setpieces)
         {
             Name = name;
             Setpieces = setpieces;
 
+            Player = player;
+            Sky = sky;
+
             Transforms = new List<Transform>();
+            Transforms.Add(player.Transform);
             Transforms.AddRange(setpieces.Select(s => s.Transform));
+        }
 
+        public void Add(StaticSetpiece setpiece)
+        {
+            Setpieces.Add(setpiece);
+            Transforms.Add(setpiece.Transform);
+        }
 
+        public void SetSun(SkyRenderer sky)
+        {
+            Sky = sky;
+        }
+
+        public void SetPlatyer(Ship player)
+        {
+            if (Player != null) Transforms.Remove(Player.Transform);
+
+            Player = player;
+            Transforms.Add(player.Transform);
         }
     }
 }

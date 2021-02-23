@@ -1,0 +1,6 @@
+Name: Floor
+AssetID: 7340aad6-3181-4f7f-b26e-9fb1d97543a1
+Frequency: 30.0
+DampingRatio: 1.0
+FrictionCoefficient: 0.9
+MaximumRecoveryVelocity: 2.0

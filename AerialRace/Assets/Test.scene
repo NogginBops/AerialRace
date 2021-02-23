@@ -4,7 +4,8 @@ Sky:
 
 }
 
-Entities:
-[
-
-]
+[StaticSetpiece]
+Setpiece: 33ace734-eab4-449b-89a4-48375547c180
+Transform: (0,0,0), (0,0,0,1), (1,1,1)
+Collider: StaticMeshCollider
+PhysicsMaterial: 

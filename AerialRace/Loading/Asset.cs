@@ -5,6 +5,7 @@ using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,6 +19,7 @@ namespace AerialRace.Loading
         Mesh,
         Shader,
         Material,
+        PhysicsMaterial,
         Scene,
     }
 
@@ -63,6 +65,7 @@ namespace AerialRace.Loading
         public List<MeshAsset> MeshAssets = new List<MeshAsset>();
         public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
         public List<MaterialAsset> MaterialAssets = new List<MaterialAsset>();
+        public List<PhysicsMaterialAsset> PhysicsMaterialAssets = new List<PhysicsMaterialAsset>();
 
         private string BaseDirectory = Directory.GetCurrentDirectory();
         private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser() { /*CurrentPath = Directory.GetCurrentDirectory()*/ };
@@ -131,68 +134,30 @@ namespace AerialRace.Loading
         {
             var directory = new DirectoryInfo(dirPath);
 
-            var seachOpt = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            LoadAssets(directory, recursive, "*.textureasset",  ref TextureAssets, AssetDictionary, TextureAsset.Parse);
+            LoadAssets(directory, recursive, "*.meshasset",     ref MeshAssets, AssetDictionary, MeshAsset.Parse);
+            LoadAssets(directory, recursive, "*.shaderasset",   ref ShaderAssets, AssetDictionary, ShaderAsset.Parse);
+            LoadAssets(directory, recursive, "*.materialasset", ref MaterialAssets, AssetDictionary, MaterialAsset.Parse);
+            LoadAssets(directory, recursive, "*.physmatasset",  ref PhysicsMaterialAssets, AssetDictionary, PhysicsMaterialAsset.Parse);
 
-            // Texture assets
+            static void LoadAssets<T>(DirectoryInfo directory, bool recursive, string searchPattern, ref List<T> assets, Dictionary<Guid, Asset> assetDictionary, AssetLoadFunction<T> loadFunction) where T : Asset
             {
-                var assetFiles = directory.GetFiles("*.textureasset", seachOpt);
-                TextureAssets = new List<TextureAsset>();
+                var seachOpt = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+                var assetFiles = directory.GetFiles(searchPattern, seachOpt);
+                assets = new List<T>();
                 foreach (var assetFile in assetFiles)
                 {
-                    var asset = TextureAsset.Parse(directory, assetFile);
+                    var asset = loadFunction(directory, assetFile);
                     if (asset != null)
                     {
-                        TextureAssets.Add(asset);
-                        AssetDictionary.Add(asset.AssetID, asset);
-                    }
-                }
-            }
-
-            // Mesh assets
-            {
-                var assetFiles = directory.GetFiles("*.meshasset", seachOpt);
-                MeshAssets = new List<MeshAsset>();
-                foreach (var assetFile in assetFiles)
-                {
-                    var asset = MeshAsset.Parse(directory, assetFile);
-                    if (asset != null)
-                    {
-                        MeshAssets.Add(asset);
-                        AssetDictionary.Add(asset.AssetID, asset);
-                    }
-                }
-            }
-
-            // Shader assets
-            {
-                var assetFiles = directory.GetFiles("*.shaderasset", seachOpt);
-                ShaderAssets = new List<ShaderAsset>();
-                foreach (var assetFile in assetFiles)
-                {
-                    var asset = ShaderAsset.Parse(directory, assetFile);
-                    if (asset != null)
-                    {
-                        ShaderAssets.Add(asset);
-                        AssetDictionary.Add(asset.AssetID, asset);
-                    }
-                }
-            }
-
-            // Material assets
-            {
-                var assetFiles = directory.GetFiles("*.materialasset", seachOpt);
-                MaterialAssets = new List<MaterialAsset>();
-                foreach (var assetFile in assetFiles)
-                {
-                    var asset = MaterialAsset.Parse(directory, assetFile);
-                    if (asset != null)
-                    {
-                        MaterialAssets.Add(asset);
-                        AssetDictionary.Add(asset.AssetID, asset);
+                        assets.Add(asset);
+                        assetDictionary.Add(asset.AssetID, asset);
                     }
                 }
             }
         }
+
+        public delegate T? AssetLoadFunction<T>(DirectoryInfo directory, FileInfo file) where T : Asset;
 
         public T? ResolveReference<T>(AssetRef<T> @ref) where T : Asset
         {
@@ -211,7 +176,7 @@ namespace AerialRace.Loading
         public Asset? SelectedAsset;
         public void ShowAssetBrowser()
         {
-            if (ImGui.Begin("Asset browser", ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoFocusOnAppearing))
+            if (ImGui.Begin("Asset browser", ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoScrollbar))
             {
                 bool openCreateTexture = false;
 
@@ -241,40 +206,56 @@ namespace AerialRace.Loading
                 }
 
                 ImGui.Columns(2);
-
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-                if (ImGui.TreeNodeEx("Textures", flags))
+                
+                if (ImGui.BeginChild("Browser"))
                 {
-                    AssetList(TextureAssets, ref SelectedAsset);
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
 
-                    ImGui.TreePop();
+                    if (ImGui.TreeNodeEx("Textures", flags))
+                    {
+                        AssetList(TextureAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
+
+                    if (ImGui.TreeNodeEx("Meshes", flags))
+                    {
+                        AssetList(MeshAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
+
+                    if (ImGui.TreeNodeEx("Shaders", flags))
+                    {
+                        AssetList(ShaderAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
+
+                    if (ImGui.TreeNodeEx("Materials", flags))
+                    {
+                        AssetList(MaterialAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
+
+                    if (ImGui.TreeNodeEx("Physics Materials", flags))
+                    {
+                        AssetList(PhysicsMaterialAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
                 }
-
-                if (ImGui.TreeNodeEx("Meshes", flags))
-                {
-                    AssetList(MeshAssets, ref SelectedAsset);
-
-                    ImGui.TreePop();
-                }
-
-                if (ImGui.TreeNodeEx("Shaders", flags))
-                {
-                    AssetList(ShaderAssets, ref SelectedAsset);
-
-                    ImGui.TreePop();
-                }
-
-                if (ImGui.TreeNodeEx("Materials", flags))
-                {
-                    AssetList(MaterialAssets, ref SelectedAsset);
-
-                    ImGui.TreePop();
-                }
-
+                ImGui.EndChild();
+                
                 // After all asset lists
                 ImGui.NextColumn();
 
-                AssetInspector(SelectedAsset);
+                if (ImGui.BeginChild("Inspector"))
+                {
+                    AssetInspector(SelectedAsset);
+                }
+                ImGui.EndChild();
             }
             ImGui.End();
         }
@@ -328,6 +309,9 @@ namespace AerialRace.Loading
                     break;
                 case MaterialAsset ma:
                     MaterialAssetInspector(ma);
+                    break;
+                case PhysicsMaterialAsset pma:
+                    PhysicsMaterialAssetInspector(pma);
                     break;
                 default:
                     {
@@ -503,6 +487,47 @@ namespace AerialRace.Loading
             }
         }
 
+        public void PhysicsMaterialAssetInspector(PhysicsMaterialAsset asset)
+        {
+            BasicAssetInspector(asset);
+
+            {
+                float freq = asset.Material.SpringSettings.Frequency;
+                if (ImGui.DragFloat("Frequency", ref freq))
+                {
+                    asset.Material.SpringSettings.Frequency = freq;
+                    asset.MarkDirty();
+                }
+            }
+            
+            {
+                float damping = asset.Material.SpringSettings.DampingRatio;
+                if (ImGui.DragFloat("Damping Ratio", ref damping))
+                {
+                    asset.Material.SpringSettings.DampingRatio = damping;
+                    asset.MarkDirty();
+                }
+            }
+
+            if (ImGui.DragFloat("Friction Coefficient", ref asset.Material.FrictionCoefficient))
+                asset.MarkDirty();
+
+            if (ImGui.DragFloat("Maximum Recovery Velocity", ref asset.Material.MaximumRecoveryVelocity))
+                asset.MarkDirty();
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+        }
+
         #endregion
 
         #region Preview
@@ -544,7 +569,7 @@ namespace AerialRace.Loading
 
         public AssetBaseInfo CreateAssetInfo;
 
-        public string CreateTexturePath;
+        public string CreateTexturePath = "";
         public bool CreateGenerateMips;
         public bool CreateIsSrgb;
         public bool ShowCreateTexturePopup(string name, bool opening, [NotNullWhen(true)] out TextureAsset? asset)
@@ -987,6 +1012,74 @@ namespace AerialRace.Loading
         }
     }
 
+    class PhysicsMaterialAsset : Asset
+    {
+        public override AssetType Type => AssetType.PhysicsMaterial;
+
+        public AerialRace.Physics.SimpleMaterial Material;
+
+        public PhysicsMaterialAsset(in AssetBaseInfo assetInfo, AerialRace.Physics.SimpleMaterial material) : base(assetInfo)
+        {
+            Material = material;
+        }
+
+        public static PhysicsMaterialAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
+        {
+            // FIXME: We don't want assets without a guid to pass this!
+            using var textReader = assetFile.OpenText();
+            AssetBaseInfo info = default;
+            info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
+            AerialRace.Physics.SimpleMaterial material = default;
+            while (textReader.EndOfStream == false)
+            {
+                var line = textReader.ReadLine()!;
+                if (line.StartsWith("Name: "))
+                {
+                    info.Name = line.Substring("Name: ".Length);
+                }
+                else if (line.StartsWith("AssetID: "))
+                {
+                    if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("Frequency: "))
+                {
+                    material.SpringSettings.Frequency = float.Parse(line.Substring("Frequency: ".Length), CultureInfo.InvariantCulture);
+                }
+                else if (line.StartsWith("DampingRatio: "))
+                {
+                    material.SpringSettings.DampingRatio = float.Parse(line.Substring("DampingRatio: ".Length), CultureInfo.InvariantCulture);
+                }
+                else if (line.StartsWith("FrictionCoefficient: "))
+                {
+                    material.FrictionCoefficient = float.Parse(line.Substring("FrictionCoefficient: ".Length), CultureInfo.InvariantCulture);
+                }
+                else if (line.StartsWith("MaximumRecoveryVelocity: "))
+                {
+                    material.MaximumRecoveryVelocity = float.Parse(line.Substring("MaximumRecoveryVelocity: ".Length), CultureInfo.InvariantCulture);
+                }
+            }
+
+            return new PhysicsMaterialAsset(info, material);
+        }
+
+        public override void WriteAssetProperties(TextWriter writer)
+        {
+            var culture = System.Globalization.CultureInfo.CurrentCulture;
+            System.Globalization.CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
+            writer.WriteLine($"Frequency: {Material.SpringSettings.Frequency}");
+            writer.WriteLine($"DampingRatio: {Material.SpringSettings.DampingRatio}");
+            writer.WriteLine($"FrictionCoefficient: {Material.FrictionCoefficient}");
+            writer.WriteLine($"MaximumRecoveryVelocity: {Material.MaximumRecoveryVelocity}");
+
+            System.Globalization.CultureInfo.CurrentCulture = culture;
+        }
+    }
+
     class StaticSetpieceAsset : Asset
     {
         public override AssetType Type => throw new NotImplementedException();
@@ -1001,4 +1094,6 @@ namespace AerialRace.Loading
             throw new NotImplementedException();
         }
     }
+
+
 }

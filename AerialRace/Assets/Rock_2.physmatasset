@@ -1,0 +1,6 @@
+﻿Name: Rock 2
+AssetID: 1b8539b3-7ac0-4894-a570-d640c74359fa
+Frequency: 30
+DampingRatio: 1
+FrictionCoefficient: 0.85
+MaximumRecoveryVelocity: 2

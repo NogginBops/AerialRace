@@ -1,0 +1,6 @@
+Name: Terrain
+AssetID: 4797441d-040d-4778-88b9-a6cea0577a9c
+Frequency: 30.0
+DampingRatio: 1.0
+FrictionCoefficient: 0.5
+MaximumRecoveryVelocity: 2.0
