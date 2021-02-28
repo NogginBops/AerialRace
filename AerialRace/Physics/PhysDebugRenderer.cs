@@ -86,7 +86,7 @@ namespace AerialRace.Physics
                         // FIXME: Render sphere!
                         DebugHelper.OutlineCircle(
                             Drawlist,
-                            pose.Position.ToOpenTK().Xy,
+                            pose.Position.AsOpenTK().Xy,
                             Unsafe.AsRef<Sphere>(data).Radius,
                             color,
                             20);
@@ -97,8 +97,8 @@ namespace AerialRace.Physics
                         ref var box = ref Unsafe.AsRef<Box>(data);
                         DebugHelper.OutlineBox(
                             Drawlist,
-                            pose.Position.ToOpenTK(),
-                            pose.Orientation.ToOpenTK(),
+                            pose.Position.AsOpenTK(),
+                            pose.Orientation.AsOpenTK(),
                             new Vector3(box.HalfWidth, box.HalfHeight, box.HalfLength),
                             color);
                     }

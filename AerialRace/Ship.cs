@@ -100,7 +100,7 @@ namespace AerialRace
             // For now only the player ship is updated
             if (IsPlayerShip == false) return;
 
-            Velocity = RigidBody.Body.Velocity.Linear.ToOpenTK();
+            Velocity = RigidBody.Body.Velocity.Linear.AsOpenTK();
 
             var forwardVel = Transform.Forward * Vector3.Dot(Velocity, Transform.Forward);
             var cosVertVel = Vector3.Dot(Velocity, Transform.Up);
@@ -123,7 +123,7 @@ namespace AerialRace
                 stalling = true;
             }
 
-            RigidBody.Body.ApplyLinearImpulse((verticalLift).ToNumerics());
+            RigidBody.Body.ApplyLinearImpulse((verticalLift).AsNumerics());
             Debug.Direction(Transform.LocalPosition, verticalLift/RigidBody.Mass, Color4.Lime);
 
             RigidBody.Body.ApplyLinearImpulse((lateralLift * deltaTime).ToNumerics());

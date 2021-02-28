@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using AerialRace.RenderData;
 using OpenTK.Mathematics;
@@ -113,7 +114,7 @@ namespace AerialRace.Debugging
 
         [System.Diagnostics.DebuggerHidden]
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void Assert(bool mustBeTrue)
+        public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue)
         {
             if (mustBeTrue == false)
             {
@@ -123,11 +124,21 @@ namespace AerialRace.Debugging
 
         [System.Diagnostics.DebuggerHidden]
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void Assert(bool mustBeTrue, FormattableString message)
+        public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue, FormattableString message)
         {
             if (mustBeTrue == false)
             {
                 throw new Exception(message.ToString());
+            }
+        }
+
+        [System.Diagnostics.DebuggerHidden]
+        [System.Diagnostics.Conditional("DEBUG")]
+        public static void AssertNotNull<T>([NotNull] T? notNull, string name)
+        {
+            if (notNull == null)
+            {
+                throw new Exception($"{name} cannot be null!");
             }
         }
 

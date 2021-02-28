@@ -1,6 +1,8 @@
-﻿using OpenTK.Mathematics;
+﻿using AerialRace.Debugging;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace AerialRace
@@ -41,10 +43,7 @@ namespace AerialRace
                     break;
                 }
 
-                if (c < '0' || c > '9')
-                {
-                    return float.NaN;
-                }
+                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
 
                 wholeNumber *= 10;
                 wholeNumber += c - '0';
@@ -57,10 +56,7 @@ namespace AerialRace
             {
                 char c = str[offset + i];
 
-                if (c < '0' || c > '9' || c == '.')
-                {
-                    return float.NaN;
-                }
+                Debug.Assert(c >= '0' && c <= '9' && c != '.', $"Invalid character!");
 
                 fractionNumber *= 10;
                 fractionNumber += c - '0';
@@ -90,10 +86,7 @@ namespace AerialRace
                     break;
                 }
 
-                if (c < '0' || c > '9')
-                {
-                    return float.NaN;
-                }
+                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
 
                 wholeNumber *= 10;
                 wholeNumber += c - '0';
@@ -106,10 +99,7 @@ namespace AerialRace
             {
                 char c = str[i];
 
-                if (c < '0' || c > '9' || c == '.')
-                {
-                    return float.NaN;
-                }
+                Debug.Assert(c >= '0' && c <= '9' && c != '.', $"Invalid character!");
 
                 fractionNumber *= 10;
                 fractionNumber += c - '0';
@@ -118,7 +108,6 @@ namespace AerialRace
             return negative * (wholeNumber + (fractionNumber / MathF.Pow(10, decimals)));
         }
 
-        // TODO: We might want some error handling!
         public static int ParseIntFast(string str, int offset, int length)
         {
             int negative = 1;
@@ -135,11 +124,7 @@ namespace AerialRace
             {
                 char c = str[offset + i];
 
-                if (c < '0' || c > '9')
-                {
-                    // TODO: Proper error handling?!
-                    return -1;
-                }
+                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
 
                 number *= 10;
                 number += c - '0';
@@ -163,11 +148,7 @@ namespace AerialRace
             {
                 char c = str[i];
 
-                if (c < '0' || c > '9')
-                {
-                    // TODO: Proper error handling?!
-                    return -1;
-                }
+                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
 
                 number *= 10;
                 number += c - '0';
@@ -188,37 +169,32 @@ namespace AerialRace
             return true;
         }
 
-
         public static System.Numerics.Vector3 ToNumerics(this Vector3 vec3) =>
-            new System.Numerics.Vector3(vec3.X, vec3.Y, vec3.Z);
+            Unsafe.As<Vector3, System.Numerics.Vector3>(ref vec3);
 
-        public static Vector3 ToOpenTK(this System.Numerics.Vector3 vec3) =>
-            new Vector3(vec3.X, vec3.Y, vec3.Z);
+        public static ref System.Numerics.Vector3 AsNumerics(ref this Vector3 vec3) =>
+            ref Unsafe.As<Vector3, System.Numerics.Vector3>(ref vec3);
 
-        public static System.Numerics.Vector4 ToNumerics(this Vector4 vec4) =>
-            new System.Numerics.Vector4(vec4.X, vec4.Y, vec4.Z, vec4.W);
+        public static ref Vector3 AsOpenTK(ref this System.Numerics.Vector3 vec3) =>
+            ref Unsafe.As<System.Numerics.Vector3, Vector3>(ref vec3);
 
-        public static Vector4 ToOpenTK(this System.Numerics.Vector4 vec4) =>
-            new Vector4(vec4.X, vec4.Y, vec4.Z, vec4.W);
+        public static ref System.Numerics.Vector4 AsNumerics(ref this Vector4 vec4) =>
+            ref Unsafe.As<Vector4, System.Numerics.Vector4>(ref vec4);
 
-        public static System.Numerics.Quaternion ToNumerics(this Quaternion quat) =>
-            new System.Numerics.Quaternion(quat.X, quat.Y, quat.Z, quat.W);
+        public static ref Vector4 AsNumerics(ref this System.Numerics.Vector4 vec4) =>
+            ref Unsafe.As<System.Numerics.Vector4, Vector4>(ref vec4);
 
-        public static Quaternion ToOpenTK(this System.Numerics.Quaternion quat) =>
-            new Quaternion(quat.X, quat.Y, quat.Z, quat.W);
+        public static ref System.Numerics.Quaternion AsNumerics(ref this Quaternion quat) =>
+            ref Unsafe.As<Quaternion, System.Numerics.Quaternion>(ref quat);
 
-        public static System.Numerics.Vector4 ToNumerics4(this Color4 col) =>
-            new System.Numerics.Vector4(col.R, col.G, col.B, col.A);
+        public static ref Quaternion AsOpenTK(ref this System.Numerics.Quaternion quat) =>
+            ref Unsafe.As<System.Numerics.Quaternion, Quaternion>(ref quat);
 
-        public static System.Numerics.Vector3 ToNumerics3(this Color4 col) =>
-            new System.Numerics.Vector3(col.R, col.G, col.B);
+        public static ref System.Numerics.Vector4 AsNumerics4(ref this Color4 col) =>
+            ref Unsafe.As<Color4, System.Numerics.Vector4>(ref col);
 
-        public static Color4 ToOpenTKColor4(this System.Numerics.Vector3 vec3) =>
-            new Color4(vec3.X, vec3.Y, vec3.Z, 1f);
-
-        public static Color4 ToOpenTKColor4(this System.Numerics.Vector4 vec4) =>
-            new Color4(vec4.X, vec4.Y, vec4.Z, vec4.W);
-
+        public static ref System.Numerics.Vector3 AsNumerics3(ref this Color4 col) =>
+            ref Unsafe.As<Color4, System.Numerics.Vector3>(ref col);
 
         public static Vector3 Abs(this Vector3 vec3) =>
             new Vector3(MathF.Abs(vec3.X), MathF.Abs(vec3.Y), MathF.Abs(vec3.Z));

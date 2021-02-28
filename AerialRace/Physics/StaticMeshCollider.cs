@@ -22,16 +22,17 @@ namespace AerialRace.Physics
         public StaticMeshCollider(MeshData mesh)
         {
             // FIXME: We might want to make this faster!
-            var positions = mesh.Vertices.Select(v => v.Position.ToNumerics()).ToArray();
+            var positions = mesh.Vertices.Select(v => v.Position.AsNumerics()).ToArray();
             var tris = AllocateTriangles(mesh);
 
-            Mesh = new BepuPhysics.Collidables.Mesh(tris, Vector3.One.ToNumerics(), Phys.BufferPool);
+            var scale = Vector3.One;
+            Mesh = new BepuPhysics.Collidables.Mesh(tris, scale.AsNumerics(), Phys.BufferPool);
 
             TypedIndex = Phys.Simulation.Shapes.Add(Mesh);
 
             //Center = center.ToOpenTK();
             Mesh.ComputeBounds(System.Numerics.Quaternion.Identity, out var min, out var max);
-            Bounds = new Box3(min.ToOpenTK(), max.ToOpenTK());
+            Bounds = new Box3(min.AsOpenTK(), max.AsOpenTK());
         }
 
         public static Buffer<Triangle> AllocateTriangles(MeshData data)
@@ -52,9 +53,9 @@ namespace AerialRace.Physics
                 int i3 = GetIndexFromMesh(i * 3 + 2, data);
 
                 buffer[i] = new Triangle(
-                    data.Vertices[i1].Position.ToNumerics(),
-                    data.Vertices[i3].Position.ToNumerics(),
-                    data.Vertices[i2].Position.ToNumerics()
+                    data.Vertices[i1].Position.AsNumerics(),
+                    data.Vertices[i3].Position.AsNumerics(),
+                    data.Vertices[i2].Position.AsNumerics()
                     );
             }
 

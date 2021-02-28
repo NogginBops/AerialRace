@@ -1,3 +1,6 @@
-Name: Rock 2
-MeshAsset: 33ace734-eab4-449b-89a4-48375547c180
+﻿Name: Rock 2
+AssetID: da97eb8a-f25b-4648-b73a-1d480baee652
 Material: cc27b615-34bb-4cf6-941b-cca81fbd636f
+UseMeshAsCollider: True
+GenerateConvexHull: False
+PhysicsMaterial: 4797441d-040d-4778-88b9-a6cea0577a9c

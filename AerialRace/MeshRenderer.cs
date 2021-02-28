@@ -159,10 +159,9 @@ namespace AerialRace
                     RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
                 }
 
-                foreach (var (name, property) in matProperties.Properties)
+                for (int i = 0; i < matProperties.Properties.Count; i++)
                 {
-                    var prop = property;
-                    RenderDataUtil.UniformProperty(name, ref prop);
+                    RenderDataUtil.UniformProperty(ref matProperties.Properties[i]);
                 }
 
                 RenderDataUtil.DrawElements(

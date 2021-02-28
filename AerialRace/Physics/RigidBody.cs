@@ -22,7 +22,7 @@ namespace AerialRace.Physics
         {
             Shape = shape;
             Body = Phys.AddDynamicBody(
-                new RigidPose(transform.LocalPosition.ToNumerics(), transform.LocalRotation.ToNumerics()),
+                new RigidPose(transform.LocalPosition.AsNumerics(), transform.LocalRotation.AsNumerics()),
                 shape,
                 mass,
                 0.1f,
@@ -37,8 +37,8 @@ namespace AerialRace.Physics
         public void UpdateTransform(Transform transform)
         {
             var pose = Body.Pose;
-            transform.LocalRotation = pose.Orientation.ToOpenTK();
-            transform.LocalPosition = pose.Position.ToOpenTK() - transform.LocalRotation * Shape.Center;
+            transform.LocalRotation = pose.Orientation.AsOpenTK();
+            transform.LocalPosition = pose.Position.AsOpenTK() - transform.LocalRotation * Shape.Center;
         }
     }
 }

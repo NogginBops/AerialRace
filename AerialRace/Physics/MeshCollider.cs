@@ -22,14 +22,14 @@ namespace AerialRace.Physics
         public MeshCollider(MeshData mesh)
         {
             // FIXME: We might want to make this faster!
-            var positions = mesh.Vertices.Select(v => v.Position.ToNumerics()).ToArray();
+            var positions = mesh.Vertices.Select(v => v.Position.AsNumerics()).ToArray();
             Hull = new ConvexHull(positions, Phys.BufferPool, out var center);
 
             TypedIndex = Phys.Simulation.Shapes.Add(Hull);
 
-            Center = center.ToOpenTK();
+            Center = center.AsOpenTK();
             Hull.ComputeBounds(System.Numerics.Quaternion.Identity, out var min, out var max);
-            Bounds = new Box3(min.ToOpenTK(), max.ToOpenTK());
+            Bounds = new Box3(min.AsOpenTK(), max.AsOpenTK());
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using AerialRace.Debugging;
+using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,12 +26,18 @@ namespace AerialRace.DebugGui
         Directories = 0x02,
     }
 
+    enum DirPathBase
+    {
+        Computer,
+        UserDir,
+    }
+
     static class ImGuiInternal
     {
         // FIXME: While ImGui.NET doesn't expose internal functions we import them here.
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igArrowButtonEx")]
-        public static unsafe extern byte igArrowButtonEx(byte* strid, ImGuiDir dir, Vector2 sizearg, ImGuiButtonFlags flags);
+        public static unsafe extern byte ArrowButtonEx([MarshalAs(UnmanagedType.LPUTF8Str)] string strid, ImGuiDir dir, Vector2 sizearg, ImGuiButtonFlags flags);
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igGetFocusID")]
         public static extern int ImGuiGetFocusID();
@@ -43,46 +50,6 @@ namespace AerialRace.DebugGui
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igPopFocusScope")]
         public static extern void PopFocusScope();
-
-
-        internal const int StackAllocationSizeLimit = 2048;
-        internal static unsafe byte* Allocate(int byteCount) => (byte*)Marshal.AllocHGlobal(byteCount);
-        internal static unsafe void Free(byte* ptr) => Marshal.FreeHGlobal((IntPtr)ptr);
-        internal static unsafe int GetUtf8(string s, byte* utf8Bytes, int utf8ByteCount)
-        {
-            fixed (char* utf16Ptr = s)
-            {
-                return Encoding.UTF8.GetBytes(utf16Ptr, s.Length, utf8Bytes, utf8ByteCount);
-            }
-        }
-
-        public static unsafe bool ArrowButtonEx(string strid, ImGuiDir dir, Vector2 sizearg, ImGuiButtonFlags flags)
-        {
-            byte* nativestrid;
-            int stridbyteCount = 0;
-            if (strid != null)
-            {
-                stridbyteCount = Encoding.UTF8.GetByteCount(strid);
-                if (stridbyteCount > StackAllocationSizeLimit)
-                {
-                    nativestrid = Allocate(stridbyteCount + 1);
-                }
-                else
-                {
-                    byte* nativestridstackBytes = stackalloc byte[stridbyteCount + 1];
-                    nativestrid = nativestridstackBytes;
-                }
-                int nativestridoffset = GetUtf8(strid, nativestrid, stridbyteCount);
-                nativestrid[nativestridoffset] = 0;
-            }
-            else { nativestrid = null; }
-            byte ret = igArrowButtonEx(nativestrid, dir, sizearg, flags);
-            if (stridbyteCount > StackAllocationSizeLimit)
-            {
-                Free(nativestrid);
-            }
-            return ret != 0;
-        }
     }
 
     class ImGuiFileBrowser
@@ -121,6 +88,7 @@ namespace AerialRace.DebugGui
         public string ValidTypes = "";
 
         public List<string> ValidExts = new List<string>();
+        public DirPathBase CurrentDirPathBase = DirPathBase.Computer;
         public List<string> CurrentDirList = new List<string>();
         public List<DirectoryInfo> SubDirs = new List<DirectoryInfo>();
         public List<FileInfo> SubFiles = new List<FileInfo>();
@@ -169,6 +137,14 @@ namespace AerialRace.DebugGui
             SubFiles.Clear();
 
             ImGui.CloseCurrentPopup();
+        }
+
+        public void SetPath(string path)
+        {
+            if (StartsWithUserPath(path))
+                CurrentDirPathBase = DirPathBase.UserDir;
+            else CurrentDirPathBase = DirPathBase.Computer;
+            CurrentPath = path;
         }
 
         public unsafe bool ShowFileDialog(string label, DialogMode mode, Vector2 szXY, string validTypes)
@@ -780,12 +756,38 @@ namespace AerialRace.DebugGui
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    if (!LoadWindowsDrives())
-                        return false;
-                    CurrentPath = "";
-                    CurrentDirList.Clear();
-                    CurrentDirList.Add("Computer");
-                    return true;
+                    switch (CurrentDirPathBase)
+                    {
+                        case DirPathBase.Computer:
+                            {
+                                if (!LoadWindowsDrives())
+                                    return false;
+                                CurrentPath = "";
+                                CurrentDirList.Clear();
+                                CurrentDirList.Add("Computer");
+                            }
+                            return true;
+                        case DirPathBase.UserDir:
+                            {
+                                var userPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                                newPath = userPath + "/";
+                                if (ReadDir(newPath))
+                                {
+                                    CurrentPath = newPath;
+                                    CurrentDirList.Clear();
+                                    CurrentDirPathBase = DirPathBase.Computer;
+                                    ParsePathTabs(CurrentPath);
+                                    return true;
+                                }
+                                else
+                                {
+                                    return false;
+                                }
+                            }
+                        default: throw new Exception();
+                    }
+                    
+                    //return true;
                 }
                 else
                 {
@@ -797,10 +799,14 @@ namespace AerialRace.DebugGui
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     // Clicked on a drive letter?
-                    if (idx == 1)
+                    if (CurrentDirPathBase == DirPathBase.Computer && idx == 1)
                         newPath = CurrentPath.Substring(0, 3);
                     else
                     {
+                        if (CurrentDirPathBase == DirPathBase.UserDir)
+                        {
+                            newPath += Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "/";
+                        }
                         // Start from i=1 since at 0 lies "MyComputer" which is only virtual and shouldn't be read by readDIR
                         for (int i = 1; i <= idx; i++)
                             newPath += CurrentDirList[i] + "/";
@@ -853,11 +859,26 @@ namespace AerialRace.DebugGui
                 newPath += name + "/";
             }
 
+            bool startsWithUserPath = StartsWithUserPath(newPath);
+            if (CurrentDirPathBase == DirPathBase.Computer && startsWithUserPath)
+            {
+                CurrentDirPathBase = DirPathBase.UserDir;
+                CurrentDirList.Clear();
+                CurrentDirList.Add(Environment.UserName);
+            }
+
             if (ReadDir(newPath))
             {
                 if (name == "..")
                 {
                     CurrentDirList.RemoveAt(CurrentDirList.Count - 1);
+
+                    if (startsWithUserPath == false)
+                    {
+                        CurrentDirPathBase = DirPathBase.Computer;
+                        CurrentDirList.Clear();
+                        ParsePathTabs(newPath);
+                    }
                 }
                 else
                 {
@@ -879,7 +900,7 @@ namespace AerialRace.DebugGui
              * An example case is when user closes the dialog in a folder. Then deletes the folder outside. On reopening the dialog the current path (previous) would be invalid.
              */
             DirectoryInfo dir = new DirectoryInfo(dirPath);
-            if (dir.Exists && IsAppearing)
+            if (dir.Exists == false && IsAppearing)
             {
                 CurrentDirList.Clear();
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -903,6 +924,9 @@ namespace AerialRace.DebugGui
                     if (CurrentDirList.Count == 0 && dirPath == "./")
                     {
                         CurrentPath = dir.FullName;
+                        if (StartsWithUserPath(CurrentPath))
+                            CurrentDirPathBase = DirPathBase.UserDir;
+                        else CurrentDirPathBase = DirPathBase.Computer;
 
                         //Create a vector of each directory in the file path for the filepath bar. Not Necessary for linux as starting directory is "/"
                         ParsePathTabs(CurrentPath);
@@ -1203,7 +1227,20 @@ namespace AerialRace.DebugGui
 
         void ParsePathTabs(string path)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (CurrentDirPathBase == DirPathBase.UserDir)
+            {
+                Debug.Assert(StartsWithUserPath(path));
+
+                string userPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                CurrentDirList.Add(Environment.UserName);
+                path = path[userPath.Length..];
+
+                // If there is more stuff in the path remove the leading /
+                if (path.StartsWith(Path.DirectorySeparatorChar) ||
+                    path.StartsWith(Path.AltDirectorySeparatorChar))
+                    path = path[1..];
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 CurrentDirList.Add("Computer");
             }
@@ -1212,9 +1249,23 @@ namespace AerialRace.DebugGui
                 CurrentDirList.Add("/");
             }
 
-            foreach(var element in path.Split("/", StringSplitOptions.RemoveEmptyEntries))
+            if (path.Length > 2 && path[1] == ':')
             {
-                CurrentDirList.Add(element);
+                CurrentDirList.Add(path[..2]);
+                path = path[3..];
+            }
+
+            string rest = path;
+            while (rest.Length > 0)
+            {
+                int index = rest.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+                if (index == -1)
+                {
+                    CurrentDirList.Add(rest);
+                    break;
+                }
+                CurrentDirList.Add(rest[..index]);
+                rest = rest[(index + 1)..];
             }
         }
 
@@ -1238,7 +1289,16 @@ namespace AerialRace.DebugGui
         void InitCurrentPath()
         {
             CurrentPath = new DirectoryInfo("./").FullName;
+            if (StartsWithUserPath(CurrentPath))
+                CurrentDirPathBase = DirPathBase.UserDir;
+            else CurrentDirPathBase = DirPathBase.Computer;
             ParsePathTabs(CurrentPath);
+        }
+
+        bool StartsWithUserPath(string path)
+        {
+            var userPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return path.StartsWith(userPath);
         }
     }
 }

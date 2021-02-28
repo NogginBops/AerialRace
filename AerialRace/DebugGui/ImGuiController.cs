@@ -8,6 +8,7 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace AerialRace.DebugGui
@@ -30,8 +31,8 @@ namespace AerialRace.DebugGui
     /// </summary>
     class ImGuiController
     {
-        static List<TextureRef> PermanentRefs = new List<TextureRef>();
-        static List<TextureRef> TextureRefs = new List<TextureRef>();
+        readonly static List<TextureRef> PermanentRefs = new List<TextureRef>();
+        readonly static List<TextureRef> TextureRefs = new List<TextureRef>();
         public static int ReferenceTexture(Texture texture, float level = -1)
         {
             TextureRefs.Add(new TextureRef(texture, level));

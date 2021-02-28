@@ -9,6 +9,8 @@ namespace AerialRace
     class Scene
     {
         public string Name;
+        // Maybe?
+        public Guid SceneID;
 
         public List<Transform> Transforms;
 
@@ -16,7 +18,10 @@ namespace AerialRace
 
         public Ship Player;
 
+        // FIXME: Split the sky from the sky renderer
         public SkyRenderer Sky;
+
+
 
         public Scene(string name, Ship player, SkyRenderer sky, List<StaticSetpiece> setpieces)
         {

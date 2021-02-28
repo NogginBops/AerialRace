@@ -166,8 +166,8 @@ namespace AerialRace
             Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
             Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
-            Material.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.02f });
-            Material.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.9f });
+            Material.Properties.SetProperty(new Property("material.Metallic", 0.02f));
+            Material.Properties.SetProperty(new Property("material.Roughness", 0.9f));
 
             // This should be the first refernce to StaticGeometry.
             StaticGeometry.Init();
@@ -204,8 +204,8 @@ namespace AerialRace
             shipMaterial.Properties.SetTexture("AlbedoTex", ShipTexture, DebugSampler);
             shipMaterial.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
-            shipMaterial.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float,  FloatValue = 0.8f });
-            shipMaterial.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.3f });
+            shipMaterial.Properties.SetProperty(new Property("material.Metallic", 0.8f));
+            shipMaterial.Properties.SetProperty(new Property("material.Roughness", 0.3f));
 
             var trailPipeline = RenderDataUtil.CreatePipeline("Trail", "./Shaders/Trail.vert", "./Shaders/Trail.frag");
             var trailMat = new Material("Player Trail Mat", trailPipeline, null);
@@ -231,8 +231,8 @@ namespace AerialRace
                 floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
                 floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
 
-                floorMat.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.8f });
-                floorMat.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.5f });
+                floorMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
+                floorMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
 
 
                 // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
@@ -276,8 +276,8 @@ namespace AerialRace
                 var rockNormal = TextureLoader.LoadRgbaImage("Rock 2 Normal", "./Models/opengameart/rocks_02/normal.tga", true, false);
                 rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
                 rockMat.Properties.SetTexture("NormalTex", rockNormal, DebugSampler);
-                rockMat.Properties.SetProperty("material.Metallic", new Property() { Type = PropertyType.Float, FloatValue = 0.1f });
-                rockMat.Properties.SetProperty("material.Roughness", new Property() { Type = PropertyType.Float, FloatValue = 0.6f });
+                rockMat.Properties.SetProperty(new Property("material.Metallic", 0.1f));
+                rockMat.Properties.SetProperty(new Property("material.Roughness", 0.6f));
 
                 var rockTransform = new Transform("Rock", new Vector3(300f, 0f, -2f));
 

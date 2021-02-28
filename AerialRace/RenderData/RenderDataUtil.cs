@@ -1173,7 +1173,7 @@ namespace AerialRace.RenderData
             }
         }
 
-        public static void UniformProperty(string uniformName, ref Property property)
+        public static void UniformProperty(ref Property property)
         {
             if (CurrentPipeline == null) throw new Exception();
             var pipeline = CurrentPipeline;
@@ -1181,10 +1181,10 @@ namespace AerialRace.RenderData
             // FIXME: Remove the need to set uniforms for both vertex and fragment stages!!
 
             var vert = pipeline.VertexProgram!;
-            var vertLoc = GetUniformLocation(uniformName, vert);
+            var vertLoc = GetUniformLocation(property.Name, vert);
 
             var frag = pipeline.FramgmentProgram!;
-            var fragLoc = GetUniformLocation(uniformName, frag);
+            var fragLoc = GetUniformLocation(property.Name, frag);
 
             switch (property.Type)
             {

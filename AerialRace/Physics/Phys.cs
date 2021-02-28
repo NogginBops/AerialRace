@@ -83,7 +83,7 @@ namespace AerialRace.Physics
         {
             var handle = Simulation.Statics.Add(
                 new StaticDescription(
-                    position.ToNumerics(),
+                    position.AsNumerics(),
                     collider.TypedIndex,
                     speculativeMargin
                 ));

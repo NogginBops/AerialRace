@@ -26,6 +26,12 @@ namespace AerialRace
             Data = new T[DEFAULT_SIZE];
         }
 
+        public RefList(RefList<T> list)
+        {
+            Data = new T[list.Count];
+            Array.Copy(list.Data, Data, list.Count);
+        }
+
         private void Grow(int minCap)
         {
             int newCap = Capacity + (Capacity >> 1);
@@ -49,9 +55,22 @@ namespace AerialRace
         {
             get 
             {
-                if (i < Count) throw new IndexOutOfRangeException();
+                if (i >= Count) throw new IndexOutOfRangeException();
                 return ref Data[i];
             }
+        }
+
+        public int FindIndex(Predicate<T> match)
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                if (match(Data[i]))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         public void Clear() => Count = 0;

@@ -209,9 +209,7 @@ namespace AerialRace.Editor
 
                 if (SelectedTransform != null)
                 {
-                    System.Numerics.Vector3 pos = SelectedTransform.LocalPosition.ToNumerics();
-                    if (ImGui.DragFloat3("Position", ref pos, 0.1f))
-                        SelectedTransform.LocalPosition = pos.ToOpenTK();
+                    ImGui.DragFloat3("Position", ref SelectedTransform.LocalPosition.AsNumerics(), 0.1f);
 
                     // FIXME: Display euler angles
                     //System.Numerics.Vector4 rot = SelectedTransform.LocalRotation.ToNumerics();
@@ -219,18 +217,14 @@ namespace AerialRace.Editor
                     //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
 
                     const float MinScale = 0.00000001f;
-                    System.Numerics.Vector3 scale = SelectedTransform.LocalScale.ToNumerics();
-                    if (ImGui.DragFloat3("Scale", ref scale, 0.1f))
-                        SelectedTransform.LocalScale = Vector3.ComponentMax(scale.ToOpenTK(), (MinScale, MinScale, MinScale));
+                    ImGui.DragFloat3("Scale", ref SelectedTransform.LocalScale.AsNumerics(), 0.1f, MinScale);
 
                     Light? light = Window.Lights.LightsList.Find(l => l.Transform == SelectedTransform);
                     if (light != null)
                     {
                         ImGui.DragFloat("Radius", ref light.Radius, 1, 0.01f, 10000, null, ImGuiSliderFlags.ClampOnInput);
 
-                        var intensity = light.Intensity.ToNumerics();
-                        if (ImGui.ColorEdit3("Intensity", ref intensity, ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float))
-                            light.Intensity = intensity.ToOpenTK();
+                        ImGui.ColorEdit3("Intensity", ref light.Intensity.AsNumerics(), ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float);
 
                         ImGui.DragFloat("Intensity (candela)", ref light.Candela, 1, 0, 100000);
 
@@ -294,22 +288,12 @@ namespace AerialRace.Editor
                 EnumCombo("Tonemap", ref Window.CurrentTonemap);
                 ImGui.DragFloat("Light cutoff", ref Window.LightCutout, 0.001f, 0, 0.5f);
 
-                
-
                 var flags = ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float;
-                ColorEdit3("Sun color", ref Window.Sky.SunColor, flags);
-                ColorEdit3("Sky color", ref Window.Sky.SkyColor, flags);
-                ColorEdit3("Ground color", ref Window.Sky.GroundColor, flags);
+                ImGui.ColorEdit3("Sun color", ref Window.Sky.SunColor.AsNumerics3(), flags);
+                ImGui.ColorEdit3("Sky color", ref Window.Sky.SkyColor.AsNumerics3(), flags);
+                ImGui.ColorEdit3("Ground color", ref Window.Sky.GroundColor.AsNumerics3(), flags);
             }
             ImGui.End();
-
-            static bool ColorEdit3(string label, ref Color4 color, ImGuiColorEditFlags flags = ImGuiColorEditFlags.None)
-            {
-                var vec = color.ToNumerics3();
-                bool result = ImGui.ColorEdit3(label, ref vec, flags);
-                if (result) color = vec.ToOpenTKColor4();
-                return result;
-            }
 
             static void EnumCombo<T>(string label, ref T currValue) where T : struct, Enum
             {

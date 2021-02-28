@@ -20,6 +20,7 @@ namespace AerialRace.Loading
         Shader,
         Material,
         PhysicsMaterial,
+        StaticSetpiece,
         Scene,
     }
 
@@ -66,6 +67,7 @@ namespace AerialRace.Loading
         public List<ShaderAsset> ShaderAssets = new List<ShaderAsset>();
         public List<MaterialAsset> MaterialAssets = new List<MaterialAsset>();
         public List<PhysicsMaterialAsset> PhysicsMaterialAssets = new List<PhysicsMaterialAsset>();
+        public List<StaticSetpieceAsset> StaticSetpieceAssets = new List<StaticSetpieceAsset>();
 
         private string BaseDirectory = Directory.GetCurrentDirectory();
         private ImGuiFileBrowser FileBrowser = new ImGuiFileBrowser() { /*CurrentPath = Directory.GetCurrentDirectory()*/ };
@@ -85,7 +87,7 @@ namespace AerialRace.Loading
             if (browsePath)
             {
                 ImGui.OpenPopup("Open File");
-                FileBrowser.CurrentPath = Path.GetDirectoryName(path) ?? "";
+                FileBrowser.SetPath(Path.GetDirectoryName(path) + "/" ?? "./");
 
                 return true;
             }
@@ -93,19 +95,29 @@ namespace AerialRace.Loading
             return false;
         }
 
-        public void AssetField<T>(ref AssetRef<T> assetRef) where T : Asset
+        public bool AssetField<T>(string name, ref AssetRef<T> assetRef) where T : Asset
         {
             T? t = ResolveReference(assetRef);
-            ImGui.LabelText("Pipeline", $"{(t == null ? "" : $"{t.Name} ")}{{{t.AssetID}}}");
+            if (t == null)
+            {
+                ImGui.LabelText(name, $"null");
+            }
+            else
+            {
+                ImGui.LabelText(name, $"{t.Name} {{{t.AssetID}}}");
+            }
             ImGui.SameLine();
             ImGui.PushID(assetRef.AssetID.ToString());
 
+            bool changed = false;
             if (ImGui.Button("Browse..."))
             {
-                
+                // open asset browser
             }
             
             ImGui.PopID();
+
+            return changed;
         }
 
         private bool ShowBrowser(string filter = "*.*")
@@ -122,7 +134,7 @@ namespace AerialRace.Loading
             else
             {
                 // TODO: Move files or stuff!!
-                // Maybe have a warning for now?
+                Debug.WriteLine($"[WARNING] Selected path is not inside the asset folder! '{FileBrowser.SelectedPath}'");
                 return FileBrowser.SelectedPath;
             }
         }
@@ -139,6 +151,7 @@ namespace AerialRace.Loading
             LoadAssets(directory, recursive, "*.shaderasset",   ref ShaderAssets, AssetDictionary, ShaderAsset.Parse);
             LoadAssets(directory, recursive, "*.materialasset", ref MaterialAssets, AssetDictionary, MaterialAsset.Parse);
             LoadAssets(directory, recursive, "*.physmatasset",  ref PhysicsMaterialAssets, AssetDictionary, PhysicsMaterialAsset.Parse);
+            LoadAssets(directory, recursive, "*.setpiece", ref StaticSetpieceAssets, AssetDictionary, StaticSetpieceAsset.Parse);
 
             static void LoadAssets<T>(DirectoryInfo directory, bool recursive, string searchPattern, ref List<T> assets, Dictionary<Guid, Asset> assetDictionary, AssetLoadFunction<T> loadFunction) where T : Asset
             {
@@ -245,6 +258,13 @@ namespace AerialRace.Loading
 
                         ImGui.TreePop();
                     }
+
+                    if (ImGui.TreeNodeEx("Static Setpieces", flags))
+                    {
+                        AssetList(StaticSetpieceAssets, ref SelectedAsset);
+
+                        ImGui.TreePop();
+                    }
                 }
                 ImGui.EndChild();
                 
@@ -312,6 +332,9 @@ namespace AerialRace.Loading
                     break;
                 case PhysicsMaterialAsset pma:
                     PhysicsMaterialAssetInspector(pma);
+                    break;
+                case StaticSetpieceAsset ssa:
+                    StaticSetpieceAssetInspector(ssa);
                     break;
                 default:
                     {
@@ -470,8 +493,8 @@ namespace AerialRace.Loading
         {
             BasicAssetInspector(asset);
 
-            AssetField(ref asset.Pipeline);
-            AssetField(ref asset.DepthPipeline);
+            if (AssetField("Pipeline", ref asset.Pipeline)) asset.MarkDirty();
+            if (AssetField("Depth Pipeline", ref asset.DepthPipeline)) asset.MarkDirty();
 
             if (asset.IsDirty)
             {
@@ -514,6 +537,34 @@ namespace AerialRace.Loading
 
             if (ImGui.DragFloat("Maximum Recovery Velocity", ref asset.Material.MaximumRecoveryVelocity))
                 asset.MarkDirty();
+
+            if (asset.IsDirty)
+            {
+                if (ImGui.Button("Save changes"))
+                {
+                    asset.WriteToDisk();
+                }
+            }
+            else
+            {
+                ImGui.Spacing();
+            }
+        }
+
+        public void StaticSetpieceAssetInspector(StaticSetpieceAsset asset)
+        {
+            BasicAssetInspector(asset);
+
+            if (AssetField("Mesh", ref asset.Mesh)) asset.MarkDirty();
+            if (AssetField("Material", ref asset.Material)) asset.MarkDirty();
+
+            if (ImGui.Checkbox("Use Mesh As Collider", ref asset.UseMeshAsCollider))
+                asset.MarkDirty();
+
+            if (ImGui.Checkbox("Generate Convex Hull", ref asset.GenerateConvexHull))
+                asset.MarkDirty();
+
+            if (AssetField("Physics Material", ref asset.PhysicsMaterial)) asset.MarkDirty();
 
             if (asset.IsDirty)
             {
@@ -761,6 +812,7 @@ namespace AerialRace.Loading
             writer.WriteLine($"IsSrgb: {IsSrgb}");
         }
 
+        [MemberNotNullWhen(true, nameof(LoadedTexture))]
         public bool LoadTexture()
         {
             if (LoadedTexture != null)
@@ -786,6 +838,9 @@ namespace AerialRace.Loading
         public override AssetType Type => AssetType.Mesh;
 
         public string? MeshPath;
+
+        public MeshData? MeshData;
+        public Mesh? Mesh;
 
         public MeshAsset(in AssetBaseInfo assetInfo, string? meshPath) : base(assetInfo)
         {
@@ -826,6 +881,18 @@ namespace AerialRace.Loading
         public override void WriteAssetProperties(TextWriter writer)
         {
             writer.WriteLine($"Mesh: {MeshPath}");
+        }
+
+        [MemberNotNullWhen(true, nameof(Mesh))]
+        [MemberNotNullWhen(true, nameof(MeshData))]
+        public bool LoadMesh()
+        {
+            if (MeshPath == null)
+                return false;
+
+            MeshData = MeshLoader.LoadObjMesh(MeshPath);
+            Mesh = RenderDataUtil.CreateMesh(Name, MeshData ?? throw new Exception());
+            return true;
         }
     }
 
@@ -894,6 +961,7 @@ namespace AerialRace.Loading
             if (FragmentShaderPath != null) writer.WriteLine($"Fragment: {FragmentShaderPath}");
         }
 
+        [MemberNotNullWhen(true, nameof(LoadedPipeline))]
         public bool LoadShader()
         {
             if (LoadedPipeline != null)
@@ -992,6 +1060,7 @@ namespace AerialRace.Loading
         }
 
         // FIXME: Properties
+        [MemberNotNullWhen(true, nameof(LoadedMaterial))]
         public bool LoadMaterial(AssetDB db)
         {
             var pipeline = db.ResolveReference(Pipeline);
@@ -1016,9 +1085,9 @@ namespace AerialRace.Loading
     {
         public override AssetType Type => AssetType.PhysicsMaterial;
 
-        public AerialRace.Physics.SimpleMaterial Material;
+        public Physics.SimpleMaterial Material;
 
-        public PhysicsMaterialAsset(in AssetBaseInfo assetInfo, AerialRace.Physics.SimpleMaterial material) : base(assetInfo)
+        public PhysicsMaterialAsset(in AssetBaseInfo assetInfo, Physics.SimpleMaterial material) : base(assetInfo)
         {
             Material = material;
         }
@@ -1068,32 +1137,139 @@ namespace AerialRace.Loading
 
         public override void WriteAssetProperties(TextWriter writer)
         {
-            var culture = System.Globalization.CultureInfo.CurrentCulture;
-            System.Globalization.CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var culture = CultureInfo.CurrentCulture;
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
 
             writer.WriteLine($"Frequency: {Material.SpringSettings.Frequency}");
             writer.WriteLine($"DampingRatio: {Material.SpringSettings.DampingRatio}");
             writer.WriteLine($"FrictionCoefficient: {Material.FrictionCoefficient}");
             writer.WriteLine($"MaximumRecoveryVelocity: {Material.MaximumRecoveryVelocity}");
 
-            System.Globalization.CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentCulture = culture;
         }
     }
 
     class StaticSetpieceAsset : Asset
     {
-        public override AssetType Type => throw new NotImplementedException();
+        public override AssetType Type => AssetType.StaticSetpiece;
 
-        public StaticSetpieceAsset(in AssetBaseInfo assetInfo) : base(assetInfo)
+        public AssetRef<MeshAsset> Mesh;
+        public AssetRef<MaterialAsset> Material;
+
+        public bool UseMeshAsCollider;
+        public bool GenerateConvexHull;
+        public AssetRef<PhysicsMaterialAsset> PhysicsMaterial;
+
+        public StaticSetpiece? Setpiece;
+
+        public StaticSetpieceAsset(in AssetBaseInfo assetInfo, AssetRef<MeshAsset> mesh, AssetRef<MaterialAsset> material, bool useMeshAsCollider, bool generateConvexHull, AssetRef<PhysicsMaterialAsset> physicsMaterial) : base(assetInfo)
         {
+            Mesh = mesh;
+            Material = material;
+            UseMeshAsCollider = useMeshAsCollider;
+            GenerateConvexHull = generateConvexHull;
+            PhysicsMaterial = physicsMaterial;
+        }
 
+        public static StaticSetpieceAsset? Parse(DirectoryInfo assetDirectory, FileInfo assetFile)
+        {
+            // FIXME: We don't want assets without a guid to pass this!
+            using var textReader = assetFile.OpenText();
+            AssetBaseInfo info = default;
+            info.AssetFilePath = Path.GetRelativePath(assetDirectory.FullName, assetFile.FullName);
+            AssetRef<MeshAsset> mesh = default;
+            AssetRef<MaterialAsset> material = default;
+            bool? useMeshAsCollider = default;
+            bool? generateConvexHull = default;
+            AssetRef<PhysicsMaterialAsset> physicsMaterial = default;
+            while (textReader.EndOfStream == false)
+            {
+                var line = textReader.ReadLine()!;
+                if (line.StartsWith("Name: "))
+                {
+                    info.Name = line.Substring("Name: ".Length);
+                }
+                else if (line.StartsWith("AssetID: "))
+                {
+                    if (Guid.TryParse(line.Substring("AssetID: ".Length), out info.AssetID) == false)
+                    {
+                        Debug.WriteLine($"[Asset] Error: Guid for asset {info.Name} was corrupt. Here is a new one {{{Guid.NewGuid()}}}");
+                        return null;
+                    }
+                }
+                else if (line.StartsWith("Mesh: "))
+                {
+                    mesh = new AssetRef<MeshAsset>(Guid.Parse(line["Mesh: ".Length..]));
+                }
+                else if (line.StartsWith("Material: "))
+                {
+                    material = new AssetRef<MaterialAsset>(Guid.Parse(line["Material: ".Length..]));
+                }
+                else if (line.StartsWith("UseMeshAsCollider: "))
+                {
+                    useMeshAsCollider = bool.Parse(line["UseMeshAsCollider: ".Length..]);
+                }
+                else if (line.StartsWith("GenerateConvexHull: "))
+                {
+                    generateConvexHull = bool.Parse(line["GenerateConvexHull: ".Length..]);
+                }
+                else if (line.StartsWith("PhysicsMaterial: "))
+                {
+                    physicsMaterial = new AssetRef<PhysicsMaterialAsset>(Guid.Parse(line["PhysicsMaterial: ".Length..]));
+                }
+            }
+
+            Debug.AssertNotNull(useMeshAsCollider, nameof(useMeshAsCollider));
+            Debug.AssertNotNull(generateConvexHull, nameof(generateConvexHull));
+
+            return new StaticSetpieceAsset(info, mesh, material, useMeshAsCollider.Value, generateConvexHull.Value, physicsMaterial);
         }
 
         public override void WriteAssetProperties(TextWriter writer)
         {
-            throw new NotImplementedException();
+            if (Mesh.HasRef) writer.WriteLine($"Mesh: {Mesh.AssetID}");
+            if (Material.HasRef) writer.WriteLine($"Material: {Material.AssetID}");
+            writer.WriteLine($"UseMeshAsCollider: {UseMeshAsCollider}");
+            writer.WriteLine($"GenerateConvexHull: {GenerateConvexHull}");
+            if (PhysicsMaterial.HasRef) writer.WriteLine($"PhysicsMaterial: {PhysicsMaterial.AssetID}");
+        }
+
+        [MemberNotNullWhen(true, nameof(Setpiece))]
+        public bool LoadStaticSetpiece(AssetDB db)
+        {
+            var mesh = db.ResolveReference(Mesh);
+            var material = db.ResolveReference(Material);
+            var physicsMaterial = db.ResolveReference(PhysicsMaterial);
+
+            if (mesh == null || mesh.LoadMesh() == false)
+                return false;
+
+            if (material == null || material.LoadMaterial(db) == false)
+                return false;
+
+            if (physicsMaterial == null)
+                return false;
+
+            if (UseMeshAsCollider == false)
+            {
+                Debug.WriteLine("We only support MeshColliders for static meshes atm!!");
+                return false;
+            }
+
+            var meshData = mesh.MeshData ?? throw new Exception();
+
+            Physics.ICollider collider;
+            if (GenerateConvexHull)
+            {
+                collider = new Physics.MeshCollider(meshData);
+            }
+            else
+            {
+                collider = new Physics.StaticMeshCollider(meshData);
+            }
+
+            Setpiece = new StaticSetpiece(new Transform(), mesh.Mesh, material.LoadedMaterial, collider, physicsMaterial.Material);
+            return true;
         }
     }
-
-
 }
