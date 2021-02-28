@@ -50,6 +50,10 @@ namespace AerialRace.DebugGui
 
         [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igPopFocusScope")]
         public static extern void PopFocusScope();
+
+        //IMGUI_API bool          InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
+        [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl, EntryPoint = "igInputText", CharSet = CharSet.Unicode)]
+        public static extern bool InputText([MarshalAs(UnmanagedType.LPUTF8Str)] string label, [MarshalAs(UnmanagedType.LPUTF8Str)] StringBuilder buffer, nint bufferSize, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = default, IntPtr userData = default);
     }
 
     class ImGuiFileBrowser
