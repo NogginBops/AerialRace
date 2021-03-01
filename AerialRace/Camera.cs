@@ -87,7 +87,7 @@ namespace AerialRace
 
         public Ray RayFromPixel(Vector2 pixel, Vector2i resolution)
         {
-            Vector3 pixelVec = new Vector3(pixel.X, pixel.Y, 0f);
+            Vector3 pixelVec = new Vector3(pixel.X, resolution.Y - pixel.Y, NearPlane);
             CalcViewProjection(out var vp);
             vp.Invert();
             var res = Vector3.Unproject(pixelVec, 0, 0, resolution.X, resolution.Y, NearPlane, FarPlane, vp);

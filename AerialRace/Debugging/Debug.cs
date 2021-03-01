@@ -114,6 +114,14 @@ namespace AerialRace.Debugging
 
         [System.Diagnostics.DebuggerHidden]
         [System.Diagnostics.Conditional("DEBUG")]
+        [DoesNotReturn]
+        public static void Assert()
+        {
+            throw new Exception("Assert failed!");
+        }
+
+        [System.Diagnostics.DebuggerHidden]
+        [System.Diagnostics.Conditional("DEBUG")]
         public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue)
         {
             if (mustBeTrue == false)

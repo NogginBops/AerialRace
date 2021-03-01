@@ -25,7 +25,7 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(90, 0.1f, 10000f, Color4.Black);
+            EditorCamera = new Camera(90, 0.1f, 100000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
 
             Gizmos.Init();
@@ -35,8 +35,19 @@ namespace AerialRace.Editor
         public static void UpdateEditor(KeyboardState keyboard, MouseState mouse, float deltaTime)
         {
             UpdateEditorCamera(keyboard, mouse, deltaTime);
+            EditorCamera.Transform.UpdateMatrices();
 
             Gizmos.UpdateInput(mouse, keyboard, Window.Size, EditorCamera);
+
+            bool ctrl = keyboard.IsKeyDown(Keys.LeftControl) || keyboard.IsKeyDown(Keys.RightControl);
+            bool shift = keyboard.IsKeyDown(Keys.LeftShift) || keyboard.IsKeyDown(Keys.RightShift);
+            if (ctrl && keyboard.IsKeyPressed(Keys.Z))
+            {
+                if (shift)
+                     Undo.EditorUndoStack.TryRedo();
+                else Undo.EditorUndoStack.TryUndo();
+                Console.WriteLine("Undo!!!!");
+            }
         }
 
         public static float MouseSpeedX = 0.2f;
@@ -128,6 +139,8 @@ namespace AerialRace.Editor
                 Gizmos.LightIcon(light);
             }
 
+            Gizmos.CameraGizmo(Window.Player.Camera);
+
             // Gizmos drawlist rendering
             using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
             {
@@ -209,7 +222,16 @@ namespace AerialRace.Editor
 
                 if (SelectedTransform != null)
                 {
-                    ImGui.DragFloat3("Position", ref SelectedTransform.LocalPosition.AsNumerics(), 0.1f);
+                    var pos = SelectedTransform.LocalPosition;
+                    if (ImGui.DragFloat3("Position", ref SelectedTransform.LocalPosition.AsNumerics(), 0.1f))
+                    {
+                        Undo.EditorUndoStack.PushAlreadyDone(new Translate()
+                        {
+                            Transform = SelectedTransform,
+                            StartPosition = pos,
+                            EndPosition = SelectedTransform.LocalPosition
+                        });
+                    }
 
                     // FIXME: Display euler angles
                     //System.Numerics.Vector4 rot = SelectedTransform.LocalRotation.ToNumerics();
@@ -217,7 +239,16 @@ namespace AerialRace.Editor
                     //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
 
                     const float MinScale = 0.00000001f;
-                    ImGui.DragFloat3("Scale", ref SelectedTransform.LocalScale.AsNumerics(), 0.1f, MinScale);
+                    var scale = SelectedTransform.LocalScale;
+                    if (ImGui.DragFloat3("Scale", ref SelectedTransform.LocalScale.AsNumerics(), 0.1f, MinScale))
+                    {
+                        Undo.EditorUndoStack.PushAlreadyDone(new Scale()
+                        {
+                            Transform = SelectedTransform,
+                            StartScale = scale,
+                            EndScale = SelectedTransform.LocalScale
+                        });
+                    }
 
                     Light? light = Window.Lights.LightsList.Find(l => l.Transform == SelectedTransform);
                     if (light != null)

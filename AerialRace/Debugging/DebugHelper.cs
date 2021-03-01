@@ -160,6 +160,19 @@ namespace AerialRace.Debugging
         // ----  New 3D helpers  ----
         // --------------------------
 
+        public static void RectOutline(DrawList List, Vector3 center, Vector3 U, Vector3 V, Vector4 UVs, Texture Texture, Color4 Color)
+        {
+            var halfU = U / 2f;
+            var halfV = V / 2f;
+
+            List.AddVertexWithIndex(center - halfU - halfV, UVs.Xy, Color);
+            List.AddVertexWithIndex(center + halfU - halfV, UVs.Xy, Color);
+            List.AddVertexWithIndex(center + halfU + halfV, UVs.Xy, Color);
+            List.AddVertexWithIndex(center - halfU + halfV, UVs.Xy, Color);
+
+            List.AddCommand(PrimitiveType.LineLoop, 4, Texture);
+        }
+
         public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4 color)
         {
             Debug.Assert(segments >= 3, $"A cone cannot have less than 3 segments. {segments}");

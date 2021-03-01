@@ -13,6 +13,72 @@ namespace AerialRace.Mathematics
             Origin = origin;
             Direction = direction;
         }
+
+        public Vector3 GetPoint(float t)
+        {
+            return Origin + Direction * t;
+        }
+
+        public Vector3 GetClosestPoint(Vector3 v)
+        {
+            var t = Vector3.Dot(Direction, v - Origin);
+            if (t >= 0)
+            {
+                return Origin + t * Direction;
+            }
+            else
+            {
+                return Origin;
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"{Origin} + t{Direction}";
+        }
+    }
+
+    public struct Disk
+    {
+        public Vector3 Center;
+        public Vector3 Normal;
+        public float Radius;
+
+        public Disk(Vector3 center, Vector3 normal, float radius)
+        {
+            Center = center;
+            Normal = normal;
+            Radius = radius;
+        }
+
+        public override string ToString()
+        {
+            return $"Center: {Center}, Normal: {Normal}, Radius: {Radius}";
+        }
+    }
+
+    public struct Plane
+    {
+        public Vector3 Normal;
+        public float Offset;
+
+        public Plane(Vector3 normal, float offset)
+        {
+            Normal = normal;
+            Offset = offset;
+        }
+
+        public static float Intersect(in Plane plane, in Ray ray)
+        {
+            var denom = Vector3.Dot(plane.Normal, ray.Direction);
+            if (MathF.Abs(denom) > 0.000001f)
+            {
+                var center = plane.Normal * plane.Offset;
+                float t = Vector3.Dot(center - ray.Origin, plane.Normal) / denom;
+                return t;
+            }
+            else return float.NaN;
+        }
     }
 
     public struct Cylinder

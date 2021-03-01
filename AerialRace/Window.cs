@@ -63,7 +63,7 @@ namespace AerialRace
         Texture TestTexture;
         Sampler DebugSampler;
 
-        Ship Player;
+        public Ship Player;
         Texture ShipTexture;
 
         RigidBody TestBox;

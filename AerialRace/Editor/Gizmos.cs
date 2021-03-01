@@ -30,6 +30,15 @@ namespace AerialRace.Editor
         public static Vector2i ScreenSize;
         public static Vector2 InvScreenSize;
 
+        public static bool LeftMousePressed;
+        public static bool RightMousePressed;
+
+        public static bool LeftMouseReleased;
+        public static bool RightMouseReleased;
+
+        public static bool LeftMouseDown;
+        public static bool RightMouseDown;
+
         public static void Init()
         {
             // Setup the overlay shader
@@ -58,19 +67,39 @@ namespace AerialRace.Editor
             MousePos = mouse.Position;
             MouseDelta = mouse.Delta;
 
+            LeftMousePressed = mouse.IsButtonDown(MouseButton.Left) && !mouse.WasButtonDown(MouseButton.Left);
+            RightMousePressed = mouse.IsButtonDown(MouseButton.Right) && !mouse.WasButtonDown(MouseButton.Right);
+            LeftMouseReleased =  mouse.WasButtonDown(MouseButton.Left) && !mouse.IsButtonDown(MouseButton.Left);
+            RightMouseReleased = mouse.WasButtonDown(MouseButton.Right) && !mouse.IsButtonDown(MouseButton.Right);
+            LeftMouseDown = mouse.IsButtonDown(MouseButton.Left);
+            RightMouseDown = mouse.IsButtonDown(MouseButton.Right);
+
             ScreenSize = screenSize;
             InvScreenSize = Vector2.Divide(Vector2.One, screenSize);
 
             MouseRay = camera.RayFromPixel(MousePos, ScreenSize);
-            Debug.WriteLine($"Pixel: {MousePos}, Ray: {MouseRay.Origin} + t{MouseRay.Direction}");
+            //Debug.WriteLine($"Pixel: {MousePos}, Ray: {MouseRay.Origin} + t{MouseRay.Direction}");
 
             Camera = camera;
         }
 
+        enum Axis
+        {
+            None, 
+            X, Y, Z,
+            XRotation,
+            YRotation,
+            ZRotation,
+        }
+
+        static Axis EditAxis = Axis.None;
+        static Vector3 StartPosition = default;
+        static Quaternion StartRotation = default;
+        static Vector3 previousPoint = default;
         public static void TransformHandle(Transform transform)
         {
-            const float arrowLength = 2;
-            const float radius = 0.2f;
+            float arrowLength = 2;
+            float radius = 0.2f;
 
             Matrix4 l2w = transform.LocalToWorld;
 
@@ -78,30 +107,209 @@ namespace AerialRace.Editor
             Vector3 axisY = l2w.Row1.Xyz.Normalized();
             Vector3 axisZ = l2w.Row2.Xyz.Normalized();
             Vector3 translation = l2w.Row3.Xyz;
-            
-            // FIXME: Make cylinder intersection work
-            Cylinder xAxisCylinder = new Cylinder(translation, translation + axisX * arrowLength, radius);
-            float t = Cylinder.Intersect(MouseRay, xAxisCylinder);
-            //Debug.WriteLine($"Cylinder: A={xAxisCylinder.A}, B={xAxisCylinder.B}, r={xAxisCylinder.Radius}, t={t}");
-            Color4 xAxisColor = Color4.Red;
-            xAxisColor = t < 0 ? Color4.Pink : Color4.White;
 
-            DebugHelper.Cylinder(GizmoDrawList, xAxisCylinder, 20, xAxisColor);
-            
-            Direction(GizmoDrawList, translation, axisX, arrowLength, Color4.Red);
-            Direction(GizmoDrawList, translation, axisY, arrowLength, Color4.Lime);
-            Direction(GizmoDrawList, translation, axisZ, arrowLength, Color4.Blue);
+            float depth = Vector3.Dot(Camera.Transform.Forward, transform.WorldPosition - Camera.Transform.WorldPosition);
+            float size = Util.LinearStep(depth, 25, 5000);
+            size = Util.MapRange(size, 0, 1, 0.8f, 100);
 
-            DebugHelper.Cone(GizmoDrawList, translation + axisX * arrowLength, radius, 0.5f, axisX, 20, xAxisColor);
-            DebugHelper.Cone(GizmoDrawList, translation + axisZ * arrowLength, radius, 0.5f, axisZ, 20, Color4.Blue);
-            DebugHelper.Cone(GizmoDrawList, translation + axisY * arrowLength, radius, 0.5f, axisY, 20, Color4.Lime);
+            arrowLength *= size;
+            radius *= size;
+
+            var xRay = new Ray(translation, axisX);
+            var yRay = new Ray(translation, axisY);
+            var zRay = new Ray(translation, axisZ);
+
+            float rotationRadius = 2f * size;
+
+            var xDisk = new Disk(translation, axisX, rotationRadius);
+            var yDisk = new Disk(translation, axisY, rotationRadius);
+            var zDisk = new Disk(translation, axisZ, rotationRadius);
+
+            Color4 xAxisColor = new Color4(0.8f, 0f, 0f, 1f);
+            Color4 yAxisColor = new Color4(0f, 0.8f, 0f, 1f);
+            Color4 zAxisColor = new Color4(0f, 0f, 0.8f, 1f);
+
+            Color4 xRotationColor = new Color4(0.8f, 0f, 0f, 1f);
+            Color4 yRotationColor = new Color4(0f, 0.8f, 0f, 1f);
+            Color4 zRotationColor = new Color4(0f, 0f, 0.8f, 1f);
+
+            var closestTranslateAxis = GetClosestAxis(MouseRay, xRay, yRay, zRay, arrowLength, radius, out var translationDistance, out var translationPoint);
+
+            var closestRotationAxis = GetClosestRotationAxis(MouseRay, xDisk, yDisk, zDisk, radius, out var rotationDistance, out var rotationPoint);
+
+            Axis closestAxis =
+                translationDistance < rotationDistance ?
+                closestTranslateAxis :
+                closestRotationAxis;
+
+            if (LeftMousePressed)
+            {
+                EditAxis = closestAxis;
+                previousPoint = translationDistance < rotationDistance ? translationPoint : rotationPoint;
+                StartPosition = transform.LocalPosition;
+                StartRotation = transform.LocalRotation;
+            }
+
+            if (LeftMouseReleased && EditAxis != Axis.None)
+            {
+                if (EditAxis == Axis.X || EditAxis == Axis.Y || EditAxis == Axis.Z)
+                {
+                    Undo.EditorUndoStack.PushAlreadyDone(new Translate()
+                    {
+                        Transform = transform,
+                        StartPosition = StartPosition,
+                        EndPosition = transform.LocalPosition
+                    });
+                }
+                else if (EditAxis == Axis.XRotation || EditAxis == Axis.YRotation || EditAxis == Axis.ZRotation)
+                {
+                    Undo.EditorUndoStack.PushAlreadyDone(new Rotate()
+                    {
+                        Transform = transform,
+                        StartRotation = StartRotation,
+                        EndRotation = transform.LocalRotation
+                    });
+                }
+            }
+
+            if (LeftMouseDown == false)
+            {
+                EditAxis = Axis.None;
+            }
+            else
+            {
+                switch (EditAxis)
+                {
+                    case Axis.X:
+                    case Axis.Y:
+                    case Axis.Z:
+                        {
+                            Ray ray = EditAxis switch
+                            {
+                                Axis.X => xRay,
+                                Axis.Y => yRay,
+                                Axis.Z => zRay,
+                                _ => throw new Exception()
+                            };
+
+                            ClosestDistanceToLine(MouseRay, ray, out _, out var axisT);
+
+                            var newPoint = ray.GetPoint(axisT);
+
+                            // We are dragging some axis!
+                            var delta = newPoint - previousPoint;
+                            transform.LocalPosition += delta;
+                            transform.UpdateMatrices();
+                            previousPoint = newPoint;
+                        }
+                        break;
+                    case Axis.XRotation:
+                    case Axis.YRotation:
+                    case Axis.ZRotation:
+                        {
+                            Disk disk = EditAxis switch
+                            {
+                                Axis.XRotation => xDisk,
+                                Axis.YRotation => yDisk,
+                                Axis.ZRotation => zDisk,
+                                _ => throw new Exception()
+                            };
+
+                            ClosestDistanceToDisk(MouseRay, disk, out var newPoint);
+
+                            var current = newPoint - translation;
+                            var previous = previousPoint - translation;
+
+                            var θ = Vector3.CalculateAngle(previous, current);
+                            var sign = Vector3.Dot(Vector3.Cross(previous, current), disk.Normal);
+                            θ = MathF.CopySign(θ, sign);
+                            Debug.Assert(float.IsNaN(θ) == false);
+                            var axis = EditAxis switch
+                            {
+                                Axis.XRotation => axisX,
+                                Axis.YRotation => axisY,
+                                Axis.ZRotation => axisZ,
+                                _ => throw new Exception()
+                            };
+                            transform.LocalRotation *= Quaternion.FromAxisAngle(axis, θ);
+                            previousPoint = newPoint;
+                        }
+                        break;
+                    case Axis.None:
+                    default:
+                        break;
+                }
+            }
+
+            switch (EditAxis)
+            {
+                case Axis.X:
+                    xAxisColor = Color4.White;
+                    break;
+                case Axis.Y:
+                    yAxisColor = Color4.White;
+                    break;
+                case Axis.Z:
+                    zAxisColor = Color4.White;
+                    break;
+                case Axis.XRotation:
+                    xRotationColor = Color4.White;
+                    break;
+                case Axis.YRotation:
+                    yRotationColor = Color4.White;
+                    break;
+                case Axis.ZRotation:
+                    zRotationColor = Color4.White;
+                    break;
+                case Axis.None:
+                    switch (closestAxis)
+                    {
+                        case Axis.X:
+                            xAxisColor = new Color4(1f, 0.4f, 0.4f, 1f);
+                            break;
+                        case Axis.Y:
+                            yAxisColor = new Color4(0.4f, 1f, 0.4f, 1f);
+                            break;
+                        case Axis.Z:
+                            zAxisColor = new Color4(0.4f, 0.4f, 1f, 1f);
+                            break;
+                        case Axis.XRotation:
+                            xRotationColor = new Color4(1f, 0.4f, 0.4f, 1f);
+                            break;
+                        case Axis.YRotation:
+                            yRotationColor = new Color4(0.4f, 1f, 0.4f, 1f);
+                            break;
+                        case Axis.ZRotation:
+                            zRotationColor = new Color4(0.4f, 0.4f, 1f, 1f);
+                            break;
+                        case Axis.None:
+                        default:
+                            break;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            OutlineDisk(GizmoDrawList, xDisk, 50, xRotationColor);
+            OutlineDisk(GizmoDrawList, yDisk, 50, yRotationColor);
+            OutlineDisk(GizmoDrawList, zDisk, 50, zRotationColor);
+
+            Direction(GizmoDrawList, translation, axisX, arrowLength, xAxisColor);
+            Direction(GizmoDrawList, translation, axisY, arrowLength, yAxisColor);
+            Direction(GizmoDrawList, translation, axisZ, arrowLength, zAxisColor);
+
+            float height = 0.5f * size;
+            DebugHelper.Cone(GizmoDrawList, translation + axisX * arrowLength, radius, height, axisX, 20, xAxisColor);
+            DebugHelper.Cone(GizmoDrawList, translation + axisY * arrowLength, radius, height, axisY, 20, yAxisColor);
+            DebugHelper.Cone(GizmoDrawList, translation + axisZ * arrowLength, radius, height, axisZ, 20, zAxisColor);
 
             Matrix3 rotation = new Matrix3(axisX, axisY, axisZ);
 
-            const float ScaleBoxSize = 0.4f;
+            float ScaleBoxSize = 0.4f * size;
             Vector3 halfSize = (ScaleBoxSize, ScaleBoxSize, ScaleBoxSize);
             halfSize /= 2f;
-            float boxDist = arrowLength + ScaleBoxSize + 0.4f;
+            float boxDist = arrowLength + ScaleBoxSize + 0.4f * size;
 
             Cube(GizmoDrawList, translation + axisX * boxDist, halfSize, rotation, Color4.Red);
             Cube(GizmoDrawList, translation + axisY * boxDist, halfSize, rotation, Color4.Lime);
@@ -135,6 +343,225 @@ namespace AerialRace.Editor
                 }
 
                 list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, faces * 6, BuiltIn.WhiteTex);
+            }
+
+            static void Line(DrawList list, Vector3 a, Vector3 b, Color4 colorA, Color4 colorB)
+            {
+                list.Prewarm(2);
+                list.AddVertexWithIndex(a, new Vector2(0, 0), colorA);
+                list.AddVertexWithIndex(b, new Vector2(1, 1), colorB);
+                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            }
+
+            // From: https://nelari.us/post/gizmos/
+            static float ClosestDistanceToLine(Ray r1, Ray r2, out float t1, out float t2)
+            {
+                var dp = r2.Origin - r1.Origin;
+                var v12 = r1.Direction.LengthSquared;
+                var v22 = r2.Direction.LengthSquared;
+                var v1v2 = Vector3.Dot(r1.Direction, r2.Direction);
+
+                float det = v1v2 * v1v2 - v12 * v22;
+
+                if (MathF.Abs(det) > 0.00001f)
+                {
+                    var invDet = 1 / det;
+                    var dpv1 = Vector3.Dot(dp, r1.Direction);
+                    var dpv2 = Vector3.Dot(dp, r2.Direction);
+
+                    // For some reason we need to negate these...?
+                    t1 = -invDet * (v22 * dpv1 - v1v2 * dpv2);
+                    t2 = -invDet * (v1v2 * dpv1 - v12 * dpv2);
+
+                    return (dp + r2.Direction * t2 - r1.Direction * t1).Length;
+                }
+                else
+                {
+                    var a = Vector3.Cross(dp, r1.Direction);
+                    t1 = float.MaxValue;
+                    t2 = float.MaxValue;
+                    return MathF.Sqrt(a.LengthSquared / v12);
+                }
+            }
+            
+            static Axis GetClosestAxis(Ray mouseRay, Ray xRay, Ray yRay, Ray zRay, float arrowLength, float radius, out float distance, out Vector3 point)
+            {
+                float xDistance = ClosestDistanceToLine(MouseRay, xRay, out var xMouseT, out var xAxisT);
+                float yDistance = ClosestDistanceToLine(MouseRay, yRay, out var yMouseT, out var yAxisT);
+                float zDistance = ClosestDistanceToLine(MouseRay, zRay, out var zMouseT, out var zAxisT);
+
+                distance = float.MaxValue;
+                Axis editAxis = Axis.None;
+
+                if (xMouseT > 0 && xDistance <= radius && xAxisT >= 0 && xAxisT <= arrowLength)
+                {
+                    editAxis = Axis.X;
+                    distance = xDistance;
+                }
+
+                if (yMouseT > 0 && yDistance <= radius && yAxisT >= 0 && yAxisT <= arrowLength)
+                {
+                    if (yDistance < distance)
+                    {
+                        editAxis = Axis.Y;
+                        distance = yDistance;
+                    }
+                }
+
+                if (zMouseT > 0 && zDistance <= radius && zAxisT >= 0 && zAxisT <= arrowLength)
+                {
+                    if (zDistance < distance)
+                    {
+                        editAxis = Axis.Z;
+                        distance = zDistance;
+                    }
+                }
+
+                point = editAxis switch
+                {
+                    Axis.X => xRay.GetPoint(xAxisT),
+                    Axis.Y => yRay.GetPoint(yAxisT),
+                    Axis.Z => zRay.GetPoint(zAxisT),
+                    _ => default,
+                };
+
+                return editAxis;
+            }
+
+            static float ClosestDistanceToDisk(Ray ray, Disk circle, out Vector3 point)
+            {
+                Plane f = new Plane(circle.Normal, Vector3.Dot(circle.Center, circle.Normal));
+
+                var (v1, v2) = DebugHelper.GetAny2Perp(f.Normal);
+
+                float t = Plane.Intersect(f, ray);
+                if (t >= 0)
+                {
+                    DebugHelper.RectOutline(GizmoDrawList, circle.Center, v1, v2, Debug.FullUV, BuiltIn.WhiteTex, Color4.White);
+
+                    var onPlane = ray.GetPoint(t);
+                    point = circle.Center + circle.Radius * (onPlane - circle.Center).Normalized();
+
+                    return (onPlane - point).Length;
+                }
+                else
+                {
+                    DebugHelper.RectOutline(GizmoDrawList, circle.Center, v1, v2, Debug.FullUV, BuiltIn.WhiteTex, Color4.Gray);
+
+                    point = circle.Radius * Reject(ray.Origin - circle.Center, circle.Normal).Normalized();
+
+                    return PointLineDistance(ray, point);
+                }
+
+                static float PointLineDistance(Ray ray, Vector3 point)
+                {
+                    var v = point - ray.Origin;
+                    return Reject(v, ray.Direction).Length;
+                }
+
+                static Vector3 Reject(Vector3 a, Vector3 b)
+                {
+                    return a - Vector3.Dot(a, b) * b;
+                }
+            }
+
+            static Axis GetClosestRotationAxis(Ray mouseRay, Disk xDisk, Disk yDisk, Disk zDisk, float interactionRadius, out float distance, out Vector3 point)
+            {
+                float xDistance = ClosestDistanceToDisk(MouseRay, xDisk, out var xPos);
+                float yDistance = ClosestDistanceToDisk(MouseRay, yDisk, out var yPos);
+                float zDistance = ClosestDistanceToDisk(MouseRay, zDisk, out var zPos);
+                
+                Line(GizmoDrawList, mouseRay.GetClosestPoint(xPos), xPos, Color4.Magenta, Color4.Red);
+                Line(GizmoDrawList, mouseRay.GetClosestPoint(yPos), yPos, Color4.Magenta, Color4.Lime);
+                Line(GizmoDrawList, mouseRay.GetClosestPoint(zPos), zPos, Color4.Magenta, Color4.Blue);
+                
+                point = default;
+
+                distance = float.MaxValue;
+                Axis editAxis = Axis.None;
+                if (xDistance <= interactionRadius)
+                {
+                    editAxis = Axis.XRotation;
+                    distance = xDistance;
+                }
+
+                if (yDistance <= interactionRadius)
+                {
+                    if (yDistance < distance)
+                    {
+                        editAxis = Axis.YRotation;
+                        distance = yDistance;
+                    }
+                }
+
+                if (zDistance <= interactionRadius)
+                {
+                    if (zDistance < distance)
+                    {
+                        editAxis = Axis.ZRotation;
+                        distance = zDistance;
+                    }
+                }
+
+                point = editAxis switch
+                {
+                    Axis.XRotation => xPos,
+                    Axis.YRotation => yPos,
+                    Axis.ZRotation => zPos,
+                    _ => default,
+                };
+                return editAxis;
+            }
+        }
+
+        public static void CameraGizmo(Camera camera)
+        {
+            camera.CalcViewProjection(out var vp);
+            vp.Invert();
+
+            var near00 = UnprojectNDC((-1f, -1f, 0f), ref vp);
+            var near01 = UnprojectNDC((-1f,  1f, 0f), ref vp);
+            var near10 = UnprojectNDC(( 1f, -1f, 0f), ref vp);
+            var near11 = UnprojectNDC(( 1f,  1f, 0f), ref vp);
+
+            var far00 = UnprojectNDC((-1f, -1f, 1f), ref vp);
+            var far01 = UnprojectNDC((-1f,  1f, 1f), ref vp);
+            var far10 = UnprojectNDC(( 1f, -1f, 1f), ref vp);
+            var far11 = UnprojectNDC(( 1f,  1f, 1f), ref vp);
+
+            var list = GizmoDrawList;
+            var iNear00 = list.AddVertexWithIndex(near00, (0, 0), Color4.White);
+            var iNear01 = list.AddVertexWithIndex(near01, (0, 1), Color4.White);
+            var iNear10 = list.AddVertexWithIndex(near10, (1, 0), Color4.White);
+            var iNear11 = list.AddVertexWithIndex(near11, (1, 1), Color4.White);
+            list.AddIndex(iNear00);
+            list.AddIndex(iNear10);
+            list.AddIndex(iNear01);
+            list.AddIndex(iNear11);
+
+            var iFar00 = list.AddVertexWithIndex(far00, (0, 0), Color4.White);
+            var iFar01 = list.AddVertexWithIndex(far01, (0, 1), Color4.White);
+            var iFar10 = list.AddVertexWithIndex(far10, (1, 0), Color4.White);
+            var iFar11 = list.AddVertexWithIndex(far11, (1, 1), Color4.White);
+            list.AddIndex(iFar00);
+            list.AddIndex(iFar10);
+            list.AddIndex(iFar01);
+            list.AddIndex(iFar11);
+
+            list.AddIndex(iNear00);
+            list.AddIndex(iFar00);
+            list.AddIndex(iNear01);
+            list.AddIndex(iFar01);
+            list.AddIndex(iNear10);
+            list.AddIndex(iFar10);
+            list.AddIndex(iNear11);
+            list.AddIndex(iFar11);
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 24, BuiltIn.WhiteTex);
+
+            static Vector3 UnprojectNDC(Vector3 ndc, ref Matrix4 inverseViewMatrix)
+            {
+                return Vector3.TransformPerspective(ndc, inverseViewMatrix);
             }
         }
 
@@ -171,6 +598,28 @@ namespace AerialRace.Editor
             list.AddVertexWithIndex(position + right2 + up2, (1, 1), color);
 
             list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.TriangleStrip, 4, texture);
+        }
+
+        public static void OutlineDisk(DrawList list, Disk disk, int segments, Color4 color)
+        {
+            if (segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {segments}", nameof(segments));
+            list.Prewarm(segments);
+
+            var (v1, v2) = DebugHelper.GetAny2Perp(disk.Normal);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float t = i / (float)segments;
+
+                float x = MathF.Cos(t * 2 * MathF.PI);
+                float y = MathF.Sin(t * 2 * MathF.PI);
+
+                Vector3 offset = (x * v1 + y * v2) * disk.Radius;
+
+                list.AddVertexWithIndex(disk.Center + offset, new Vector2(x, y), color);
+            }
+
+            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
         }
 
         public static void OutlineSphere(DrawList list, Vector3 pos, float radius, int segments, Color4 color)
