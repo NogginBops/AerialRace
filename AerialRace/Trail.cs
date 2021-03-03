@@ -40,7 +40,7 @@ namespace AerialRace
                 Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
                 Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
-                Matrix4 modelToLightSpace = model * settings.LightSpace;
+                //Matrix4 modelToLightSpace = model * settings.LightSpace;
 
                 RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
                 RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
@@ -49,8 +49,8 @@ namespace AerialRace
                 RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
                 //RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
 
-                RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
-                RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
+                //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
+                //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
 
                 RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 

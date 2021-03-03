@@ -3,13 +3,14 @@
 #include <Common/Textures.glsl>
 #include <Common/Lighting.glsl>
 #include <Common/Sky.glsl>
+#include <Common/Shadows.glsl>
 
 in VertexOutput
 {
     vec4 fragPos;
     vec2 fragUV;
     vec3 fragNormal;
-    vec4 lightSpacePosition;
+    //vec4 lightSpacePosition;
 };
 
 out vec4 Color;
@@ -32,9 +33,6 @@ uniform struct Scene {
     vec3 ambientLight;
 } scene;
 
-uniform bool UseShadows;
-uniform sampler2DShadow ShadowMap;
-
 struct PointLight
 {
     vec4 posAndInvRadius;
@@ -46,30 +44,6 @@ layout(row_major) uniform LightBlock
     int lightCount;
     PointLight light[256];
 } lights;
-
-float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
-{
-	if (!UseShadows) return 0;
-
-    // perform perspective divide
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-    // get depth of current fragment from light's perspective
-    float currentDepth = projCoords.z;
-
-    //float bias = max(0.0005 * (1.0 - abs(dot(normal, lightDir))), biasAmount);
-    //bias = biasAmount;
-    //bias = 0.03 * (1.0 - abs(dot(normal, lightDir)));
-    //bias = biasAmount;
-    //bias = biasAmount;
-
-	// FIXME: There might be a better way to do this!...
-	if (min(min(projCoords.x, projCoords.y), 1 - max(projCoords.x, projCoords.y)) < 0) return 0;
-
-    float pcf1 = texture(ShadowMap, vec3(projCoords.xy, currentDepth - 0.0005f));
-    return pcf1;
-}
 
 vec3 CalcDirectionalDiffuse(vec3 L, vec3 N, vec3 lightColor, vec3 surfaceAlbedo)
 {
@@ -157,7 +131,7 @@ void main(void)
 
         float NdotL = max(dot(N, L), 0.0f);
         lightColor += (kD * albedo / PI + specular) * radiance * NdotL;
-/*
+    /*
         float diff = max(dot(normal, normalize(L)), 0.0f);
         vec3 diffuse = diff * attenuation * albedo * lights.light[i].intensity.rgb;
 
@@ -166,11 +140,13 @@ void main(void)
         vec3 specular = spec * attenuation * albedo * lights.light[i].intensity.rgb;
         specular = vec3(0);
         lightColor += diffuse + specular;
-*/
+    */
     }
 
-    float shadow = 1f - ShadowCalculation(lightSpacePosition, normal, sky.SunDirection);
+    float shadow = 1f - ShadowCalculation(fragPos.xyz, normal, sky.SunDirection);
 
-    Color = vec4(ambient + diffuse * shadow + lightColor, 1);
+    vec4 depthDebug = GetShadowCascadeDebugColor(ShadowCascadeFromDepth(gl_FragCoord.z));
+
+    Color = vec4(ambient + diffuse * shadow + lightColor, 1);// + depthDebug;
 }
 

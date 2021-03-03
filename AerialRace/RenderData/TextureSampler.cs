@@ -102,6 +102,7 @@ namespace AerialRace.RenderData
     {
         public string Name { get; }
         public int Handle { get; }
+        public TextureType Type { get; }
     }
 
     class Sampler : ISampler
@@ -111,6 +112,7 @@ namespace AerialRace.RenderData
 
         string ISampler.Name => Name;
         int ISampler.Handle => Handle;
+        TextureType ISampler.Type => (TextureType)Type;
 
         // Sampler objects don't actually have a type, 
         //but it might be usefull to keep track of what it's supposed to be
@@ -158,6 +160,7 @@ namespace AerialRace.RenderData
 
         string ISampler.Name => Name;
         int ISampler.Handle => Handle;
+        TextureType ISampler.Type => (TextureType)Type;
 
         // Sampler objects don't actually have a type, 
         //but it might be usefull to keep track of what it's supposed to be

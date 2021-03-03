@@ -1,4 +1,5 @@
-﻿using AerialRace.RenderData;
+﻿using AerialRace.Debugging;
+using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK;
 using OpenTK.Graphics.OpenGL4;
@@ -17,11 +18,13 @@ namespace AerialRace.DebugGui
     {
         public Texture Texture;
         public float Level;
+        public int Layer;
 
-        public TextureRef(Texture tex, float level = -1)
+        public TextureRef(Texture tex, float level = -1, int layer = -1)
         {
             Texture = tex;
             Level = level;
+            Layer = layer;
         }
     }
 
@@ -35,7 +38,17 @@ namespace AerialRace.DebugGui
         readonly static List<TextureRef> TextureRefs = new List<TextureRef>();
         public static int ReferenceTexture(Texture texture, float level = -1)
         {
+            if (texture.Type != TextureType.Texture2D)
+                Debug.WriteLine($"Referenced ImGui texture '{texture.Name}' is not of type Texture2D, it will probably not render correctly!");
             TextureRefs.Add(new TextureRef(texture, level));
+            return PermanentRefs.Count + TextureRefs.Count;
+        }
+
+        public static int ReferenceTextureArray(Texture texture, float level = -1, int layer = -1)
+        {
+            if (texture.Type != TextureType.Texture2DArray)
+                Debug.WriteLine($"Referenced ImGui texture '{texture.Name}' is not of type Texture2DArray, it will probably not render correctly!");
+            TextureRefs.Add(new TextureRef(texture, level, layer));
             return PermanentRefs.Count + TextureRefs.Count;
         }
 
@@ -117,7 +130,8 @@ void main()
 }";
             string FragmentSource = @"#version 400 core
 
-uniform sampler2D in_fontTexture;
+uniform sampler2D in_texture;
+uniform sampler2DArray in_arrayTexture;
 
 in vec4 color;
 in vec2 texCoord;
@@ -127,15 +141,26 @@ out vec4 outputColor;
 uniform bool useLod;
 uniform float lodLevel;
 
+uniform bool useTextureArray;
+uniform int layer;
+
 void main()
 {
-    if (useLod)
+    if (useLod && useTextureArray)
     {
-        outputColor = color * textureLod(in_fontTexture, texCoord, lodLevel);
+        outputColor = color * textureLod(in_arrayTexture, vec3(texCoord, layer), lodLevel);
+    }
+    else if (useTextureArray)
+    {
+        outputColor = color * texture(in_arrayTexture, vec3(texCoord, layer));
+    }
+    else if (useLod)
+    {
+        outputColor = color * textureLod(in_texture, texCoord, lodLevel);
     }
     else
     {
-        outputColor = color * texture(in_fontTexture, texCoord);
+        outputColor = color * texture(in_texture, texCoord);
     }
 }";
 
@@ -333,7 +358,8 @@ void main()
             RenderDataUtil.UsePipeline(_shader);
 
             RenderDataUtil.UniformMatrix4("projection_matrix", ShaderStage.Vertex, false, ref mvp);
-            RenderDataUtil.Uniform1("in_fontTexture", ShaderStage.Fragment, 0);
+            RenderDataUtil.Uniform1("in_texture", ShaderStage.Fragment, 0);
+            RenderDataUtil.Uniform1("in_arrayTexture", ShaderStage.Fragment, 1);
 
             // Set up vertex attributes and their buffers plus index buffer
 
@@ -400,7 +426,17 @@ void main()
                             throw new Exception();
                         }
 
-                        RenderDataUtil.BindTexture(0, textureRef?.Texture);
+                        if (textureRef?.Texture.Type == TextureType.Texture2DArray)
+                        {
+                            RenderDataUtil.Uniform1("useTextureArray", ShaderStage.Fragment, 1);
+                            RenderDataUtil.Uniform1("layer", ShaderStage.Fragment, textureRef?.Layer ?? 0);
+                            RenderDataUtil.BindTexture(1, textureRef?.Texture);
+                        }
+                        else
+                        {
+                            RenderDataUtil.Uniform1("useTextureArray", ShaderStage.Fragment, 0);
+                            RenderDataUtil.BindTexture(0, textureRef?.Texture);
+                        }
 
                         if (textureRef is TextureRef @ref && @ref.Level != -1)
                         {

@@ -15,7 +15,7 @@ out VertexOutput
     vec4 fragPos;
     vec2 fragUV;
     vec3 fragNormal;
-    vec4 lightSpacePosition;
+    //vec4 lightSpacePosition;
 };
 
 uniform mat4 mvp;
@@ -25,8 +25,8 @@ uniform mat4 model;
 
 uniform mat3 normalMatrix;
 
-uniform mat4 lightSpaceMatrix;
-uniform mat4 modelToLightSpace;
+//uniform mat4 lightSpaceMatrix;
+//uniform mat4 modelToLightSpace;
 
 void main(void)
 {
@@ -35,5 +35,5 @@ void main(void)
     //gl_Position = vec4(in_position, 1f) * model * view * proj;
     fragNormal = in_normal * normalMatrix;
     fragUV = in_uv;
-    lightSpacePosition = vec4(in_position, 1f) * modelToLightSpace;
+    //lightSpacePosition = vec4(in_position, 1f) * modelToLightSpace;
 }

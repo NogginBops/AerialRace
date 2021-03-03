@@ -160,6 +160,46 @@ namespace AerialRace.Debugging
         // ----  New 3D helpers  ----
         // --------------------------
 
+        public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
+        {
+            var iNear00 = list.AddVertexWithIndex(points.Near00, (0, 0), nearColor);
+            var iNear01 = list.AddVertexWithIndex(points.Near01, (0, 1), nearColor);
+            var iNear10 = list.AddVertexWithIndex(points.Near10, (1, 0), nearColor);
+            var iNear11 = list.AddVertexWithIndex(points.Near11, (1, 1), nearColor);
+            list.AddIndex(iNear00);
+            list.AddIndex(iNear10);
+            list.AddIndex(iNear01);
+            list.AddIndex(iNear11);
+
+            var iFar00 = list.AddVertexWithIndex(points.Far00, (0, 0), farColor);
+            var iFar01 = list.AddVertexWithIndex(points.Far01, (0, 1), farColor);
+            var iFar10 = list.AddVertexWithIndex(points.Far10, (1, 0), farColor);
+            var iFar11 = list.AddVertexWithIndex(points.Far11, (1, 1), farColor);
+            list.AddIndex(iFar00);
+            list.AddIndex(iFar10);
+            list.AddIndex(iFar01);
+            list.AddIndex(iFar11);
+
+            list.AddIndex(iNear00);
+            list.AddIndex(iFar00);
+            list.AddIndex(iNear01);
+            list.AddIndex(iFar01);
+            list.AddIndex(iNear10);
+            list.AddIndex(iFar10);
+            list.AddIndex(iNear11);
+            list.AddIndex(iFar11);
+
+            list.AddCommand(PrimitiveType.Lines, 24, BuiltIn.WhiteTex);
+        }
+
+        public static void Line(DrawList list, Vector3 a, Vector3 b, Color4 colorA, Color4 colorB)
+        {
+            list.Prewarm(2);
+            list.AddVertexWithIndex(a, new Vector2(0, 0), colorA);
+            list.AddVertexWithIndex(b, new Vector2(1, 1), colorB);
+            list.AddCommand(PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+        }
+
         public static void RectOutline(DrawList List, Vector3 center, Vector3 U, Vector3 V, Vector4 UVs, Texture Texture, Color4 Color)
         {
             var halfU = U / 2f;

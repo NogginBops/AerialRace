@@ -31,11 +31,13 @@ namespace AerialRace.RenderData
     {
         public Texture Texture;
         public int MipLevel;
+        public int Layer;
 
-        public FramebufferAttachmentTexture(Texture texture, int mipLevel)
+        public FramebufferAttachmentTexture(Texture texture, int mipLevel, int layer)
         {
             Texture = texture;
             MipLevel = mipLevel;
+            Layer = layer;
         }
     }
 

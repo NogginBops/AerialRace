@@ -4,6 +4,7 @@ using AerialRace.Loading;
 using AerialRace.Physics;
 using AerialRace.RenderData;
 using AerialRace.Particles;
+using AerialRace.Mathematics;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -71,11 +72,17 @@ namespace AerialRace
         MeshRenderer TestBoxRenderer;
 
         Framebuffer Shadowmap;
+        Texture ShadowmapCascadeArray;
+        ShadowSampler ShadowSampler;
+        Vector4 CascadeSplits = (1, 1, 1, 1);
+        int DebugCascadeSelection = 0;
+        float CorrectionFactor = 0.02f;
+        const int Cascades = 4;
+
         Framebuffer HDRSceneBuffer;
         ShaderPipeline HDRToLDRPipeline;
         Sampler HDRSampler;
 
-        ShadowSampler ShadowSampler;
 
         public SkyRenderer Sky;
 
@@ -326,9 +333,12 @@ namespace AerialRace
 
             {
                 Shadowmap = RenderDataUtil.CreateEmptyFramebuffer("Shadowmap");
-
+                /*
                 var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
                 RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
+                */
+                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth16, 4096, 4096, Cascades);
+                RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, 0);
 
                 // The shadowmap should not resize with the size of the screen!
                 // Screen.RegisterFramebuffer(Shadowmap);
@@ -338,10 +348,10 @@ namespace AerialRace
                 {
                     Debug.Break();
                 }
+
+                ShadowSampler = RenderDataUtil.CreateShadowSampler2DArray("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.ClampToEdge, WrapMode.ClampToEdge, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
             }
             
-            ShadowSampler = RenderDataUtil.CreateShadowSampler2D("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.Repeat, WrapMode.Repeat, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
-
             var skyVertexProgram = RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Sky.vert"));
             var skyFragmentProgram = RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, ShaderPreprocessor.PreprocessSource("./Shaders/Sky.frag"));
 
@@ -451,10 +461,36 @@ namespace AerialRace
             };
 
             // FIXME: This is a hack until we fit this to the camera frustum
-            Vector3 directionalLightPos = Sky.SunDirection * 100f;
-            var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
-            var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
-            var lightSpace = lightView * proj;
+            //Vector3 directionalLightPos = Sky.SunDirection * 100f;
+            //var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
+            //var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
+            //var lightSpace = lightView * proj;
+
+
+
+            Span<Matrix4> lightViews = stackalloc Matrix4[Cascades];
+            Span<Matrix4> lightProjs = stackalloc Matrix4[Cascades];
+            Span<Vector3> lightPoss = stackalloc Vector3[Cascades];
+            Span<Matrix4> lightSpaces = stackalloc Matrix4[Cascades];
+
+            Camera shadowCamera = Player.Camera;
+
+            Span<float> splits = stackalloc float[Cascades];
+            for (int i = 0; i < splits.Length; i++)
+            {
+                splits[i] = Shadows.CalculateZSplit(i + 1, splits.Length, shadowCamera.NearPlane, shadowCamera.FarPlane, CorrectionFactor);
+            }
+
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, shadowCamera.NearPlane, splits[0], out lightViews[0], out lightProjs[0], out lightPoss[0]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[0], splits[1], out lightViews[1], out lightProjs[1], out lightPoss[1]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[1], splits[2], out lightViews[2], out lightProjs[2], out lightPoss[2]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[2], splits[3], out lightViews[3], out lightProjs[3], out lightPoss[3]);
+            for (int i = 0; i < lightSpaces.Length; i++)
+            {
+                lightSpaces[i] = lightViews[i] * lightProjs[i];
+            }
+
+            Matrix4[] lightMatrices = lightSpaces.ToArray();
 
             // What we want to do here is first render the shadowmaps using all renderers
             // Then do a z prepass from the normal camera
@@ -463,37 +499,94 @@ namespace AerialRace
             // FIXME: Do shadow passes for the lights that need them
             using (_ = RenderDataUtil.PushDepthPass("Directional Shadow"))
             {
-                RenderPassSettings shadowPass = new RenderPassSettings()
+                for (int i = 0; i < Cascades; i++)
                 {
-                    IsDepthPass = true,
-                    View = lightView,
-                    Projection = proj,
-                    LightSpace = Matrix4.Identity,
-                    ViewPos = directionalLightPos,
+                    using (_ = RenderDataUtil.PushDepthPass($"Cascade {i}"))
+                    {
+                        RenderPassSettings shadowPass = new RenderPassSettings()
+                        {
+                            IsDepthPass = true,
+                            View = lightViews[i],
+                            Projection = lightProjs[i],
+                            ViewPos = lightPoss[i],
 
-                    NearPlane = camera.NearPlane,
-                    FarPlane = camera.FarPlane,
+                            NearPlane = camera.NearPlane,
+                            FarPlane = camera.FarPlane,
 
-                    Sky = skySettings,
-                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                            Sky = skySettings,
+                            AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
-                    Lights = Lights,
-                };
+                            Lights = Lights,
+                        };
 
-                //Screen.ResizeToScreenSizeIfNecessary(Shadowmap);
+                        // We do not want to resize the Shadowmap with the screen size!
+                        //Screen.ResizeToScreenSizeIfNecessary(Shadowmap);
+                        RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, i);
 
-                RenderDataUtil.BindDrawFramebuffer(Shadowmap);
-                // FIXME: Clean this up
-                GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Value.Texture.Width, Shadowmap.DepthAttachment!.Value.Texture.Height);
+                        RenderDataUtil.BindDrawFramebuffer(Shadowmap);
+                        // FIXME: Clean this up
+                        GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Value.Texture.Width, Shadowmap.DepthAttachment!.Value.Texture.Height);
 
-                RenderDataUtil.SetDepthWrite(true);
-                RenderDataUtil.SetColorWrite(ColorChannels.None);
-                GL.Clear(ClearBufferMask.DepthBufferBit);
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                        RenderDataUtil.SetDepthWrite(true);
+                        RenderDataUtil.SetColorWrite(ColorChannels.None);
+                        GL.Clear(ClearBufferMask.DepthBufferBit);
+                        RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
 
-                MeshRenderer.Render(ref shadowPass);
+                        MeshRenderer.Render(ref shadowPass);
+                    }
+                }
             }
 
+            if (ImGui.Begin("Cascades"))
+            {
+                /*
+                var (c1, c2, c3, c4) = CascadeSplits;
+                c1 = Util.NDCDepthToLinear(c1, camera.NearPlane, camera.FarPlane);
+                c2 = Util.NDCDepthToLinear(c2, camera.NearPlane, camera.FarPlane);
+                c3 = Util.NDCDepthToLinear(c3, camera.NearPlane, camera.FarPlane);
+                c4 = Util.NDCDepthToLinear(c4, camera.NearPlane, camera.FarPlane);
+                ImGui.SliderFloat("Cascade 1", ref c1, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
+                ImGui.SliderFloat("Cascade 2", ref c2, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
+                ImGui.SliderFloat("Cascade 3", ref c3, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
+                ImGui.SliderFloat("Cascade 4", ref c4, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
+                c1 = Util.LinearDepthToNDC(c1, camera.NearPlane, camera.FarPlane);
+                c2 = Util.LinearDepthToNDC(c2, camera.NearPlane, camera.FarPlane);
+                c3 = Util.LinearDepthToNDC(c3, camera.NearPlane, camera.FarPlane);
+                c4 = Util.LinearDepthToNDC(c4, camera.NearPlane, camera.FarPlane);
+                CascadeSplits = (c1, c2, c3, c4);*/
+
+                CascadeSplits.X = Util.LinearDepthToNDC(splits[0], shadowCamera.NearPlane, shadowCamera.FarPlane);
+                CascadeSplits.Y = Util.LinearDepthToNDC(splits[1], shadowCamera.NearPlane, shadowCamera.FarPlane);
+                CascadeSplits.Z = Util.LinearDepthToNDC(splits[2], shadowCamera.NearPlane, shadowCamera.FarPlane);
+                CascadeSplits.W = Util.LinearDepthToNDC(splits[3], shadowCamera.NearPlane, shadowCamera.FarPlane);
+
+                ImGui.Text($"Cascade 1: {splits[0]}m ({CascadeSplits.X})");
+                ImGui.Text($"Cascade 2: {splits[1]}m ({CascadeSplits.Y})");
+                ImGui.Text($"Cascade 3: {splits[2]}m ({CascadeSplits.Z})");
+                ImGui.Text($"Cascade 4: {splits[3]}m ({CascadeSplits.W})");
+
+                ImGui.SliderFloat("Correction", ref CorrectionFactor, 0, 1);
+                ImGui.SliderInt("Layer", ref DebugCascadeSelection, 0, 3);
+
+                for (int i = 0; i < splits.Length; i++)
+                {
+                    ImGui.Text($"Split {i}: {splits[i]}");
+                }
+
+                var imageRef = ImGuiController.ReferenceTextureArray(Shadowmap.DepthAttachment?.Texture!, -1, DebugCascadeSelection);
+                ImGui.Image((IntPtr)imageRef, new System.Numerics.Vector2(500, 500), new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
+
+            }
+            ImGui.End();
+
+           /*if (ImGui.Begin("Depth texture"))
+           {
+               var tex = ImGuiController.ReferenceTexture(Shadowmap.DepthAttachment.Value.Texture);
+               ImGui.Image((IntPtr)tex, new System.Numerics.Vector2(500, 500));
+           }*/
+           ImGui.End();
+
+            Matrix4 proj;
             using (_ = RenderDataUtil.PushDepthPass("Depth prepass"))
             {
                 Screen.ResizeToScreenSizeIfNecessary(HDRSceneBuffer);
@@ -507,7 +600,6 @@ namespace AerialRace
                     IsDepthPass = true,
                     View = camera.Transform.WorldToLocal,
                     Projection = proj,
-                    LightSpace = lightSpace,
                     ViewPos = camera.Transform.WorldPosition,
 
                     NearPlane = camera.NearPlane,
@@ -538,7 +630,6 @@ namespace AerialRace
                     IsDepthPass = false,
                     View = camera.Transform.WorldToLocal,
                     Projection = proj,
-                    LightSpace = lightSpace,
                     ViewPos = camera.Transform.WorldPosition,
 
                     NearPlane = camera.NearPlane,
@@ -550,6 +641,8 @@ namespace AerialRace
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
                     ShadowSampler = ShadowSampler,
+                    Cascades = CascadeSplits,
+                    LightMatrices = lightMatrices,
 
                     Lights = Lights,
                 };
@@ -573,7 +666,6 @@ namespace AerialRace
                     IsDepthPass = false,
                     View = camera.Transform.WorldToLocal,
                     Projection = proj,
-                    LightSpace = lightSpace,
                     ViewPos = camera.Transform.WorldPosition,
 
                     NearPlane = camera.NearPlane,
@@ -585,6 +677,8 @@ namespace AerialRace
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
                     ShadowSampler = ShadowSampler,
+                    Cascades = CascadeSplits,
+                    LightMatrices = lightMatrices,
 
                     Lights = Lights,
                 };

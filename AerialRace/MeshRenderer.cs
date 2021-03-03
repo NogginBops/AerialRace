@@ -20,12 +20,12 @@ namespace AerialRace
     }
 
     // FIXME: Add transparent switch!
-    struct RenderPassSettings
+    unsafe struct RenderPassSettings
     {
         public bool IsDepthPass;
         public Matrix4 View;
         public Matrix4 Projection;
-        public Matrix4 LightSpace;
+        //public Matrix4 LightSpace;
         public Vector3 ViewPos;
 
         public float NearPlane, FarPlane;
@@ -37,6 +37,8 @@ namespace AerialRace
         public bool UseShadows;
         public Texture? ShadowMap;
         public ShadowSampler? ShadowSampler;
+        public Vector4 Cascades;
+        public Matrix4[]? LightMatrices;
 
         public Lights? Lights;
     }
@@ -101,7 +103,7 @@ namespace AerialRace
                 Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
                 Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
-                Matrix4 modelToLightSpace = model * settings.LightSpace;
+                //Matrix4 modelToLightSpace = model * settings.LightSpace;
 
                 if (settings.Lights != null)
                 {
@@ -115,8 +117,14 @@ namespace AerialRace
                 RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
                 RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
 
-                RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
-                RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
+                if (settings.LightMatrices != null)
+                {
+                    RenderDataUtil.UniformMatrix4Array("worldToLightSpace", ShaderStage.Fragment, true, settings.LightMatrices);
+                }
+                else if (settings.UseShadows) Debug.Assert();
+                
+                //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
+                //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
 
                 RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 
@@ -139,11 +147,13 @@ namespace AerialRace
                 {
                     textureStartIndex = 1;
 
-                    RenderDataUtil.Uniform1("ShadowMap", ShaderStage.Vertex, 0);
-                    RenderDataUtil.Uniform1("ShadowMap", ShaderStage.Fragment, 0);
+                    RenderDataUtil.Uniform1("ShadowCascades", ShaderStage.Vertex, 0);
+                    RenderDataUtil.Uniform1("ShadowCascades", ShaderStage.Fragment, 0);
                     RenderDataUtil.BindTexture(0, settings.ShadowMap!);
                     RenderDataUtil.BindSampler(0, settings.ShadowSampler!);
-                    //RenderDataUtil.BindSampler(0, (ISampler?)null);
+
+                    RenderDataUtil.Uniform4("CascadeSplits", ShaderStage.Vertex, settings.Cascades);
+                    RenderDataUtil.Uniform4("CascadeSplits", ShaderStage.Fragment, settings.Cascades);
                 }
 
                 var matProperties = material.Properties;

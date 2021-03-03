@@ -95,6 +95,7 @@ namespace AerialRace.Editor
         static Axis EditAxis = Axis.None;
         static Vector3 StartPosition = default;
         static Quaternion StartRotation = default;
+        static Vector3 StartRotationPos = default;
         static Vector3 previousPoint = default;
         public static void TransformHandle(Transform transform)
         {
@@ -110,7 +111,11 @@ namespace AerialRace.Editor
 
             float depth = Vector3.Dot(Camera.Transform.Forward, transform.WorldPosition - Camera.Transform.WorldPosition);
             float size = Util.LinearStep(depth, 25, 5000);
-            size = Util.MapRange(size, 0, 1, 0.8f, 100);
+            size = Util.MapRange(size, 0, 1, 2f, 100);
+
+            // FIXME: Is there a better way to handle this??
+            if (Camera.ProjectionType == ProjectionType.Orthographic)
+                size = 1;
 
             arrowLength *= size;
             radius *= size;
@@ -147,6 +152,7 @@ namespace AerialRace.Editor
                 EditAxis = closestAxis;
                 previousPoint = translationDistance < rotationDistance ? translationPoint : rotationPoint;
                 StartPosition = transform.LocalPosition;
+                StartRotationPos = rotationPoint;
                 StartRotation = transform.LocalRotation;
             }
 
@@ -220,15 +226,18 @@ namespace AerialRace.Editor
                             var current = newPoint - translation;
                             var previous = previousPoint - translation;
 
+                            DebugHelper.Line(GizmoDrawList, translation, StartRotationPos, Color4.Yellow, Color4.Yellow);
+                            DebugHelper.Line(GizmoDrawList, translation, newPoint, Color4.Purple, Color4.Purple);
+
                             var θ = Vector3.CalculateAngle(previous, current);
                             var sign = Vector3.Dot(Vector3.Cross(previous, current), disk.Normal);
                             θ = MathF.CopySign(θ, sign);
                             Debug.Assert(float.IsNaN(θ) == false);
                             var axis = EditAxis switch
                             {
-                                Axis.XRotation => axisX,
-                                Axis.YRotation => axisY,
-                                Axis.ZRotation => axisZ,
+                                Axis.XRotation => Vector3.UnitX,
+                                Axis.YRotation => Vector3.UnitY,
+                                Axis.ZRotation => Vector3.UnitZ,
                                 _ => throw new Exception()
                             };
                             transform.LocalRotation *= Quaternion.FromAxisAngle(axis, θ);
@@ -345,14 +354,6 @@ namespace AerialRace.Editor
                 list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, faces * 6, BuiltIn.WhiteTex);
             }
 
-            static void Line(DrawList list, Vector3 a, Vector3 b, Color4 colorA, Color4 colorB)
-            {
-                list.Prewarm(2);
-                list.AddVertexWithIndex(a, new Vector2(0, 0), colorA);
-                list.AddVertexWithIndex(b, new Vector2(1, 1), colorB);
-                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
-            }
-
             // From: https://nelari.us/post/gizmos/
             static float ClosestDistanceToLine(Ray r1, Ray r2, out float t1, out float t2)
             {
@@ -437,8 +438,6 @@ namespace AerialRace.Editor
                 float t = Plane.Intersect(f, ray);
                 if (t >= 0)
                 {
-                    DebugHelper.RectOutline(GizmoDrawList, circle.Center, v1, v2, Debug.FullUV, BuiltIn.WhiteTex, Color4.White);
-
                     var onPlane = ray.GetPoint(t);
                     point = circle.Center + circle.Radius * (onPlane - circle.Center).Normalized();
 
@@ -446,8 +445,6 @@ namespace AerialRace.Editor
                 }
                 else
                 {
-                    DebugHelper.RectOutline(GizmoDrawList, circle.Center, v1, v2, Debug.FullUV, BuiltIn.WhiteTex, Color4.Gray);
-
                     point = circle.Radius * Reject(ray.Origin - circle.Center, circle.Normal).Normalized();
 
                     return PointLineDistance(ray, point);
@@ -470,10 +467,6 @@ namespace AerialRace.Editor
                 float xDistance = ClosestDistanceToDisk(MouseRay, xDisk, out var xPos);
                 float yDistance = ClosestDistanceToDisk(MouseRay, yDisk, out var yPos);
                 float zDistance = ClosestDistanceToDisk(MouseRay, zDisk, out var zPos);
-                
-                Line(GizmoDrawList, mouseRay.GetClosestPoint(xPos), xPos, Color4.Magenta, Color4.Red);
-                Line(GizmoDrawList, mouseRay.GetClosestPoint(yPos), yPos, Color4.Magenta, Color4.Lime);
-                Line(GizmoDrawList, mouseRay.GetClosestPoint(zPos), zPos, Color4.Magenta, Color4.Blue);
                 
                 point = default;
 
@@ -518,57 +511,15 @@ namespace AerialRace.Editor
         {
             camera.CalcViewProjection(out var vp);
             vp.Invert();
-
-            var near00 = UnprojectNDC((-1f, -1f, 0f), ref vp);
-            var near01 = UnprojectNDC((-1f,  1f, 0f), ref vp);
-            var near10 = UnprojectNDC(( 1f, -1f, 0f), ref vp);
-            var near11 = UnprojectNDC(( 1f,  1f, 0f), ref vp);
-
-            var far00 = UnprojectNDC((-1f, -1f, 1f), ref vp);
-            var far01 = UnprojectNDC((-1f,  1f, 1f), ref vp);
-            var far10 = UnprojectNDC(( 1f, -1f, 1f), ref vp);
-            var far11 = UnprojectNDC(( 1f,  1f, 1f), ref vp);
-
-            var list = GizmoDrawList;
-            var iNear00 = list.AddVertexWithIndex(near00, (0, 0), Color4.White);
-            var iNear01 = list.AddVertexWithIndex(near01, (0, 1), Color4.White);
-            var iNear10 = list.AddVertexWithIndex(near10, (1, 0), Color4.White);
-            var iNear11 = list.AddVertexWithIndex(near11, (1, 1), Color4.White);
-            list.AddIndex(iNear00);
-            list.AddIndex(iNear10);
-            list.AddIndex(iNear01);
-            list.AddIndex(iNear11);
-
-            var iFar00 = list.AddVertexWithIndex(far00, (0, 0), Color4.White);
-            var iFar01 = list.AddVertexWithIndex(far01, (0, 1), Color4.White);
-            var iFar10 = list.AddVertexWithIndex(far10, (1, 0), Color4.White);
-            var iFar11 = list.AddVertexWithIndex(far11, (1, 1), Color4.White);
-            list.AddIndex(iFar00);
-            list.AddIndex(iFar10);
-            list.AddIndex(iFar01);
-            list.AddIndex(iFar11);
-
-            list.AddIndex(iNear00);
-            list.AddIndex(iFar00);
-            list.AddIndex(iNear01);
-            list.AddIndex(iFar01);
-            list.AddIndex(iNear10);
-            list.AddIndex(iFar10);
-            list.AddIndex(iNear11);
-            list.AddIndex(iFar11);
-
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 24, BuiltIn.WhiteTex);
-
-            static Vector3 UnprojectNDC(Vector3 ndc, ref Matrix4 inverseViewMatrix)
-            {
-                return Vector3.TransformPerspective(ndc, inverseViewMatrix);
-            }
+            FrustumPoints.ApplyProjection(FrustumPoints.NDC, vp, out var frustum);
+            DebugHelper.FrustumPoints(GizmoDrawList, frustum, Color4.White, Color4.White);
         }
 
         // FIXME: Find a better way to render icons so that the alpha blending becomes correct!
         // When we fix this we should remove the discard from the DebugPipeline fragment shader.
         public static void LightIcon(Light light)
         {
+            return;
             Vector3 right = Camera.Transform.Right;
             Vector3 up = Camera.Transform.Up;
 
@@ -581,6 +532,10 @@ namespace AerialRace.Editor
             float depth = Vector3.Dot(Camera.Transform.Forward, light.Transform.WorldPosition - Camera.Transform.WorldPosition);
             float size = Util.LinearStep(depth, 4, 1000);
             size = Util.MapRange(size, 0, 1, 0.8f, 100);
+
+            // FIXME: Is there a better way to handle this??
+            if (Camera.ProjectionType == ProjectionType.Orthographic)
+                size = Camera.OrthograpicSize * 0.1f;
 
             Billboard(GizmoDrawList, pos, right, up, size, EditorResources.PointLightIcon, color);
         }

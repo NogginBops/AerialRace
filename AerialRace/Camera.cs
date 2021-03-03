@@ -18,6 +18,12 @@ namespace AerialRace
         public float FarPlane;
     }
 
+    enum ProjectionType
+    {
+        Perspective,
+        Orthographic,
+    }
+
     class Camera
     {
         public static RenderData.Buffer CameraData;
@@ -36,10 +42,15 @@ namespace AerialRace
 
         public Color4 ClearColor;
 
+        public ProjectionType ProjectionType;
+
         public float Fov;
         public Box2 Viewport;
         public float NearPlane;
         public float FarPlane;
+
+        // The vertical orthograpic size
+        public float OrthograpicSize;
 
         public float Aspect => (Viewport.Size.X * Screen.Width) / (Viewport.Size.Y * Screen.Height);
 
@@ -72,8 +83,21 @@ namespace AerialRace
 
         public void CalcProjectionMatrix(out Matrix4 projection)
         {
-            Matrix4.CreatePerspectiveFieldOfView(
-                Fov * (MathF.PI / 180f), Aspect, NearPlane, FarPlane, out projection);
+            switch (ProjectionType)
+            {
+                case ProjectionType.Perspective:
+                    Matrix4.CreatePerspectiveFieldOfView(
+                        Fov * (MathF.PI / 180f),
+                        Aspect, NearPlane, FarPlane, out projection);
+                    break;
+                case ProjectionType.Orthographic:
+                    Matrix4.CreateOrthographic(
+                        OrthograpicSize * Aspect, OrthograpicSize,
+                        0, FarPlane, out projection);
+                    break;
+                default:
+                    throw new Exception();
+            }
         }
 
         public void GetCameraDataBlock(out CameraData data)

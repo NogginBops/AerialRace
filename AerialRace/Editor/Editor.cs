@@ -25,8 +25,10 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(90, 0.1f, 100000f, Color4.Black);
+            EditorCamera = new Camera(/*90*/60, 0.1f, 100000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
+
+            EditorCamera.OrthograpicSize = 200;
 
             Gizmos.Init();
         }
@@ -36,6 +38,8 @@ namespace AerialRace.Editor
         {
             UpdateEditorCamera(keyboard, mouse, deltaTime);
             EditorCamera.Transform.UpdateMatrices();
+
+            EditorCameraSpeed = 100 + EditorCamera.Transform.WorldPosition.Length * 0.5f;
 
             Gizmos.UpdateInput(mouse, keyboard, Window.Size, EditorCamera);
 
@@ -47,6 +51,18 @@ namespace AerialRace.Editor
                      Undo.EditorUndoStack.TryRedo();
                 else Undo.EditorUndoStack.TryUndo();
                 Console.WriteLine("Undo!!!!");
+            }
+
+            if (ctrl && keyboard.IsKeyPressed(Keys.P))
+            {
+                if (EditorCamera.ProjectionType == ProjectionType.Perspective)
+                {
+                    EditorCamera.ProjectionType = ProjectionType.Orthographic;
+                }
+                else
+                {
+                    EditorCamera.ProjectionType = ProjectionType.Perspective;
+                }
             }
         }
 

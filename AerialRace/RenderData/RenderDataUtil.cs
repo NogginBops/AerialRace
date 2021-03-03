@@ -1,11 +1,11 @@
-﻿using AerialRace.Loading;
+﻿using AerialRace.Debugging;
+using AerialRace.Loading;
 using OpenTK.Graphics.GL;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -502,19 +502,25 @@ namespace AerialRace.RenderData
         public static void AddDepthAttachment(Framebuffer fbo, Texture depthTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthAttachment, depthTexture.Handle, mipLevel);
-            fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel);
+            fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel, 0);
+        }
+
+        public static void AddDepthLayerAttachment(Framebuffer fbo, Texture depthTexture, int mipLevel, int layer)
+        {
+            GL.NamedFramebufferTextureLayer(fbo.Handle, FramebufferAttachment.DepthAttachment, depthTexture.Handle, mipLevel, layer);
+            fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel, layer);
         }
 
         public static void AddStencilAttachment(Framebuffer fbo, Texture stencilTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.StencilAttachment, stencilTexture.Handle, mipLevel);
-            fbo.StencilAttachment = new FramebufferAttachmentTexture(stencilTexture, mipLevel);
+            fbo.StencilAttachment = new FramebufferAttachmentTexture(stencilTexture, mipLevel, 0);
         }
 
         public static void AddDepthStencilAttachment(Framebuffer fbo, Texture depthStencilTexture, int mipLevel)
         {
             GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthStencilAttachment, depthStencilTexture.Handle, mipLevel);
-            var depthStencil = new FramebufferAttachmentTexture(depthStencilTexture, mipLevel);
+            var depthStencil = new FramebufferAttachmentTexture(depthStencilTexture, mipLevel, 0);
             fbo.DepthAttachment = depthStencil;
             fbo.StencilAttachment = depthStencil;
         }
@@ -755,6 +761,24 @@ namespace AerialRace.RenderData
             return new ShadowSampler(name, sampler, ShadowSamplerType.Sampler2D, magFilter, minFilter, 0, -1000, 1000, anisoLevel, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false, depthCompMode, depthCompFunc);
         }
 
+        public static ShadowSampler CreateShadowSampler2DArray(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap, DepthTextureCompareMode depthCompMode, DepthTextureCompareFunc depthCompFunc)
+        {
+            GLUtil.CreateSampler(name, out int sampler);
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMaxAnisotropyExt, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
+
+            return new ShadowSampler(name, sampler, ShadowSamplerType.Sampler2DArray, magFilter, minFilter, 0, -1000, 1000, anisoLevel, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false, depthCompMode, depthCompFunc);
+        }
+
         public static Mesh CreateMesh(string name, MeshData data)
         {
             var indexbuffer = data.IndexType switch
@@ -802,6 +826,15 @@ namespace AerialRace.RenderData
             GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), width, height);
 
             return new Texture(name, texture, TextureType.Texture2D, format, width, height, 1, 0, 0, 1);
+        }
+
+        public static Texture CreateEmpty2DTextureArray(string name, TextureFormat format, int width, int height, int length)
+        {
+            GLUtil.CreateTexture(name, TextureTarget.Texture2DArray, out int texture);
+
+            GL.TextureStorage3D(texture, 1, ToGLSizedInternalFormat(format), width, height, length);
+
+            return new Texture(name, texture, TextureType.Texture2DArray, format, width, height, length, 0, 0, 1);
         }
 
         #endregion
@@ -1173,6 +1206,26 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static bool TryGetUniformInfo(string uniform, ShaderProgram? program, out UniformFieldInfo info)
+        {
+            if (program == null || program.UniformInfo == null)
+            {
+                info = default;
+                return false;
+            }
+
+            for (int i = 0; i < program.UniformInfo.Length; i++)
+            {
+                if (program.UniformInfo[i].Name == uniform)
+                {
+                    info = program.UniformInfo[i];
+                    return true;
+                }
+            }
+            info = default;
+            return false;
+        }
+
         public static void UniformProperty(ref Property property)
         {
             if (CurrentPipeline == null) throw new Exception();
@@ -1236,6 +1289,19 @@ namespace AerialRace.RenderData
             GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
         }
 
+        // FIXME: We probably want to handle matrices slightly different than we are currently doing
+        // uniform matrices atm only get their "[0]" name put into the reflected data
+        // we could change that but this is fine
+        public static void UniformMatrix4Array(string uniformName, ShaderStage stage, bool transpose, Matrix4[] matrices)
+        {
+            var prog = GetPipelineStage(stage);
+            if (TryGetUniformInfo(uniformName + "[0]", prog, out var info))
+            {
+                Debug.Assert(info.Size >= matrices.Length);
+                GL.ProgramUniformMatrix4(prog.Handle, info.Location, matrices.Length, transpose, ref matrices[0].Row0.X);
+            }
+        }
+
         public static void UniformMatrix3(string uniformName, ShaderStage stage, bool transpose, ref Matrix3 matrix)
         {
             var prog = GetPipelineStage(stage);
@@ -1276,6 +1342,14 @@ namespace AerialRace.RenderData
             GL.ProgramUniform1(prog.Handle, location, f);
         }
 
+        public static void Uniform4(string uniformName, ShaderStage stage, Vector4 vec4)
+        {
+            var prog = GetPipelineStage(stage);
+            var location = GetUniformLocation(uniformName, prog);
+
+            GL.ProgramUniform4(prog.Handle, location, vec4);
+        }
+
         public static void UniformBlock(string blockName, ShaderStage stage, Buffer buffer)
         {
             var program = GetPipelineStage(stage);
@@ -1301,11 +1375,6 @@ namespace AerialRace.RenderData
 
         public static void BindTexture(int unit, Texture texture, Sampler sampler)
         {
-            if (BoundTextures[unit]?.Type != sampler.Type.ToTextureType())
-            {
-                Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
-            }
-
             BindTexture(unit, texture);
             BindSampler(unit, sampler);
         }
@@ -1351,26 +1420,25 @@ namespace AerialRace.RenderData
 
         public static void BindSampler(int unit, Sampler sampler)
         {
-            if (BoundSamplers[unit] != sampler)
-            {
-                GL.BindSampler(unit, sampler.Handle);
-
-                BoundSamplers[unit] = sampler;
-            }
+            BindSampler(unit, (ISampler)sampler);
         }
 
         public static void BindSampler(int unit, ShadowSampler sampler)
         {
-            if (BoundSamplers[unit] != sampler)
-            {
-                GL.BindSampler(unit, sampler.Handle);
-
-                BoundSamplers[unit] = sampler;
-            }
+            BindSampler(unit, (ISampler)sampler);
         }
 
         public static void BindSampler(int unit, ISampler? sampler)
         {
+            var boundTexture = BoundTextures[unit];
+            if (boundTexture != null && sampler != null)
+            {
+                if (boundTexture.Type != sampler.Type)
+                {
+                    Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{boundTexture.Type}' (sampler type: {sampler.Type})");
+                }
+            }
+            
             if (BoundSamplers[unit] != sampler)
             {
                 GL.BindSampler(unit, sampler?.Handle ?? 0);

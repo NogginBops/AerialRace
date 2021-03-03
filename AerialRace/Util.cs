@@ -240,5 +240,22 @@ namespace AerialRace
         {
             return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
         }
+
+        public static float LinearDepthToNDC(float linearDepth, float nearPlane, float farPlane)
+        {
+            var diff = farPlane - nearPlane;
+            return (farPlane + nearPlane) / diff - (2 * nearPlane * farPlane) / (linearDepth * diff);
+        }
+
+        public static float NDCDepthToLinear(float ndcDepth, float nearPlane, float farPlane)
+        {
+            return (2 * nearPlane * farPlane) / (farPlane + nearPlane - ndcDepth * (farPlane - nearPlane));
+        }
+
+        public static Vector3 UnprojectNDC(Vector3 ndc, ref Matrix4 inverseViewMatrix)
+        {
+            return Vector3.TransformPerspective(ndc, inverseViewMatrix);
+        }
+
     }
 }

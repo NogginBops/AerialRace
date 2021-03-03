@@ -22,6 +22,11 @@ namespace AerialRace.RenderData
         public int Size;
         // FIXME: Leaking GL enum
         public ActiveUniformType Type;
+
+        public override string ToString()
+        {
+            return $"'{Name}', location={Location}, size={Size}, type={Type}";
+        }
     }
 
     // FIXME: We could add layout data here but I think we will only use std140
