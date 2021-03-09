@@ -833,7 +833,7 @@ namespace AerialRace.RenderData
             GLUtil.CreateTexture(name, TextureTarget.Texture2DArray, out int texture);
 
             GL.TextureStorage3D(texture, 1, ToGLSizedInternalFormat(format), width, height, length);
-
+            
             return new Texture(name, texture, TextureType.Texture2DArray, format, width, height, length, 0, 0, 1);
         }
 

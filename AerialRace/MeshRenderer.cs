@@ -95,7 +95,7 @@ namespace AerialRace
                 {
                     RenderDataUtil.UsePipeline(material.Pipeline);
                 }
-
+                
                 // Because the matrices should all be updated we don't need to calculate it again
                 //transform.GetTransformationMatrix(out var model);
                 var model = transform.LocalToWorld;
