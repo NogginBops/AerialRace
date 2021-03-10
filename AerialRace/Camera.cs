@@ -40,7 +40,7 @@ namespace AerialRace
 
         public Transform Transform;
 
-        public Color4 ClearColor;
+        public Color4<Rgba> ClearColor;
 
         public ProjectionType ProjectionType;
 
@@ -58,7 +58,7 @@ namespace AerialRace
         // We can remove this later
         public float YAxisRotation, XAxisRotation;
 
-        public Camera(float fov, float near, float far, Color4 clear)
+        public Camera(float fov, float near, float far, Color4<Rgba> clear)
         {
             Transform = new Transform();
             ClearColor = clear;

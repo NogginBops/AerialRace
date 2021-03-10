@@ -76,7 +76,7 @@ namespace AerialRace
                 }
 
                 RenderDataUtil.DrawArrays(
-                    OpenTK.Graphics.OpenGL4.PrimitiveType.LineStrip,
+                    OpenTK.Graphics.OpenGL.PrimitiveType.LineStrip,
                     0,
                     vertices);
             }

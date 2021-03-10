@@ -2,7 +2,7 @@
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Desktop;
@@ -178,17 +178,17 @@ void main()
         /// <summary>
         /// Recreates the device texture used to render text.
         /// </summary>
-        public void RecreateFontDeviceTexture()
+        public unsafe void RecreateFontDeviceTexture()
         {
             ImGuiIOPtr io = ImGui.GetIO();
             io.Fonts.GetTexDataAsRGBA32(out IntPtr pixels, out int width, out int height, out int bytesPerPixel);
 
             _textureSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Nearest, MinFilter.LinearMipmapLinear, 1.0f, WrapMode.Repeat, WrapMode.Repeat);
 
-            GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2D, out var glTexture);
+            GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2d, out var glTexture);
 
-            GL.TextureStorage2D(glTexture, 1, SizedInternalFormat.Rgba8, width, height);
-            GL.TextureSubImage2D(glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
+            GL.TextureStorage2D((uint)glTexture, 1, SizedInternalFormat.Rgba8, width, height);
+            GL.TextureSubImage2D((uint)glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, (void*)pixels);
 
             _fontTexture = new Texture("ImGui Text Atlas", glTexture, TextureType.Texture2D, TextureFormat.Rgba8, width, height, 1, 0, 0, 0);
 
@@ -379,7 +379,7 @@ void main()
 
             GL.Enable(EnableCap.Blend);
             GL.Enable(EnableCap.ScissorTest);
-            GL.BlendEquation(BlendEquationMode.FuncAdd);
+            GL.BlendEquation(BlendEquationModeEXT.FuncAdd);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.Disable(EnableCap.CullFace);
             RenderDataUtil.SetDepthTesting(false);
@@ -391,10 +391,14 @@ void main()
             {
                 ImDrawListPtr cmd_list = draw_data.CmdListsRange[n];
 
-                GL.NamedBufferSubData(VertexBuffer.Handle, IntPtr.Zero, cmd_list.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), cmd_list.VtxBuffer.Data);
-                
-                GL.NamedBufferSubData(IndexBuffer.Handle, IntPtr.Zero, cmd_list.IdxBuffer.Size * sizeof(ushort), cmd_list.IdxBuffer.Data);
-                
+
+                unsafe
+                {
+                    GL.NamedBufferSubData((uint)VertexBuffer.Handle, IntPtr.Zero, cmd_list.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), (void*)cmd_list.VtxBuffer.Data);
+
+                    GL.NamedBufferSubData((uint)IndexBuffer.Handle, IntPtr.Zero, cmd_list.IdxBuffer.Size * sizeof(ushort), (void*)cmd_list.IdxBuffer.Data);
+                }
+
                 int vtx_offset = 0;
                 int idx_offset = 0;
 
@@ -458,7 +462,7 @@ void main()
                         }
                         else
                         {
-                            GL.DrawElements(BeginMode.Triangles, (int)pcmd.ElemCount, DrawElementsType.UnsignedShort, (int)pcmd.IdxOffset * sizeof(ushort));
+                            GL.DrawElements(PrimitiveType.Triangles, (int)pcmd.ElemCount, DrawElementsType.UnsignedShort, (int)pcmd.IdxOffset * sizeof(ushort));
                         }
                     }
 

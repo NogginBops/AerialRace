@@ -54,7 +54,7 @@ namespace AerialRace
             Model = RenderDataUtil.CreateMesh(name, meshData);
             Material = material;
 
-            Camera = new Camera(100, 0.1f, 10_000f, new Color4(1f, 0, 1f, 1f));
+            Camera = new Camera(100, 0.1f, 10_000f, new Color4<Rgba>(1f, 0, 1f, 1f));
             Camera.Transform.Name = "Player Camera";
             Camera.Transform.LocalPosition = CameraOffset;
 

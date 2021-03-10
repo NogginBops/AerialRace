@@ -1,6 +1,6 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.RenderData;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using SixLabors.ImageSharp.Processing;
 using System;
@@ -14,9 +14,9 @@ namespace AerialRace
     struct SkySettings
     {
         public Vector3 SunDirection;
-        public Color4 SunColor;
-        public Color4 SkyColor;
-        public Color4 GroundColor;
+        public Color4<Rgba> SunColor;
+        public Color4<Rgba> SkyColor;
+        public Color4<Rgba> GroundColor;
     }
 
     // FIXME: Add transparent switch!
@@ -32,7 +32,7 @@ namespace AerialRace
 
         public SkySettings Sky;
         // FIXME: We can use the procedural skybox for ambient light
-        public Color4 AmbientLight;
+        public Color4<Rgba> AmbientLight;
 
         public bool UseShadows;
         public Texture? ShadowMap;
@@ -176,7 +176,7 @@ namespace AerialRace
 
                 RenderDataUtil.DrawElements(
                     // FIXME: Make our own primitive type enum
-                    OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles,
+                    OpenTK.Graphics.OpenGL.PrimitiveType.Triangles,
                     instance.Mesh.Indices!.Elements,
                     instance.Mesh.Indices.IndexType, 0);
             }

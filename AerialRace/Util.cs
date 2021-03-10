@@ -190,11 +190,11 @@ namespace AerialRace
         public static ref Quaternion AsOpenTK(ref this System.Numerics.Quaternion quat) =>
             ref Unsafe.As<System.Numerics.Quaternion, Quaternion>(ref quat);
 
-        public static ref System.Numerics.Vector4 AsNumerics4(ref this Color4 col) =>
-            ref Unsafe.As<Color4, System.Numerics.Vector4>(ref col);
+        public static ref System.Numerics.Vector4 AsNumerics4(ref this Color4<Rgba> col) =>
+            ref Unsafe.As<Color4<Rgba>, System.Numerics.Vector4>(ref col);
 
-        public static ref System.Numerics.Vector3 AsNumerics3(ref this Color4 col) =>
-            ref Unsafe.As<Color4, System.Numerics.Vector3>(ref col);
+        public static ref System.Numerics.Vector3 AsNumerics3(ref this Color4<Rgba> col) =>
+            ref Unsafe.As<Color4<Rgba>, System.Numerics.Vector3>(ref col);
 
         public static Vector3 Abs(this Vector3 vec3) =>
             new Vector3(MathF.Abs(vec3.X), MathF.Abs(vec3.Y), MathF.Abs(vec3.Z));
@@ -236,9 +236,11 @@ namespace AerialRace
             return mappedPos;
         }
 
-        public static Color4 NextColorHue(this Random rand, float saturation, float value)
+        public static Color4<Rgba> NextColorHue(this Random rand, float saturation, float value)
         {
-            return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
+            // FIXME:
+            return default;
+            //return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
         }
 
         public static float LinearDepthToNDC(float linearDepth, float nearPlane, float farPlane)

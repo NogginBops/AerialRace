@@ -1,4 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -21,7 +21,7 @@ namespace AerialRace.RenderData
         public string Name;
         public int Size;
         // FIXME: Leaking GL enum
-        public ActiveUniformType Type;
+        public UniformType Type;
 
         public override string ToString()
         {

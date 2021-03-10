@@ -55,7 +55,7 @@ namespace AerialRace.Debugging
                             RenderDataUtil.BindTexture(0, command.Texture);
                             RenderDataUtil.BindSampler(0, (ISampler?)null);
 
-                            RenderDataUtil.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)command.Command, command.ElementCount, IndexBufferType.UInt32, indexBufferOffset * sizeof(uint));
+                            RenderDataUtil.DrawElements((OpenTK.Graphics.OpenGL.PrimitiveType)command.Command, command.ElementCount, IndexBufferType.UInt32, indexBufferOffset * sizeof(uint));
                             
                             indexBufferOffset += command.ElementCount;
                         }

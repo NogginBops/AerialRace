@@ -172,9 +172,9 @@ namespace AerialRace.Editor
                 // FIXME: Make our own enum
                 RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
                     Gizmos.GizmosOverlay,
-                    default(Color4),
-                    OpenTK.Graphics.OpenGL4.ClearBufferMask.ColorBufferBit |
-                    OpenTK.Graphics.OpenGL4.ClearBufferMask.DepthBufferBit);
+                    default(Color4<Rgba>),
+                    OpenTK.Graphics.OpenGL.ClearBufferMask.ColorBufferBit |
+                    OpenTK.Graphics.OpenGL.ClearBufferMask.DepthBufferBit);
 
                 RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
 
@@ -210,7 +210,7 @@ namespace AerialRace.Editor
 
                     // FIXME: Setup correct blend mode
 
-                    OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
+                    OpenTK.Graphics.OpenGL.GL.DrawArrays(OpenTK.Graphics.OpenGL.PrimitiveType.Triangles, 0, 3);
 
                     // Important to unbind this texture so that we can draw to it later.
                     RenderDataUtil.BindTexture(0, null);

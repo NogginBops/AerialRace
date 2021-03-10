@@ -1,6 +1,6 @@
 ﻿using OpenTK;
 using OpenTK.Graphics;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace AerialRace.Debugging
     {
         bool Contains(Vector2 point);
 
-        void DebugDraw(DrawList list, Color4 Color);
+        void DebugDraw(DrawList list, Color4<Rgba> Color);
     }
 
     struct Triangle : IShape
@@ -44,7 +44,7 @@ namespace AerialRace.Debugging
             return PointInTriangle(point, A, B, C);
         }
 
-        public void DebugDraw(DrawList list, Color4 color)
+        public void DebugDraw(DrawList list, Color4<Rgba> color)
         {
             // FIXME! UV coordinates??
             list.Prewarm(3);
@@ -67,7 +67,7 @@ namespace AerialRace.Debugging
             return InnerRadius * InnerRadius < dist && dist < OuterRadius * OuterRadius;
         }
 
-        public void DebugDraw(DrawList list, Color4 color)
+        public void DebugDraw(DrawList list, Color4<Rgba> color)
         {
             DebugHelper.OutlineCircle(list, Center, InnerRadius, color, 20);
             DebugHelper.OutlineCircle(list, Center, OuterRadius, color, 20);

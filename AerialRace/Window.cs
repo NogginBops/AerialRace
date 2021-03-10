@@ -6,7 +6,7 @@ using AerialRace.RenderData;
 using AerialRace.Particles;
 using AerialRace.Mathematics;
 using ImGuiNET;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using OpenTK.Graphics;
 
 namespace AerialRace
 {
@@ -89,19 +90,29 @@ namespace AerialRace
         public Lights Lights;
 
         //EntityManager Manager = new EntityManager();
-
-        private readonly static DebugProc DebugProcCallback = Window_DebugProc;
+        
+        private readonly unsafe static GLDebugProc DebugProcCallback = Window_DebugProc2;
 #pragma warning disable IDE0052 // Remove unread private members
         private static GCHandle DebugProcGCHandle;
 #pragma warning restore IDE0052 // Remove unread private members
-
+        
         protected override void OnLoad()
         {
             base.OnLoad();
             Directory.SetCurrentDirectory("..\\..\\..\\Assets");
 
-            DebugProcGCHandle = GCHandle.Alloc(DebugProcCallback, GCHandleType.Normal);
-            GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
+            //GL.DebugMessageCallback(DebugProcCallback, IntPtr.Zero);
+            var bcontext = (OpenTK.IBindingsContext)typeof(GLLoader).GetProperty("BindingsContext", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.GetProperty)!.GetValue(null)!;
+            unsafe
+            {
+                var debugMessageCallback = (delegate*<IntPtr, void*, void>)bcontext.GetProcAddress("glDebugMessageCallback");
+
+                var fptr = Marshal.GetFunctionPointerForDelegate(DebugProcCallback);
+                DebugProcGCHandle = GCHandle.Alloc(DebugProcCallback, GCHandleType.Normal);
+
+                debugMessageCallback(fptr, null);
+            }
+
             GL.Enable(EnableCap.DebugOutput);
 #if DEBUG
             // Disables two core driver, we don't want this in a release build
@@ -137,7 +148,7 @@ namespace AerialRace
             Debug.Init(Width, Height);
 
             Lights = new Lights();
-            var light1 = Lights.AddPointLight("Light 1", new Vector3(1, 5, 1), Color4.AntiqueWhite, 30, 100);
+            var light1 = Lights.AddPointLight("Light 1", new Vector3(1, 5, 1), Color4.White/*AntiqueWhite*/, 30, 100);
 
             Transform randLights = new Transform("Lights");
             Random rand = new Random();
@@ -362,10 +373,10 @@ namespace AerialRace
             var sunPosition = new Vector3(100, 100, 0);
             Sky = new SkyRenderer(skyMat,
                 sunPosition.Normalized(),
-                new Color4(1f, 1f, 1f, 1f),
-                //new Color4(2f, 3f, 6f, 1f),
-                new Color4(2f/6f, 3f/6f, 6f/6f, 1f),
-                new Color4(0.188f, 0.082f, 0.016f, 1f));
+                new Color4<Rgba>(1f, 1f, 1f, 1f),
+                //new Color4<Rgba>(2f, 3f, 6f, 1f),
+                new Color4<Rgba>(2f/6f, 3f/6f, 6f/6f, 1f),
+                new Color4<Rgba>(0.188f, 0.082f, 0.016f, 1f));
 
             Editor.Editor.InitEditor(this);
 
@@ -449,7 +460,7 @@ namespace AerialRace
 
             RenderDataUtil.SetColorWrite(ColorChannels.All);
 
-            GL.ClearColor(camera.ClearColor);
+            GL.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             SkySettings skySettings = new SkySettings()
@@ -514,7 +525,7 @@ namespace AerialRace
                             FarPlane = camera.FarPlane,
 
                             Sky = skySettings,
-                            AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                            AmbientLight = new Color4<Rgba>(0.1f, 0.1f, 0.1f, 1f),
 
                             Lights = Lights,
                         };
@@ -606,7 +617,7 @@ namespace AerialRace
                     FarPlane = camera.FarPlane,
 
                     Sky = skySettings,
-                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                    AmbientLight = new Color4<Rgba>(0.1f, 0.1f, 0.1f, 1f),
 
                     Lights = Lights,
                 };
@@ -636,7 +647,7 @@ namespace AerialRace
                     FarPlane = camera.FarPlane,
 
                     Sky = skySettings,
-                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                    AmbientLight = new Color4<Rgba>(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
@@ -672,7 +683,7 @@ namespace AerialRace
                     FarPlane = camera.FarPlane,
 
                     Sky = skySettings,
-                    AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
+                    AmbientLight = new Color4<Rgba>(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
                     ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
@@ -687,12 +698,12 @@ namespace AerialRace
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
                 RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
                 RenderDataUtil.SetBlendModeFull(true,
-                    BlendEquationMode.FuncAdd,
-                    BlendEquationMode.FuncAdd,
-                    BlendingFactorSrc.SrcAlpha,
-                    BlendingFactorDest.OneMinusSrcAlpha,
-                    BlendingFactorSrc.SrcAlpha,
-                    BlendingFactorDest.OneMinusSrcAlpha);
+                    BlendEquationModeEXT.FuncAdd,
+                    BlendEquationModeEXT.FuncAdd,
+                    BlendingFactor.SrcAlpha,
+                    BlendingFactor.OneMinusSrcAlpha,
+                    BlendingFactor.SrcAlpha,
+                    BlendingFactor.OneMinusSrcAlpha);
 
                 // FIXME: Add transparent switch to render pass thing!
                 //SkyRenderer.Render(ref transparentPass);
@@ -864,6 +875,55 @@ namespace AerialRace
             base.OnTextInput(e);
 
             ImGuiController.PressChar((char)e.Unicode);
+        }
+
+        private static unsafe void Window_DebugProc2(/*DebugSource*/uint source, /*DebugType*/uint type, uint id, /*DebugSeverity*/uint severity, int length, char* messagePtr, void* userParam)
+        {
+            string message = Marshal.PtrToStringAnsi((IntPtr)messagePtr, length);
+
+            bool showMessage = true;
+
+            switch ((DebugSource)source)
+            {
+                case DebugSource.DebugSourceApplication:
+                    showMessage = false;
+                    break;
+                case DebugSource.DontCare:
+                case DebugSource.DebugSourceApi:
+                case DebugSource.DebugSourceWindowSystem:
+                case DebugSource.DebugSourceShaderCompiler:
+                case DebugSource.DebugSourceThirdParty:
+                case DebugSource.DebugSourceOther:
+                default:
+                    showMessage = true;
+                    break;
+            }
+
+            if (showMessage)
+            {
+                switch ((DebugSeverity)severity)
+                {
+                    case DebugSeverity.DontCare:
+                        Debug.Print($"[DontCare] {message}");
+                        break;
+                    case DebugSeverity.DebugSeverityNotification:
+                        //Debug.Print($"[Notification] [{source}] {message}");
+                        break;
+                    case DebugSeverity.DebugSeverityHigh:
+                        Debug.Print($"[Error] [{source}] {message}");
+                        Debug.Break();
+                        break;
+                    case DebugSeverity.DebugSeverityMedium:
+                        Debug.Print($"[Warning] [{source}] {message}");
+                        break;
+                    case DebugSeverity.DebugSeverityLow:
+                        Debug.Print($"[Info] [{source}] {message}");
+                        break;
+                    default:
+                        Debug.Print($"[default] {message}");
+                        break;
+                }
+            }
         }
 
         private static void Window_DebugProc(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)
