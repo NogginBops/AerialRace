@@ -796,6 +796,8 @@ namespace AerialRace.RenderData
             // Create a mesh with no submeshes.
             var mesh = new Mesh(name, indexbuffer, null);
 
+            mesh.AABB = data.AABB;
+
             // Add the vertex data stream with the standard attribute layout.
             var stdVertex = mesh.AddBuffer(vertbuffer);
             mesh.AddAttributes(BuiltIn.StandardAttributes);

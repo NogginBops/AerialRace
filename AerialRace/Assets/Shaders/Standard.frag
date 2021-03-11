@@ -4,6 +4,7 @@
 #include <Common/Lighting.glsl>
 #include <Common/Sky.glsl>
 #include <Common/Shadows.glsl>
+#include <Common/Camera.glsl>
 
 in VertexOutput
 {
@@ -14,8 +15,6 @@ in VertexOutput
 };
 
 out vec4 Color;
-
-uniform vec3 ViewPos;
 
 uniform sampler2D AlbedoTex;
 uniform sampler2D NormalTex;
@@ -71,7 +70,7 @@ void main(void)
     N = normal;
 
     vec3 lightDir = sky.SunDirection;
-    vec3 viewDir = normalize(ViewPos - fragPos.xyz);
+    vec3 viewDir = normalize(camera.position - fragPos.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 
     vec3 albedo = vec3(texture(AlbedoTex, fragUV));
@@ -85,7 +84,7 @@ void main(void)
     //ambient = vec3(0);
     //diffuse = vec3(0);
 
-    vec3 V = normalize(ViewPos - fragPos.xyz);
+    vec3 V = normalize(camera.position - fragPos.xyz);
 
     vec3 lightColor = vec3(0);
     for (int i = 0; i < lights.lightCount; i++)
@@ -143,10 +142,10 @@ void main(void)
     */
     }
 
-    float shadow = 1f - ShadowCalculation(fragPos.xyz, normal, sky.SunDirection);
+    float shadow = 1f - ShadowCalculation(fragPos.xyz, linearDepth(), normal, sky.SunDirection);
 
-    vec4 depthDebug = GetShadowCascadeDebugColor(ShadowCascadeFromDepth(gl_FragCoord.z));
+    vec4 depthDebug = GetShadowCascadeDebugColor(ShadowCascadeFromDepth(linearDepth()));
 
-    Color = vec4(ambient + diffuse * shadow + lightColor, 1) + depthDebug;
+    Color = vec4(ambient + diffuse * shadow + lightColor, 1);// + depthDebug;
 }
 

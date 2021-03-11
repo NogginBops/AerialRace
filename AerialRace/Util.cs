@@ -169,6 +169,8 @@ namespace AerialRace
             return true;
         }
 
+
+
         public static System.Numerics.Vector3 ToNumerics(this Vector3 vec3) =>
             Unsafe.As<Vector3, System.Numerics.Vector3>(ref vec3);
 
@@ -196,8 +198,15 @@ namespace AerialRace
         public static ref System.Numerics.Vector3 AsNumerics3(ref this Color4 col) =>
             ref Unsafe.As<Color4, System.Numerics.Vector3>(ref col);
 
+
+
         public static Vector3 Abs(this Vector3 vec3) =>
             new Vector3(MathF.Abs(vec3.X), MathF.Abs(vec3.Y), MathF.Abs(vec3.Z));
+
+        public static Vector3 Proj(this Vector3 vec, Vector3 projectOn)
+        {
+            return Vector3.Dot(vec, projectOn) * projectOn;
+        }
 
         public static float LinearStep(float x, float edge0, float edge1)
         {
@@ -256,6 +265,8 @@ namespace AerialRace
         {
             return Vector3.TransformPerspective(ndc, inverseViewMatrix);
         }
+
+
 
         public static bool Before(this DateTime before, DateTime later)
         {

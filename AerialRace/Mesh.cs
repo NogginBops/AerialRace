@@ -1,5 +1,6 @@
 ﻿using AerialRace.Loading;
 using AerialRace.RenderData;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -45,6 +46,8 @@ namespace AerialRace
         public AttributeBufferLink[] AttributeBufferLinks;
 
         public Submesh[]? Submeshes;
+
+        public Box3 AABB;
 
         public Mesh(string name, IndexBuffer? indices, Submesh[]? submeshes)
         {

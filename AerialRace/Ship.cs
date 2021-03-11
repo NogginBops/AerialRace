@@ -39,6 +39,9 @@ namespace AerialRace
 
         public Vector3 Velocity;
 
+        // FIXME: Get this from something? don't hard code it
+        public Vector3 TailRudderOffset = new Vector3(0, /*1.4542f*/0, 5.324f);
+
         public float ForwardArea;
         public float UpwardsArea;
 
@@ -124,7 +127,7 @@ namespace AerialRace
             }
 
             RigidBody.Body.ApplyLinearImpulse((verticalLift).AsNumerics());
-            Debug.Direction(Transform.LocalPosition, verticalLift/RigidBody.Mass, Color4.Lime);
+            Debug.Direction(Transform.LocalPosition, verticalLift / RigidBody.Mass, Color4.Lime);
 
             RigidBody.Body.ApplyLinearImpulse((lateralLift * deltaTime).ToNumerics());
             Debug.Direction(Transform.LocalPosition, lateralLift, Color4.Lime);
@@ -137,6 +140,37 @@ namespace AerialRace
             RigidBody.Body.ApplyLinearImpulse((Transform.Forward * CurrentAcceleration * RigidBody.Mass).ToNumerics());
 
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
+
+            if (state.IsKeyPressed(Keys.B))
+            {
+                Debug.Break();
+            }
+
+            const float RudderLiftFactor = 0.1f;
+            const float rudderArea = 4f;
+            Vector3 rudderVelocity = default;
+            var tail = Vector3.TransformVector(TailRudderOffset, Transform.LocalToWorld);
+            RigidBody.Body.GetVelocityForOffset(tail.AsNumerics(), out rudderVelocity.AsNumerics());
+
+            var perpRudderVelocity = rudderVelocity.Proj(Transform.Right);
+            var reactionForce = RudderLiftFactor * ((density * -perpRudderVelocity) / 2f) * rudderArea;
+            RigidBody.Body.ApplyImpulse(reactionForce.AsNumerics(), TailRudderOffset.AsNumerics());
+
+            Debug.Direction(
+                Transform.WorldPosition,
+                RigidBody.Body.Velocity.Angular.AsOpenTK(), Color4.Cyan);
+
+            Debug.Direction(
+                Vector3.TransformPosition(TailRudderOffset, Transform.LocalToWorld),
+                rudderVelocity, Color4.Red);
+
+            Debug.Direction(
+                Vector3.TransformPosition(TailRudderOffset, Transform.LocalToWorld),
+                perpRudderVelocity, Color4.Pink);
+
+            Debug.Direction(
+                Vector3.TransformPosition(TailRudderOffset, Transform.LocalToWorld),
+                reactionForce, Color4.Yellow);
 
             float separation = 4.5f;
             LeftTrail.Update(-Transform.Right * separation + Transform.WorldPosition, deltaTime);
@@ -201,6 +235,8 @@ namespace AerialRace
         }
 
 
+        public KeyboardState state;
+
         public float BoostTimer = 0f;
         public float BoostTime = 0.4f;
         public float BoostForce = 500000;
@@ -213,6 +249,8 @@ namespace AerialRace
         public float CurrentAcceleration;
         public void UpdateControls(KeyboardState keyboard, float deltaTime)
         {
+            state = keyboard;
+
             float pitchForce = 1000;
             float yawForce = 2500;
             float rollForce = 2000;

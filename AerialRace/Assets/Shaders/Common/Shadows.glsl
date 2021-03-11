@@ -54,11 +54,11 @@ vec4 GetShadowCascadeDebugColor(int cascade)
     }
 }
 
-float ShadowCalculation(vec3 worldPos, vec3 normal, vec3 lightDir)
+float ShadowCalculation(vec3 worldPos, float depth, vec3 normal, vec3 lightDir)
 {
     if (!UseShadows) return 0;
 
-    int level = ShadowCascadeFromDepth(gl_FragCoord.z);
+    int level = ShadowCascadeFromDepth(depth);
 
     vec4 fragPosLightSpace = vec4(worldPos, 1) * worldToLightSpace[level];
 

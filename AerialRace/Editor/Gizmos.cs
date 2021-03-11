@@ -541,6 +541,11 @@ namespace AerialRace.Editor
             Billboard(GizmoDrawList, pos, right, up, size, EditorResources.PointLightIcon, color);
         }
 
+        public static void RenderAABBGizmo(Transform transform, MeshRenderer renderer)
+        {
+
+        }
+
         public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4 color)
         {
             list.Prewarm(4);

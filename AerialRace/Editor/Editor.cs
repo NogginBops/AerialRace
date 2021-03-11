@@ -25,7 +25,7 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(/*90*/60, 0.1f, 100000f, Color4.Black);
+            EditorCamera = new Camera(/*90*/60, 0.1f, 10000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
 
             EditorCamera.OrthograpicSize = 200;

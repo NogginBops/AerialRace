@@ -66,12 +66,47 @@ namespace AerialRace
         public Transform Transform;
         public Mesh Mesh;
         public Material Material;
+        public bool CastShadows;
 
         public MeshRenderer(Transform transform, Mesh mesh, Material material) : base()
         {
             Transform = transform;
             Mesh = mesh;
             Material = material;
+            CastShadows = true;
+        }
+
+        public static Box3 RecalculateAABB(Box3 AABB, Transform transform)
+        {
+            // http://www.realtimerendering.com/resources/GraphicsGems/gems/TransBox.c
+
+            var l2w = transform.LocalToWorld;
+            var rotation = new Matrix3(l2w);
+            var translation = l2w.Row3.Xyz;
+
+            Span<float> Amin = stackalloc float[3];
+            Span<float> Amax = stackalloc float[3];
+            Span<float> Bmin = stackalloc float[3];
+            Span<float> Bmax = stackalloc float[3];
+
+            Amin[0] = AABB.Min.X; Amax[0] = AABB.Max.X;
+            Amin[1] = AABB.Min.Y; Amax[1] = AABB.Max.Y;
+            Amin[2] = AABB.Min.Z; Amax[2] = AABB.Max.Z;
+
+            Bmin[0] = Bmax[0] = translation.X;
+            Bmin[1] = Bmax[1] = translation.Y;
+            Bmin[2] = Bmax[2] = translation.Z;
+
+            for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+            {
+                var a = rotation[j, i] * Amin[j];
+                var b = rotation[j, i] * Amax[j];
+                Bmin[i] += a < b ? a : b;
+                Bmax[i] += a < b ? b : a;
+            }
+
+            return new Box3(Bmin[0], Bmin[1], Bmin[2], Bmax[0], Bmax[1], Bmax[2]);
         }
 
         // FIXME: Passes
@@ -117,6 +152,13 @@ namespace AerialRace
                 RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
                 RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
 
+                RenderDataUtil.Uniform1("camera.near", ShaderStage.Vertex, settings.NearPlane);
+                RenderDataUtil.Uniform1("camera.near", ShaderStage.Fragment, settings.NearPlane);
+                RenderDataUtil.Uniform1("camera.far", ShaderStage.Vertex, settings.FarPlane);
+                RenderDataUtil.Uniform1("camera.far", ShaderStage.Fragment, settings.FarPlane);
+                RenderDataUtil.UniformVector3("camera.position", ShaderStage.Vertex, settings.ViewPos);
+                RenderDataUtil.UniformVector3("camera.position", ShaderStage.Fragment, settings.ViewPos);
+
                 if (settings.LightMatrices != null)
                 {
                     RenderDataUtil.UniformMatrix4Array("worldToLightSpace", ShaderStage.Fragment, true, settings.LightMatrices);
@@ -125,8 +167,6 @@ namespace AerialRace
                 
                 //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
                 //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
-
-                RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 
                 RenderDataUtil.UniformVector3("sky.SunDirection", ShaderStage.Fragment, settings.Sky.SunDirection);
                 RenderDataUtil.UniformVector3("sky.SunColor", ShaderStage.Fragment, settings.Sky.SunColor);
@@ -176,9 +216,21 @@ namespace AerialRace
 
                 RenderDataUtil.DrawElements(
                     // FIXME: Make our own primitive type enum
-                    OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles,
+                    PrimitiveType.Triangles,
                     instance.Mesh.Indices!.Elements,
                     instance.Mesh.Indices.IndexType, 0);
+            }
+        }
+
+        public static void RenderAABBs(DrawList list)
+        {
+            foreach (var instance in Instances)
+            {
+                var transform = instance.Transform;
+                var mesh = instance.Mesh;
+                var AABB = RecalculateAABB(mesh.AABB, transform);
+
+                DebugHelper.OutlineBox(list, AABB, Color4.Yellow);
             }
         }
     }

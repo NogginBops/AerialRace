@@ -252,6 +252,7 @@ namespace AerialRace
                 for (int i = 0; i < terrainMeshData.Vertices.Length; i++)
                 {
                     terrainMeshData.Vertices[i].Position *= 400;
+                    terrainMeshData.AABB.Inflate(terrainMeshData.Vertices[i].Position);
                 }
                 Mesh terrainMesh = RenderDataUtil.CreateMesh("Terrain", terrainMeshData);
 
@@ -481,6 +482,7 @@ namespace AerialRace
             Span<Matrix4> lightSpaces = stackalloc Matrix4[Cascades];
 
             Camera shadowCamera = Player.Camera;
+            shadowCamera = camera;
 
             Span<float> splits = stackalloc float[Cascades];
             for (int i = 0; i < splits.Length; i++)
@@ -567,6 +569,11 @@ namespace AerialRace
                 CascadeSplits.Z = Util.LinearDepthToNDC(splits[2], shadowCamera.NearPlane, shadowCamera.FarPlane);
                 CascadeSplits.W = Util.LinearDepthToNDC(splits[3], shadowCamera.NearPlane, shadowCamera.FarPlane);
 
+                CascadeSplits.X = splits[0];
+                CascadeSplits.Y = splits[1];
+                CascadeSplits.Z = splits[2];
+                CascadeSplits.W = splits[3];
+
                 ImGui.Text($"Cascade 1: {splits[0]}m ({CascadeSplits.X})");
                 ImGui.Text($"Cascade 2: {splits[1]}m ({CascadeSplits.Y})");
                 ImGui.Text($"Cascade 3: {splits[2]}m ({CascadeSplits.Z})");
@@ -646,7 +653,7 @@ namespace AerialRace
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
-                    ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
+                    ShadowMap = ShadowmapCascadeArray,
                     ShadowSampler = ShadowSampler,
                     Cascades = CascadeSplits,
                     LightMatrices = lightMatrices,
@@ -682,7 +689,7 @@ namespace AerialRace
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
                     UseShadows = true,
-                    ShadowMap = Shadowmap.DepthAttachment.Value.Texture,
+                    ShadowMap = ShadowmapCascadeArray,
                     ShadowSampler = ShadowSampler,
                     Cascades = CascadeSplits,
                     LightMatrices = lightMatrices,
@@ -706,6 +713,23 @@ namespace AerialRace
                 //MeshRenderer.Render(ref transparentPass);
                 TrailRenderer.Render(ref transparentPass);
 
+                //MeshRenderer.RenderAABBs(Debug.DepthTestList);
+
+                //var frustum = Shadows.SliceFrustum(shadowCamera, splits[0], splits[1]);
+
+                //DebugHelper.Quad(Debug.DepthTestList, frustum.Near00, frustum.Near01, frustum.Near10, frustum.Near11, new Color4(1, 0, 0, 0.5f));
+
+                DrawListSettings drawListSettings = new DrawListSettings
+                {
+                    DepthTest = true,
+                    DepthWrite = false,
+                    Vp = camera.Transform.WorldToLocal * proj,
+                    CullMode = RenderDataUtil.CullMode.None,
+                };
+
+                RenderDataUtil.UsePipeline(Debug.DebugPipeline);
+                //DrawListRenderer.RenderDrawList(Debug.DepthTestList, ref drawListSettings);
+
                 RenderDataUtil.SetNormalAlphaBlending();
             }
 
@@ -714,6 +738,12 @@ namespace AerialRace
                 RenderDataUtil.BindDrawFramebuffer(null);
                 GL.Viewport(0, 0, Width, Height);
 
+                RenderDataUtil.UsePipeline(HDRToLDRPipeline);
+
+                RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
+                RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
+                RenderDataUtil.BindTexture(0, HDRSceneBuffer.ColorAttachments![0].ColorTexture, HDRSampler);
+
                 RenderDataUtil.SetDepthWrite(false);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
                 GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -721,12 +751,7 @@ namespace AerialRace
                 RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.AlwaysPass);
                 RenderDataUtil.SetNormalAlphaBlending();
 
-                RenderDataUtil.UsePipeline(HDRToLDRPipeline);
-
-                RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
-                RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
-                RenderDataUtil.BindTexture(0, HDRSceneBuffer.ColorAttachments![0].ColorTexture, HDRSampler);
-
+                RenderDataUtil.BindIndexBuffer(null);
                 RenderDataUtil.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
 

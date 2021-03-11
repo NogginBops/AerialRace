@@ -23,7 +23,8 @@ namespace AerialRace.Debugging
         };
 
         public static DrawList List = new DrawList();
-        
+        public static DrawList DepthTestList = new DrawList();
+
         static Debug()
         {
             var vertexProg = ShaderCompiler.CompileProgramFromSource(
@@ -51,6 +52,7 @@ namespace AerialRace.Debugging
             Height = height;
 
             List.Clear();
+            DepthTestList.Clear();
         }
 
         public static void Line(Vector3 a, Vector3 b, Color4 color)

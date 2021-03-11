@@ -156,9 +156,71 @@ namespace AerialRace.Debugging
             list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
+        public static void OutlineBox(DrawList list, Box3 box, Color4 color)
+        {
+            list.PrewarmVertices(8);
+            list.PrewarmIndices(24);
+
+            var min = box.Min;
+            var max = box.Max;
+
+            var c000 = new Vector3(min.X, min.Y, min.Z);
+            var c001 = new Vector3(min.X, min.Y, max.Z);
+            var c010 = new Vector3(min.X, max.Y, min.Z);
+            var c011 = new Vector3(min.X, max.Y, max.Z);
+            var c100 = new Vector3(max.X, min.Y, min.Z);
+            var c101 = new Vector3(max.X, min.Y, max.Z);
+            var c110 = new Vector3(max.X, max.Y, min.Z);
+            var c111 = new Vector3(max.X, max.Y, max.Z);
+
+            var i000 = list.AddVertexWithIndex(c000, (0, 0), color);
+            var i001 = list.AddVertexWithIndex(c001, (0, 1), color);
+            var i010 = list.AddVertexWithIndex(c010, (1, 0), color);
+            var i011 = list.AddVertexWithIndex(c011, (1, 1), color);
+            list.AddIndex(i000);
+            list.AddIndex(i010);
+            list.AddIndex(i001);
+            list.AddIndex(i011);
+
+            var i100 = list.AddVertexWithIndex(c100, (0, 0), color);
+            var i101 = list.AddVertexWithIndex(c101, (0, 1), color);
+            var i110 = list.AddVertexWithIndex(c110, (1, 0), color);
+            var i111 = list.AddVertexWithIndex(c111, (1, 1), color);
+            list.AddIndex(i100);
+            list.AddIndex(i110);
+            list.AddIndex(i101);
+            list.AddIndex(i111);
+
+            list.AddIndex(i000);
+            list.AddIndex(i100);
+            list.AddIndex(i001);
+            list.AddIndex(i101);
+            list.AddIndex(i010);
+            list.AddIndex(i110);
+            list.AddIndex(i011);
+            list.AddIndex(i111);
+
+            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
+        }
+
         // --------------------------
         // ----  New 3D helpers  ----
         // --------------------------
+
+        public static void Quad(DrawList list, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color4 color)
+        {
+            list.PrewarmVertices(4);
+            list.PrewarmIndices(6);
+
+            list.AddVertexWithIndex(v1, (0, 0), color);
+            var i2 = list.AddVertexWithIndex(v2, (0, 1), color);
+            var i3 = list.AddVertexWithIndex(v3, (1, 0), color);
+            list.AddIndex(i2);
+            list.AddVertexWithIndex(v4, (1, 1), color);
+            list.AddIndex(i3);
+
+            list.AddCommand(PrimitiveType.Triangles, 6, BuiltIn.UVTest);
+        }
 
         public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
         {

@@ -62,6 +62,7 @@ namespace AerialRace.Loading
         public short[]? Int16Indices;
         public byte[]? Int8Indices;
         public StandardVertex[] Vertices;
+        public Box3 AABB;
         // FIXME: Add support for additional data streams
     }
 
@@ -128,6 +129,9 @@ namespace AerialRace.Loading
             List<Face> faces = new List<Face>();
             List<StandardVertex> vertices = new List<StandardVertex>();
 
+            bool initAABB = false;
+            Box3 aabb = default;
+
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
@@ -143,8 +147,19 @@ namespace AerialRace.Loading
                     float f1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
                     float f2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
                     float f3 = Util.ParseFloatFast(lineSpan[index3..]);
-                    
-                    verts.Add(new Vector3(f1, f2, f3));
+
+                    var pos = new Vector3(f1, f2, f3);
+                    if (initAABB == false)
+                    {
+                        aabb = new Box3(pos, pos);
+                        initAABB = true;
+                    }
+                    else
+                    {
+                        aabb.Inflate(pos);
+                    }
+
+                    verts.Add(pos);
                 }
                 else if (line.StartsWithFast("vt "))
                 {
@@ -264,6 +279,7 @@ namespace AerialRace.Loading
                 IndexType = IndexBufferType.UInt32,
                 Int32Indices = indices.ToArray(),
                 Vertices = vertices.ToArray(),
+                AABB = aabb,
             };
         }
 

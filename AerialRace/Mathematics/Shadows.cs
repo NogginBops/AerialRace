@@ -105,6 +105,32 @@ namespace AerialRace.Mathematics
             return MathHelper.Lerp(normal, correction, λ);
         }
 
+        public static FrustumPoints SliceFrustum(Camera camera, float minDistance, float maxDistance)
+        {
+            camera.CalcViewProjection(out var ivp);
+            ivp.Invert();
+
+            var minNDC = Util.LinearDepthToNDC(minDistance, camera.NearPlane, camera.FarPlane);
+            var maxNDC = Util.LinearDepthToNDC(maxDistance, camera.NearPlane, camera.FarPlane);
+
+            FrustumPoints frustum = FrustumPoints.NDC;
+
+            frustum.Near00.Z = minNDC;
+            frustum.Near01.Z = minNDC;
+            frustum.Near10.Z = minNDC;
+            frustum.Near11.Z = minNDC;
+
+            frustum.Far00.Z = maxNDC;
+            frustum.Far01.Z = maxNDC;
+            frustum.Far10.Z = maxNDC;
+            frustum.Far11.Z = maxNDC;
+
+            // This projects the NDC coordinates into world space
+            FrustumPoints.ApplyProjection(in frustum, in ivp, out frustum);
+
+            return frustum;
+        }
+
         public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
         {
             // Figure out all frustum corner points.
@@ -188,25 +214,14 @@ namespace AerialRace.Mathematics
                 new Vector4(0, 0, 0, 1)
                 );
             directionView.Invert();
-            //var directionView = Matrix4.LookAt(Vector3.Zero, -direction, up);
-            //directionView = Matrix4.Identity;
             FrustumPoints.ApplyTransform(in cameraFrustum, in directionView, out var AABBPoints);
             FrustumPoints.CalculateAABB(in AABBPoints, out var AABB);
-            /*
-            Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, AABBPoints,
-                Color4.Cyan, Color4.Cyan);
-
-            FrustumPoints.FromAABB(AABB, out var AABBResult);
-            Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, AABBResult,
-                Color4.Blue, Color4.Blue);
-            */
+            
             Matrix4.CreateOrthographic(AABB.Size.X, AABB.Size.Y, 0, AABB.Size.Z, out projection);
 
             var distance = -AABB.HalfSize.Z;
             var invDirectionView = directionView.Inverted();
             viewPosition = Vector3.TransformPosition(AABB.Center, invDirectionView) + direction * distance;
-
-            //Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, Vector3.TransformPosition(AABB.Center, invDirectionView), viewPosition, Color4.Lime, Color4.Yellow);
 
             view = Matrix4.LookAt(viewPosition, viewPosition + direction, up);
 
