@@ -155,14 +155,14 @@ namespace AerialRace
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
-            var depthVertProgram = RenderDataUtil.CreateShaderProgram("Standard Depth Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Depth/StandardDepth.vert"));
-            var depthFragProgram = RenderDataUtil.CreateShaderProgram("Standard Depth Fragment", ShaderStage.Fragment, File.ReadAllText("./Shaders/Depth/StandardDepth.frag"));
-            var depthPipeline = RenderDataUtil.CreatePipeline("Standard Depth", depthVertProgram, null, depthFragProgram);
+            var depthVertProgram = ShaderCompiler.CompileProgram("Standard Depth Vertex", ShaderStage.Vertex, "./Shaders/Depth/StandardDepth.vert");
+            var depthFragProgram = ShaderCompiler.CompileProgram("Standard Depth Fragment", ShaderStage.Fragment, "./Shaders/Depth/StandardDepth.frag");
+            var depthPipeline = ShaderCompiler.CompilePipeline("Standard Depth", depthVertProgram, depthFragProgram);
 
-            var standardVertex = RenderDataUtil.CreateShaderProgram("Standard Vertex Shader", ShaderStage.Vertex, File.ReadAllText("./Shaders/Standard.vert"));
-            var standardFragment = RenderDataUtil.CreateShaderProgram("Standard Fragment Shader", ShaderStage.Fragment, ShaderPreprocessor.PreprocessSource("./Shaders/Standard.frag"));
+            var standardVertex = ShaderCompiler.CompileProgram("Standard Vertex Shader", ShaderStage.Vertex, "./Shaders/Standard.vert");
+            var standardFragment = ShaderCompiler.CompileProgram("Standard Fragment Shader", ShaderStage.Fragment, "./Shaders/Standard.frag");
 
-            var standardShader = RenderDataUtil.CreatePipeline("Debug Shader", standardVertex, null, standardFragment);
+            var standardShader = ShaderCompiler.CompilePipeline("Debug Shader", standardVertex, standardFragment);
 
             TestTexture = TextureLoader.LoadRgbaImage("UV Test", "./Textures/uvtest.png", true, true);
 
@@ -202,8 +202,7 @@ namespace AerialRace
             //RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
             //RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
 
-            var shipPipeline = RenderDataUtil.CreateEmptyPipeline("Ship Shader");
-            RenderDataUtil.AssembleProgramPipeline(shipPipeline, standardVertex, null, standardFragment);
+            var shipPipeline = ShaderCompiler.CompilePipeline("Ship Shader", standardVertex, null, standardFragment);
 
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, true);
 
@@ -214,7 +213,7 @@ namespace AerialRace
             shipMaterial.Properties.SetProperty(new Property("material.Metallic", 0.8f));
             shipMaterial.Properties.SetProperty(new Property("material.Roughness", 0.3f));
 
-            var trailPipeline = RenderDataUtil.CreatePipeline("Trail", "./Shaders/Trail.vert", "./Shaders/Trail.frag");
+            var trailPipeline = ShaderCompiler.CompilePipeline("Trail", "./Shaders/Trail.vert", "./Shaders/Trail.frag");
             var trailMat = new Material("Player Trail Mat", trailPipeline, null);
 
             Phys.Init();
@@ -325,8 +324,8 @@ namespace AerialRace
                     Debug.Break();
                 }
 
-                var hdrToLdr = RenderDataUtil.CreateShaderProgram("HDR to LDR", ShaderStage.Fragment, ShaderPreprocessor.PreprocessSource("./Shaders/Post/HDRToLDR.frag"));
-                HDRToLDRPipeline = RenderDataUtil.CreatePipeline("HDR to LDR", BuiltIn.FullscreenTriangleVertex, null, hdrToLdr);
+                var hdrToLdr = ShaderCompiler.CompileProgram("HDR to LDR", ShaderStage.Fragment, "./Shaders/Post/HDRToLDR.frag");
+                HDRToLDRPipeline = ShaderCompiler.CompilePipeline("HDR to LDR", BuiltIn.FullscreenTriangleVertex, hdrToLdr);
 
                 HDRSampler = RenderDataUtil.CreateSampler2D("HDR Postprocess Sampler", MagFilter.Linear, MinFilter.Linear, 0, WrapMode.ClampToEdge, WrapMode.ClampToEdge);
             }
@@ -352,10 +351,10 @@ namespace AerialRace
                 ShadowSampler = RenderDataUtil.CreateShadowSampler2DArray("Shadowmap sampler", MagFilter.Linear, MinFilter.Linear, 16f, WrapMode.ClampToEdge, WrapMode.ClampToEdge, DepthTextureCompareMode.RefToTexture, DepthTextureCompareFunc.Greater);
             }
             
-            var skyVertexProgram = RenderDataUtil.CreateShaderProgram("Sky Vertex", ShaderStage.Vertex, File.ReadAllText("./Shaders/Sky.vert"));
-            var skyFragmentProgram = RenderDataUtil.CreateShaderProgram("Sky Fragment", ShaderStage.Fragment, ShaderPreprocessor.PreprocessSource("./Shaders/Sky.frag"));
+            var skyVertexProgram = ShaderCompiler.CompileProgram("Sky Vertex", ShaderStage.Vertex, "./Shaders/Sky.vert");
+            var skyFragmentProgram = ShaderCompiler.CompileProgram("Sky Fragment", ShaderStage.Fragment, "./Shaders/Sky.frag");
 
-            var skyPipeline = RenderDataUtil.CreatePipeline("Sky", skyVertexProgram, null, skyFragmentProgram);
+            var skyPipeline = ShaderCompiler.CompilePipeline("Sky", skyVertexProgram, skyFragmentProgram);
 
             Material skyMat = new Material("Sky Material", skyPipeline, null);
 
@@ -373,9 +372,17 @@ namespace AerialRace
             RenderDataUtil.SetupGlobalVAO();
         }
 
+        public float ShaderReloadCheckTimer = 0;
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             base.OnRenderFrame(args);
+
+            ShaderReloadCheckTimer += (float)args.Time;
+            if (ShaderReloadCheckTimer >= 1)
+            {
+                LiveShaderLoader.RecompileShadersIfNeeded();
+                ShaderReloadCheckTimer = 0;
+            }
 
             Screen.NewFrame();
 

@@ -147,6 +147,6 @@ void main(void)
 
     vec4 depthDebug = GetShadowCascadeDebugColor(ShadowCascadeFromDepth(gl_FragCoord.z));
 
-    Color = vec4(ambient + diffuse * shadow + lightColor, 1);// + depthDebug;
+    Color = vec4(ambient + diffuse * shadow + lightColor, 1) + depthDebug;
 }
 

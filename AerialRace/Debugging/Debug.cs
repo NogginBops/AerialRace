@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using AerialRace.Loading;
 using AerialRace.RenderData;
 using OpenTK.Mathematics;
 
@@ -23,21 +24,25 @@ namespace AerialRace.Debugging
 
         public static DrawList List = new DrawList();
         
+        static Debug()
+        {
+            var vertexProg = ShaderCompiler.CompileProgramFromSource(
+                "Debug Vertex",
+                ShaderStage.Vertex,
+                DebugVertexSource);
+
+            var fragProg = ShaderCompiler.CompileProgramFromSource(
+                "Debug Fragment",
+                ShaderStage.Fragment,
+                DebugFragmentSource);
+
+            DebugPipeline = ShaderCompiler.CompilePipeline("Debug Pipeline", vertexProg, fragProg);
+        }
+
         public static void Init(int width, int height)
         {
             Width = width;
             Height = height;
-
-            var vertexProg = RenderDataUtil.CreateShaderProgram("Debug Vertex", 
-                ShaderStage.Vertex,
-                DebugVertexSource);
-
-            var fragProg = RenderDataUtil.CreateShaderProgram("Debug Fragment",
-                ShaderStage.Fragment,
-                DebugFragmentSource);
-
-            DebugPipeline = RenderDataUtil.CreateEmptyPipeline("Debug Pipeline");
-            RenderDataUtil.AssembleProgramPipeline(DebugPipeline, vertexProg, null, fragProg);
         }
 
         public static void NewFrame(int width, int height)

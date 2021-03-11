@@ -1,6 +1,8 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using AerialRace.Loading;
+using OpenTK.Graphics.OpenGL4;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace AerialRace.RenderData
@@ -42,6 +44,7 @@ namespace AerialRace.RenderData
     class ShaderProgram
     {
         public string Name;
+        public ShaderSourceDescription? Source;
         public int Handle;
         public ShaderStage Stage;
         public Dictionary<string, int> UniformLocations;
@@ -49,9 +52,10 @@ namespace AerialRace.RenderData
         public UniformFieldInfo[]? UniformInfo;
         public UniformBlockInfo[]? UniformBlockInfo;
 
-        public ShaderProgram(string name, int handle, ShaderStage stage, Dictionary<string, int> uniformLocations, Dictionary<string, int> uniformBlockBindings, UniformFieldInfo[]? uniformInfo, UniformBlockInfo[]? uniformBlockInfo)
+        public ShaderProgram(string name, ShaderSourceDescription? source, int handle, ShaderStage stage, Dictionary<string, int> uniformLocations, Dictionary<string, int> uniformBlockBindings, UniformFieldInfo[]? uniformInfo, UniformBlockInfo[]? uniformBlockInfo)
         {
             Name = name;
+            Source = source;
             Handle = handle;
             Stage = stage;
             UniformLocations = uniformLocations;

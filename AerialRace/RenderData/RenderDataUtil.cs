@@ -524,7 +524,8 @@ namespace AerialRace.RenderData
             fbo.DepthAttachment = depthStencil;
             fbo.StencilAttachment = depthStencil;
         }
-
+        
+        /*
         // FIXME: Make error handling for shader that don't compile better!
         public static ShaderProgram CreateShaderProgram(string name, ShaderStage stage, string source)
         {
@@ -727,6 +728,7 @@ namespace AerialRace.RenderData
             var fragProgram = CreateShaderProgram($"{name}: Fragment", ShaderStage.Fragment, File.ReadAllText(fragmentPath));
             return CreatePipeline(name, vertProgram, null, fragProgram);
         }
+        */
 
         public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
         {
@@ -848,6 +850,13 @@ namespace AerialRace.RenderData
 
             sampler.LODMin = min;
             sampler.LODMax = max;
+        }
+
+        public static void RecompileShader(ShaderProgram program, string source)
+        {
+            GLUtil.CreateProgram(program.Name, out int newProgram);
+
+
         }
 
         #endregion

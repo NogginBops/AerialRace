@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.Loading;
 using AerialRace.Mathematics;
 using AerialRace.RenderData;
 using OpenTK.Mathematics;
@@ -42,8 +43,8 @@ namespace AerialRace.Editor
         public static void Init()
         {
             // Setup the overlay shader
-            var overlayFrag = RenderDataUtil.CreateShaderProgram("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag);
-            GizmoOverlayPipeline = RenderDataUtil.CreatePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, null, overlayFrag);
+            var overlayFrag = ShaderCompiler.CompileProgramFromSource("Gizmo overlay frag", ShaderStage.Fragment, OverlayFrag);
+            GizmoOverlayPipeline = ShaderCompiler.CompilePipeline("Gizmo overlay", BuiltIn.FullscreenTriangleVertex, overlayFrag);
 
             // FIXME: RESIZE: We want to handle screen resize!!
             var color = RenderDataUtil.CreateEmpty2DTexture("Gizmo overlay color", TextureFormat.Rgba8, Debug.Width, Debug.Height);

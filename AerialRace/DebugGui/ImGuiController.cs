@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.Loading;
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK;
@@ -164,11 +165,9 @@ void main()
     }
 }";
 
-            var vertexShader = RenderDataUtil.CreateShaderProgram("ImGui Vertex", ShaderStage.Vertex, VertexSource);
-            var fragmentShader = RenderDataUtil.CreateShaderProgram("ImGui Fragment", ShaderStage.Fragment, FragmentSource);
-
-            _shader = RenderDataUtil.CreateEmptyPipeline("ImGui");
-            RenderDataUtil.AssembleProgramPipeline(_shader, vertexShader, null, fragmentShader);
+            var vertexShader = ShaderCompiler.CompileProgramFromSource("ImGui Vertex", ShaderStage.Vertex, VertexSource);
+            var fragmentShader = ShaderCompiler.CompileProgramFromSource("ImGui Fragment", ShaderStage.Fragment, FragmentSource);
+            _shader = ShaderCompiler.CompilePipeline("ImGui", vertexShader, fragmentShader);
 
             PositionAttribSpec = new AttributeSpecification("ImGui Position", 2, RenderData.AttributeType.Float, false, 0);
             UVAttribSpec =       new AttributeSpecification("ImGui UV",       2, RenderData.AttributeType.Float, false, 8);

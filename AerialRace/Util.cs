@@ -257,5 +257,9 @@ namespace AerialRace
             return Vector3.TransformPerspective(ndc, inverseViewMatrix);
         }
 
+        public static bool Before(this DateTime before, DateTime later)
+        {
+            return DateTime.Compare(before, later) < 0;
+        }
     }
 }

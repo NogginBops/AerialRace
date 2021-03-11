@@ -9,16 +9,25 @@ namespace AerialRace.Loading
 {
     public class ShaderSourceDescription
     {
-        public string[] SourceFilePaths;
+        public FileInfo MainFile;
+        public FileInfo[] Dependencies;
+
+        public ShaderSourceDescription(FileInfo mainFile, FileInfo[] dependencies)
+        {
+            MainFile = mainFile;
+            Dependencies = dependencies;
+        }
     }
 
     static class ShaderPreprocessor
     {
-        public static string PreprocessSource(string path)
+        public static string PreprocessSource(string path, out ShaderSourceDescription sourceDesc)
         {
             var file = new FileInfo(path);
             string directory = file.Directory!.FullName;
             string source = File.ReadAllText(path);
+
+            List<FileInfo> dependencies = new List<FileInfo>();
 
             StringBuilder sb = new StringBuilder();
 
@@ -38,7 +47,9 @@ namespace AerialRace.Loading
 
                 string fileName = source[(start + 1)..end];
 
-                string includeContent = File.ReadAllText(Path.Combine(directory, fileName));
+                var includeFile = new FileInfo(Path.Combine(directory, fileName));
+                dependencies.Add(includeFile);
+                string includeContent = File.ReadAllText(includeFile.FullName);
 
                 sb.AppendLine($"#line {0} {fileNumber}");
                 fileNumber++;
@@ -55,11 +66,17 @@ namespace AerialRace.Loading
 
             string result = sb.ToString();
 
-            // FIXME: Make the path relative. Or don't even do paths, use assets instead?
-            string debugPath = Path.Combine(".", "ShaderDebug", path);
-            Directory.CreateDirectory(Path.GetDirectoryName(debugPath));
+            var relativePath = path;
+            if (Path.IsPathFullyQualified(path))
+            {
+                relativePath = Path.GetRelativePath(".", path);
+            }
+
+            string debugPath = Path.Combine(".", "ShaderDebug", relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(debugPath)!);
             File.WriteAllText(debugPath, result);
 
+            sourceDesc = new ShaderSourceDescription(file, dependencies.ToArray());
             return result;
         }
 

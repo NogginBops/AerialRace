@@ -48,12 +48,12 @@ namespace AerialRace
             };
 
             // FIXME: Make error handling for shader that don't compile better!
-            ErrorVertexProgram = RenderDataUtil.CreateShaderProgram("Error vertex", ShaderStage.Vertex, ErrorVertexSource);
-            ErrorFragmentProgram = RenderDataUtil.CreateShaderProgram("Error fragment", ShaderStage.Fragment, ErrorFragmentSource);
+            ErrorVertexProgram = ShaderCompiler.CompileProgramFromSource("Error vertex", ShaderStage.Vertex, ErrorVertexSource);
+            ErrorFragmentProgram = ShaderCompiler.CompileProgramFromSource("Error fragment", ShaderStage.Fragment, ErrorFragmentSource);
 
-            ErrorShaderPipeline = RenderDataUtil.CreatePipeline("Error pipeline", ErrorVertexProgram, null, ErrorFragmentProgram);
+            ErrorShaderPipeline = ShaderCompiler.CompilePipeline("Error pipeline", ErrorVertexProgram, ErrorFragmentProgram);
 
-            FullscreenTriangleVertex = RenderDataUtil.CreateShaderProgram("Fullscreen triangle vert", ShaderStage.Vertex, FullscreenTriangleVertexSource);
+            FullscreenTriangleVertex = ShaderCompiler.CompileProgramFromSource("Fullscreen triangle vert", ShaderStage.Vertex, FullscreenTriangleVertexSource);
         }
 
         public const string ErrorVertexSource = @"#version 450 core
