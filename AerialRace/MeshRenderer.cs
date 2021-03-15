@@ -130,7 +130,9 @@ namespace AerialRace
                 {
                     RenderDataUtil.UsePipeline(material.Pipeline);
                 }
-                
+
+                RenderDataUtil.SetCullMode(material.Properties.CullMode);
+
                 // Because the matrices should all be updated we don't need to calculate it again
                 //transform.GetTransformationMatrix(out var model);
                 var model = transform.LocalToWorld;

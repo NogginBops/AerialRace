@@ -1254,6 +1254,10 @@ namespace AerialRace.RenderData
             {
                 case PropertyType.Invalid:
                     throw new Exception("You probably forgot the set the property type.");
+                case PropertyType.Bool:
+                    GL.ProgramUniform1(vert.Handle, vertLoc, property.BoolValue ? 1 : 0);
+                    GL.ProgramUniform1(frag.Handle, fragLoc, property.BoolValue ? 1 : 0);
+                    break;
                 case PropertyType.Int:
                     GL.ProgramUniform1(vert.Handle, vertLoc, property.IntValue);
                     GL.ProgramUniform1(frag.Handle, fragLoc, property.IntValue);

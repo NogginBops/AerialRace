@@ -64,6 +64,8 @@ namespace AerialRace
         Texture TestTexture;
         Sampler DebugSampler;
 
+        Sampler StandardSampler;
+
         public Ship Player;
         Texture ShipTexture;
 
@@ -159,6 +161,11 @@ namespace AerialRace
             var depthFragProgram = ShaderCompiler.CompileProgram("Standard Depth Fragment", ShaderStage.Fragment, "./Shaders/Depth/StandardDepth.frag");
             var depthPipeline = ShaderCompiler.CompilePipeline("Standard Depth", depthVertProgram, depthFragProgram);
 
+            var depthCutoutVertProgram = ShaderCompiler.CompileProgram("Cutout Depth Vertex", ShaderStage.Vertex, "./Shaders/Depth/CutoutDepth.vert");
+            var depthCutoutFragProgram = ShaderCompiler.CompileProgram("Cutout Depth Fragment", ShaderStage.Fragment, "./Shaders/Depth/CutoutDepth.frag");
+            var depthCutoutPipeline = ShaderCompiler.CompilePipeline("Coutout Depth", depthCutoutVertProgram, depthCutoutFragProgram);
+
+
             var standardVertex = ShaderCompiler.CompileProgram("Standard Vertex Shader", ShaderStage.Vertex, "./Shaders/Standard.vert");
             var standardFragment = ShaderCompiler.CompileProgram("Standard Fragment Shader", ShaderStage.Fragment, "./Shaders/Standard.frag");
 
@@ -168,10 +175,13 @@ namespace AerialRace
 
             DebugSampler = RenderDataUtil.CreateSampler2D("DebugSampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
 
+            StandardSampler = RenderDataUtil.CreateSampler2D("Standard Sampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
+
             //Material = new Material("First Material", firstShader, null);
             Material = new Material("Debug Material", standardShader, depthPipeline);
-            Material.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
-            Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
+            Material.Properties.SetTexture("AlbedoTex", TestTexture, StandardSampler);
+            Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
+            Material.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
 
             Material.Properties.SetProperty(new Property("material.Metallic", 0.02f));
             Material.Properties.SetProperty(new Property("material.Roughness", 0.9f));
@@ -207,8 +217,9 @@ namespace AerialRace
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, true);
 
             Material shipMaterial = new Material("Ship", shipPipeline, depthPipeline);
-            shipMaterial.Properties.SetTexture("AlbedoTex", ShipTexture, DebugSampler);
-            shipMaterial.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
+            shipMaterial.Properties.SetTexture("AlbedoTex", ShipTexture, StandardSampler);
+            shipMaterial.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
+            shipMaterial.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
 
             shipMaterial.Properties.SetProperty(new Property("material.Metallic", 0.8f));
             shipMaterial.Properties.SetProperty(new Property("material.Roughness", 0.3f));
@@ -234,12 +245,14 @@ namespace AerialRace
 
             {
                 var floorMat = new Material("Floor Mat", standardShader, depthPipeline);
-                floorMat.Properties.SetTexture("AlbedoTex", TestTexture, DebugSampler);
-                floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, DebugSampler);
+                floorMat.Properties.SetTexture("AlbedoTex", TestTexture, StandardSampler);
+                floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
+                floorMat.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
 
                 floorMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
                 floorMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
 
+                floorMat.Properties.CullMode = RenderDataUtil.CullMode.None;
 
                 // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
                 var FloorTransform = new Transform("Floor", new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
@@ -261,7 +274,14 @@ namespace AerialRace
                 var roughness = TextureLoader.LoadRgbaImage("Terrain Roughness", "./Models/sketchfab/icy-terrain-export/textures/SingleAsset_Terrain_C_Lowres_None_Roughnes.png", true, false);
 
                 var terrainMat = new Material("Terrain", standardShader, depthPipeline);
-                terrainMat.Properties.SetTexture("AlbedoTex", albedo);
+                terrainMat.Properties.SetTexture("AlbedoTex", albedo, StandardSampler);
+                terrainMat.Properties.SetTexture("NormalTex", normal, StandardSampler);
+                terrainMat.Properties.SetTexture("RoughnessTex", roughness, StandardSampler);
+
+                terrainMat.Properties.SetProperty(new Property("InvertRoughness", false));
+
+                terrainMat.Properties.SetProperty(new Property("material.Metallic", 0.01f));
+                terrainMat.Properties.SetProperty(new Property("material.Roughness", 1f));
 
                 var TerrainTransform = new Transform("Terrain", Vector3.Zero, Quaternion.Identity, Vector3.One);
 
@@ -281,8 +301,11 @@ namespace AerialRace
                 var rockMat = new Material("Rock 2", standardShader, depthPipeline);
                 var rockAlbedo = TextureLoader.LoadRgbaImage("Rock 2 Albedo", "./Models/opengameart/rocks_02/diffuse.tga", true, true);
                 var rockNormal = TextureLoader.LoadRgbaImage("Rock 2 Normal", "./Models/opengameart/rocks_02/normal.tga", true, false);
-                rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, DebugSampler);
-                rockMat.Properties.SetTexture("NormalTex", rockNormal, DebugSampler);
+                var rockSpecular = TextureLoader.LoadRgbaImage("Rock 2 Specular", "./Models/opengameart/rocks_02/specular.tga", true, false);
+                rockMat.Properties.SetTexture("AlbedoTex", rockAlbedo, StandardSampler);
+                rockMat.Properties.SetTexture("NormalTex", rockNormal, StandardSampler);
+                rockMat.Properties.SetTexture("RoughnessTex", rockSpecular, StandardSampler);
+                rockMat.Properties.SetProperty(new Property("InvertRoughness", true));
                 rockMat.Properties.SetProperty(new Property("material.Metallic", 0.1f));
                 rockMat.Properties.SetProperty(new Property("material.Roughness", 0.6f));
 
@@ -300,6 +323,61 @@ namespace AerialRace
 
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
             new MeshRenderer(new Transform("Cube", new Vector3(-0.5f, 1, 0f), Quaternion.Identity, new Vector3(0.5f, 2, 0.5f)), cube, Material);
+
+            {
+                var data = MeshLoader.LoadObjMesh("./Models/dome.obj");
+                Mesh dome = RenderDataUtil.CreateMesh("Dome", data);
+
+                var domeMat = new Material("Dome Mat", standardShader, depthPipeline);
+                domeMat.Properties.SetTexture("AlbedoTex", BuiltIn.UVTest, StandardSampler);
+                domeMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
+
+                domeMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
+                domeMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
+
+                SimpleMaterial physMatDome = new SimpleMaterial()
+                {
+                    FrictionCoefficient = 1f,
+                    MaximumRecoveryVelocity = 2f,
+                    SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+                };
+
+                //new StaticSetpiece(new Transform("Dome"), dome, domeMat, new StaticMeshCollider(data), physMatDome);
+            }
+
+            {
+                var data = MeshLoader.LoadObjMesh("./Models/tropical plant/tropical_plant.obj");
+                Mesh plant = RenderDataUtil.CreateMesh("Plant", data);
+
+                var plantAlbedo = TextureLoader.LoadRgbaImage("Plant 2 Albedo", "./Models/tropical plant/diffuse.tga", true, true);
+                var plantNormal = TextureLoader.LoadRgbaImage("Plant 2 Normal", "./Models/tropical plant/normal.tga", true, false);
+                var plantSpecular = TextureLoader.LoadRgbaImage("Plant 2 Specular", "./Models/tropical plant/specular.tga", true, false);
+
+                // We don't care about discarding fragments in the color shader as those pixels will fail
+                // depth test from the depth prepass anyways.
+                var plantMat = new Material("Dome Mat", standardShader, depthCutoutPipeline);
+                plantMat.Properties.SetTexture("AlbedoTex", plantAlbedo, StandardSampler);
+                plantMat.Properties.SetTexture("NormalTex", plantNormal, StandardSampler);
+                plantMat.Properties.SetTexture("RoughnessTex", plantNormal, StandardSampler);
+
+                plantMat.Properties.SetProperty(new Property("InvertRoughness", true));
+
+                plantMat.Properties.SetProperty(new Property("AlphaCutout", 0.1f));
+
+                plantMat.Properties.SetProperty(new Property("material.Metallic", 0.02f));
+                plantMat.Properties.SetProperty(new Property("material.Roughness", 1f));
+
+                plantMat.Properties.CullMode = RenderDataUtil.CullMode.None;
+
+                SimpleMaterial physMatDome = new SimpleMaterial()
+                {
+                    FrictionCoefficient = 0.2f,
+                    MaximumRecoveryVelocity = 2f,
+                    SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+                };
+
+                //new StaticSetpiece(new Transform("Plant"), plant, plantMat, new MeshCollider(data), physMatDome);
+            }
 
             TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
             TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f, SimpleMaterial.Default, SimpleBody.Default);
@@ -337,7 +415,7 @@ namespace AerialRace
                 var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
                 RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
                 */
-                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth16, 4096, 4096, Cascades);
+                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth16, 2048, 2048, Cascades); //4096, 4096, Cascades);
                 RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, 0);
 
                 // The shadowmap should not resize with the size of the screen!
@@ -735,6 +813,8 @@ namespace AerialRace
 
             using (_ = RenderDataUtil.PushGenericPass("HDR to LDR pass"))
             {
+                RenderDataUtil.SetCullMode(RenderDataUtil.CullMode.Back);
+
                 RenderDataUtil.BindDrawFramebuffer(null);
                 GL.Viewport(0, 0, Width, Height);
 
@@ -879,7 +959,6 @@ namespace AerialRace
             Player.UpdateCamera(mouse, deltaTime);
         }
 
-        // This calls the Screen.UpdateScreenSize which calls the above callback.
         protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);

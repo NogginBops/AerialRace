@@ -66,6 +66,16 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
     return ggx1 * ggx2;
 }
 
+// https://marmosetco.tumblr.com/post/81245981087
+// R: Reflection vector
+// N: Vertex normal
+float HorizonOcclusion(vec3 R, vec3 N)
+{
+    const float horizonFade = 0.2f;
+    float horiz = 1.0 + horizonFade * dot(R, N);
+    return clamp(horiz * horiz, 0, 1);
+}
+
 uniform float LightCutout;
 
 float Luminance(vec4 color)

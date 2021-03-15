@@ -69,7 +69,7 @@ float ShadowCalculation(vec3 worldPos, float depth, vec3 normal, vec3 lightDir)
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
 
-    float bias = max(0.0005 * (1.0 - abs(dot(normal, lightDir))), 0.0005f);
+    float bias = max(0.005 * (1.0 - abs(dot(normal, lightDir))), 0.0005f);
     //bias = biasAmount;
     //bias = 0.03 * (1.0 - abs(dot(normal, lightDir)));
     //bias = biasAmount;

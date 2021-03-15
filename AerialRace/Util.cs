@@ -235,21 +235,6 @@ namespace AerialRace
             return resultMin + (resultRange * ((value - valueMin) / inRange));
         }
 
-        public static float NextFloat(this Random rand) => (float)rand.NextDouble();
-
-        public static Vector3 NextPosition(this Random rand, Vector3 min, Vector3 max)
-        {
-            Vector3 pos = new Vector3(rand.NextFloat(), rand.NextFloat(), rand.NextFloat());
-            return (pos * (max - min)) + min;
-            Vector3 mappedPos = Vector3.Divide(pos - min, max - min);
-            return mappedPos;
-        }
-
-        public static Color4 NextColorHue(this Random rand, float saturation, float value)
-        {
-            return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
-        }
-
         public static float LinearDepthToNDC(float linearDepth, float nearPlane, float farPlane)
         {
             var diff = farPlane - nearPlane;
@@ -271,6 +256,32 @@ namespace AerialRace
         public static bool Before(this DateTime before, DateTime later)
         {
             return DateTime.Compare(before, later) < 0;
+        }
+
+
+
+        public static float NextFloat(this Random rand) => (float)rand.NextDouble();
+
+        public static Vector3 NextPosition(this Random rand, Vector3 min, Vector3 max)
+        {
+            Vector3 pos = new Vector3(rand.NextFloat(), rand.NextFloat(), rand.NextFloat());
+            return (pos * (max - min)) + min;
+        }
+
+        public static Color4 NextColorHue(this Random rand, float saturation, float value)
+        {
+            return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
+        }
+
+        public static Vector3 NextOnUnitSphere(this Random rand)
+        {
+            double theta = 2 * Math.PI * rand.NextFloat();
+            double phi = Math.Acos(1 - 2 * rand.NextFloat());
+            double sinPhi = Math.Sin(phi);
+            double x = sinPhi * Math.Cos(theta);
+            double y = sinPhi * Math.Sin(theta);
+            double z = Math.Cos(phi);
+            return new Vector3((float)x, (float)y, (float)z);
         }
     }
 }

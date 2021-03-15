@@ -1,4 +1,5 @@
-﻿using BepuPhysics;
+﻿using AerialRace.Debugging;
+using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
 using BepuUtilities.Memory;
@@ -47,6 +48,10 @@ namespace AerialRace.Physics
         public static CollidableProperty<SimpleMaterial> Materials;
         public static BodyProperty<SimpleBody> BodyProps;
 
+        public static float TimeStep = 1f / 144f;
+
+        public static float Alpha = 0;
+
         public static void Init()
         {
             Materials = new CollidableProperty<SimpleMaterial>();
@@ -93,9 +98,23 @@ namespace AerialRace.Physics
             return new StaticReference(handle, Simulation.Statics);
         }
 
+        public static float Accumulator = 0;
         public static void Update(float dt)
         {
-            Simulation.Timestep(dt);
+            Accumulator += dt;
+            while (Accumulator > TimeStep)
+            {
+                // FIXME: Is there a way to avoid doing this?
+                foreach (var body in RigidBody.Instances)
+                {
+                    body.UpdatePreviousState();
+                }
+                
+                Simulation.Timestep(TimeStep);
+                Accumulator -= TimeStep;
+            }
+
+            Alpha = Accumulator / TimeStep;
         }
 
         public static void Dispose()

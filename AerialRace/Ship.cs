@@ -154,8 +154,8 @@ namespace AerialRace
 
             var perpRudderVelocity = rudderVelocity.Proj(Transform.Right);
             var reactionForce = RudderLiftFactor * ((density * -perpRudderVelocity) / 2f) * rudderArea;
-            RigidBody.Body.ApplyImpulse(reactionForce.AsNumerics(), TailRudderOffset.AsNumerics());
-
+            //RigidBody.Body.ApplyImpulse(reactionForce.AsNumerics(), TailRudderOffset.AsNumerics());
+            /*
             Debug.Direction(
                 Transform.WorldPosition,
                 RigidBody.Body.Velocity.Angular.AsOpenTK(), Color4.Cyan);
@@ -171,7 +171,7 @@ namespace AerialRace
             Debug.Direction(
                 Vector3.TransformPosition(TailRudderOffset, Transform.LocalToWorld),
                 reactionForce, Color4.Yellow);
-
+            */
             float separation = 4.5f;
             LeftTrail.Update(-Transform.Right * separation + Transform.WorldPosition, deltaTime);
             RightTrail.Update(Transform.Right * separation + Transform.WorldPosition, deltaTime);

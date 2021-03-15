@@ -35,6 +35,22 @@ namespace AerialRace
         {
             Trace.Listeners.Add(new DebugThing());
 
+            /*
+            {
+                Random rand = new Random();
+                Debug.WriteLine($"vec3[] {{");
+                int N = 20;
+                for (int i = 0; i < N; i++)
+                {
+                    var dir = rand.NextOnUnitSphere();
+                    dir.Y = MathF.Abs(dir.Y);
+
+                    Debug.WriteLine($"    vec3{dir},");
+                }
+                Debug.WriteLine($"}}");
+            }
+            */
+
             GameWindowSettings gwSettings = new GameWindowSettings()
             {
                 IsMultiThreaded = false,

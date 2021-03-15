@@ -7,6 +7,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using static AerialRace.RenderData.RenderDataUtil;
 
 namespace AerialRace
 {
@@ -38,6 +39,8 @@ namespace AerialRace
     enum PropertyType : int
     {
         Invalid,
+
+        Bool,
         Int,
 
         Float,
@@ -56,6 +59,7 @@ namespace AerialRace
     {
         [FieldOffset(0)] public string Name;
         [FieldOffset(8)] public PropertyType Type;
+        [FieldOffset(12)] public bool BoolValue;
         [FieldOffset(12)] public int IntValue;
         [FieldOffset(12)] public float FloatValue;
         [FieldOffset(12)] public Vector2 Vector2Value;
@@ -64,6 +68,14 @@ namespace AerialRace
         [FieldOffset(12)] public Color4 ColorValue;
         [FieldOffset(12)] public Matrix3 Matrix3Value;
         [FieldOffset(12)] public Matrix4 Matrix4Value;
+
+        public unsafe Property(string name, bool b)
+        {
+            this = default;
+            Name = name;
+            Type = PropertyType.Bool;
+            BoolValue = b;
+        }
 
         public unsafe Property(string name, int i)
         {
@@ -148,6 +160,7 @@ namespace AerialRace
     {
         public RefList<Property> Properties = new RefList<Property>();
         public List<TextureProperty> Textures = new List<TextureProperty>();
+        public CullMode CullMode = CullMode.Back;
 
         public MaterialProperties()
         { }

@@ -222,6 +222,8 @@ namespace AerialRace.Editor
         }
 
         public static Transform? SelectedTransform;
+        public static Vector3 OldPos;
+        public static Vector3 OldScale;
         public static void ShowTransformHierarchy()
         {
             if (ImGui.Begin("Hierarchy", ImGuiWindowFlags.NoFocusOnAppearing))
@@ -238,13 +240,17 @@ namespace AerialRace.Editor
 
                 if (SelectedTransform != null)
                 {
-                    var pos = SelectedTransform.LocalPosition;
-                    if (ImGui.DragFloat3("Position", ref SelectedTransform.LocalPosition.AsNumerics(), 0.1f))
+                    ImGui.DragFloat3("Position", ref SelectedTransform.LocalPosition.AsNumerics(), 0.1f);
+                    if (ImGui.IsItemActivated())
+                    {
+                        OldPos = SelectedTransform.LocalPosition;
+                    }
+                    if (ImGui.IsItemDeactivatedAfterEdit())
                     {
                         Undo.EditorUndoStack.PushAlreadyDone(new Translate()
                         {
                             Transform = SelectedTransform,
-                            StartPosition = pos,
+                            StartPosition = OldPos,
                             EndPosition = SelectedTransform.LocalPosition
                         });
                     }
@@ -254,14 +260,19 @@ namespace AerialRace.Editor
                     //if (ImGui.DragFloat4("Rotation", ref rot, 0.1f))
                     //    SelectedTransform.LocalRotation = rot.ToOpenTKQuat();
 
-                    const float MinScale = 0.00000001f;
-                    var scale = SelectedTransform.LocalScale;
-                    if (ImGui.DragFloat3("Scale", ref SelectedTransform.LocalScale.AsNumerics(), 0.1f, MinScale))
+                    const float MinScale = 0.0001f;
+                    const float MaxScale = 10000f;
+                    ImGui.DragFloat3("Scale", ref SelectedTransform.LocalScale.AsNumerics(), 0.1f, MinScale, MaxScale);
+                    if (ImGui.IsItemActivated())
+                    {
+                        OldScale = SelectedTransform.LocalScale;
+                    }
+                    if (ImGui.IsItemDeactivatedAfterEdit())
                     {
                         Undo.EditorUndoStack.PushAlreadyDone(new Scale()
                         {
                             Transform = SelectedTransform,
-                            StartScale = scale,
+                            StartScale = OldScale,
                             EndScale = SelectedTransform.LocalScale
                         });
                     }

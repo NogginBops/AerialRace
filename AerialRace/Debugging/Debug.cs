@@ -98,6 +98,11 @@ namespace AerialRace.Debugging
             System.Diagnostics.Debug.WriteLine(message);
         }
 
+        public static void WriteLine(object? message)
+        {
+            System.Diagnostics.Debug.WriteLine(message);
+        }
+
         public static void WriteLine(string? message, string? category)
         {
             System.Diagnostics.Debug.WriteLine(message, category);

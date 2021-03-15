@@ -7,7 +7,8 @@ using System.Text;
 
 namespace AerialRace.Physics
 {
-    class RigidBody
+    // FIXME: We want to move away from SelfCollections!!
+    class RigidBody : SelfCollection<RigidBody>
     {
         //public List<> Shapes;
 
@@ -17,6 +18,9 @@ namespace AerialRace.Physics
         public BodyReference Body;
 
         public float Mass;
+
+        // FIXME: Should we do interpolation or extrapolation??
+        public RigidPose PreviousPose;
 
         public RigidBody(IConvexCollider shape, Transform transform, float mass, SimpleMaterial material, SimpleBody bodyProp)
         {
@@ -32,13 +36,21 @@ namespace AerialRace.Physics
             Mass = mass;
         }
 
+        public void UpdatePreviousState()
+        {
+            PreviousPose = Body.Pose;
+        }
+
         // FIXME: We want to handle scaling in some way.
         // or maybe rigidbodies can't be scaled.
         public void UpdateTransform(Transform transform)
         {
             var pose = Body.Pose;
-            transform.LocalRotation = pose.Orientation.AsOpenTK();
-            transform.LocalPosition = pose.Position.AsOpenTK() - transform.LocalRotation * Shape.Center;
+            transform.LocalRotation = Quaternion.Slerp(PreviousPose.Orientation.AsOpenTK(), pose.Orientation.AsOpenTK(), Phys.Alpha);
+            transform.LocalPosition = Vector3.Lerp(PreviousPose.Position.AsOpenTK(), pose.Position.AsOpenTK(), Phys.Alpha);
+
+            //transform.LocalRotation = pose.Orientation.AsOpenTK();
+            //transform.LocalPosition = pose.Position.AsOpenTK() - transform.LocalRotation * Shape.Center;
         }
     }
 }

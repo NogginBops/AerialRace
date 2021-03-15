@@ -19,7 +19,10 @@ out vec4 Color;
 uniform sampler2D AlbedoTex;
 uniform sampler2D NormalTex;
 
-struct Material 
+uniform bool InvertRoughness;
+uniform sampler2D RoughnessTex;
+
+struct Material
 {
     vec3 Tint;
     float Metallic;
@@ -52,7 +55,7 @@ vec3 CalcDirectionalDiffuse(vec3 L, vec3 N, vec3 lightColor, vec3 surfaceAlbedo)
 
 void main(void)
 {
-    vec3 normal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
+    vec3 vertexNormal = normalize(gl_FrontFacing ? fragNormal : -fragNormal);
     
     vec3 q1 = dFdx(fragPos.xyz);
     vec3 q2 = dFdy(fragPos.xyz);
@@ -62,12 +65,18 @@ void main(void)
     vec3 tangent = normalize(q1 * st2.t - q2 * st1.t);
     vec3 bitangent = normalize(-q1 * st2.s + q2 * st1.s);
 
-    mat3 tangentToWorld = mat3(tangent, bitangent, normal);
+    // This constructs a column major matrix
+    mat3 tangentToWorld = mat3(tangent, bitangent, vertexNormal);
     vec3 N = texture(NormalTex, fragUV).rgb;
     N = N * 2.0 - 1.0;
-    // FIXME: Why is this the multiplication order?
-    normal =  normalize(tangentToWorld * N);
+    // tangentToWorld is column major 
+    // so this is the correct multiplication order
+    vec3 normal =  normalize(tangentToWorld * N);
     N = normal;
+
+    vec3 bitangent2 = normalize(cross(normal, tangent));
+    vec3 tangent2 = normalize(cross(normal, bitangent2));
+    mat3 fragTangentToWorld = mat3(tangent2, bitangent2, normal);
 
     vec3 lightDir = sky.SunDirection;
     vec3 viewDir = normalize(camera.position - fragPos.xyz);
@@ -77,11 +86,14 @@ void main(void)
 
     float diff = max(dot(normal, lightDir), 0.0f);
     vec3 diffuse = sky.SunColor * diff * albedo;
-    vec3 skyVec = normalize(normal + lightDir + reflect(-viewDir, normal));
-    vec3 ambient = skyColor(skyVec) * albedo;
+    vec3 R = reflect(-viewDir, normal);
+    vec3 skyVec = normalize(normal + lightDir + R);
+    vec3 ambient = skyIrradiance(fragTangentToWorld) * albedo;
     //ambient = scene.ambientLight * albedo;
     
-    //ambient = vec3(0);
+    ambient *= HorizonOcclusion(R, normal);
+
+    //ambient = vec3(0.01);
     //diffuse = vec3(0);
 
     vec3 V = normalize(camera.position - fragPos.xyz);
@@ -112,7 +124,8 @@ void main(void)
         //lightColor += F * radiance;
         //continue;
 
-        float roughness = material.Roughness;
+        float roughTex = texture(RoughnessTex, fragUV).r;
+        float roughness = material.Roughness * (InvertRoughness ? 1 - roughTex : roughTex);
         float metallic = material.Metallic;
 
         float NDF = DistributionGGX(N, H, roughness);
@@ -121,6 +134,8 @@ void main(void)
         vec3 numerator = NDF * G * F;
         float denominator = 4.0f * max(dot(N, V), 0.0f) * max(dot(N, L), 0.0f);
         vec3 specular = numerator / max(denominator, 0.0001);
+
+        specular *= HorizonOcclusion(R, normal);
 
         vec3 kS = F;
         vec3 kD = vec3(1.0f) - kS;
