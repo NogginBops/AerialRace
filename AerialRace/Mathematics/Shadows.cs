@@ -32,6 +32,22 @@ namespace AerialRace.Mathematics
         public Vector3 Far10;
         public Vector3 Far11;
 
+        public FrustumPoints(Box3 box)
+        {
+            var min = box.Min;
+            var max = box.Max;
+
+            // FIXME: Maybe flip Z min/max here??
+            Near00 = new Vector3(min.X, min.Y, min.Z);
+            Near01 = new Vector3(min.X, max.Y, min.Z);
+            Near10 = new Vector3(max.X, min.Y, min.Z);
+            Near11 = new Vector3(max.X, max.Y, min.Z);
+            Far00 = new Vector3(min.X, min.Y, max.Z);
+            Far01 = new Vector3(min.X, max.Y, max.Z);
+            Far10 = new Vector3(max.X, min.Y, max.Z);
+            Far11 = new Vector3(max.X, max.Y, max.Z);
+        }
+
         public static void ApplyProjection(in FrustumPoints points, in Matrix4 projection, out FrustumPoints result)
         {
             // Using the same variable as an 'in' and 'out' parameter is fine
@@ -131,39 +147,7 @@ namespace AerialRace.Mathematics
             return frustum;
         }
 
-        public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
-        {
-            // Figure out all frustum corner points.
-            // Make them aligned to the light direction
-            // Calculate a AABB of all the frustom points
-            //   This AABB gives information used to create a projection
-            // Calculate the front center point of the AABB and transform it back to world space (this is the view position)
-            //   We might want to offset the view pos even further back...?
-            // Use the view position to construct the view matrix
-
-            camera.CalcViewProjection(out var ivp);
-            ivp.Invert();
-
-            FrustumPoints cameraFrustum = FrustumPoints.NDC;
-            // This projects the NDC coordinates into world space
-            FrustumPoints.ApplyProjection(in cameraFrustum, in ivp, out cameraFrustum);
-
-            var up = Vector3.Dot(direction, Vector3.UnitY) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
-            var directionView = Matrix4.LookAt(Vector3.Zero, direction, up);
-            FrustumPoints.ApplyTransform(in cameraFrustum, in directionView, out var AABBPoints);
-            FrustumPoints.CalculateAABB(in AABBPoints, out var AABB);
-
-            var size = AABB.Size;
-
-            Matrix4.CreateOrthographic(size.X, size.Y, 0, size.Z, out projection);
-
-            var distance = -AABB.HalfSize.Z;
-            viewPosition = direction * distance;
-
-            view = Matrix4.LookAt(viewPosition, viewPosition + direction, up);
-        }
-
-        public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, float minDistance, float maxDistance, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
+        public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, float minDistance, float maxDistance, Span<Box3> shadowCasters, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
         {
             // Figure out all frustum corner points.
             // Make them aligned to the light direction
@@ -195,7 +179,7 @@ namespace AerialRace.Mathematics
             FrustumPoints.ApplyProjection(in cameraFrustum, in ivp, out cameraFrustum);
 
             //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, cameraFrustum,
-            //    Color4.Yellow, Color4.YellowGreen);
+            //   Color4.Yellow, Color4.YellowGreen);
 
             var up = Vector3.Dot(direction, Vector3.UnitY) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
 
@@ -207,24 +191,61 @@ namespace AerialRace.Mathematics
             var z = -direction;
             var x = Vector3.Cross(direction, up).Normalized();
             var y = Vector3.Cross(z, x).Normalized();
-            var directionView = new Matrix4(
+            var lightToWorldSpace = new Matrix4(
                 new Vector4(x, 0),
-                new Vector4(-y, 0),
+                new Vector4(y, 0),
                 new Vector4(z, 0),
                 new Vector4(0, 0, 0, 1)
                 );
-            directionView.Invert();
-            FrustumPoints.ApplyTransform(in cameraFrustum, in directionView, out var AABBPoints);
-            FrustumPoints.CalculateAABB(in AABBPoints, out var AABB);
-            
-            Matrix4.CreateOrthographic(AABB.Size.X, AABB.Size.Y, 0, AABB.Size.Z, out projection);
+            var worldToLightSpace = lightToWorldSpace.Inverted();
+            FrustumPoints.ApplyTransform(in cameraFrustum, in worldToLightSpace, out var AABBPoints);
+            FrustumPoints.CalculateAABB(in AABBPoints, out var frustumAABB);
 
-            var distance = -AABB.HalfSize.Z;
-            var invDirectionView = directionView.Inverted();
-            viewPosition = Vector3.TransformPosition(AABB.Center, invDirectionView) + direction * distance;
+            // Ok, so now we have a AABB of the camera furstum in light space.
+            // Now we want to extend the AABB in the Z direction to include all
+            // shadowcasters that could cast shadows in this direction.
+
+            // Because -Z is forward we want the biggest Z value for shadow casters
+            float newMaxZ = frustumAABB.Max.Z;
+            for (int i = 0; i < shadowCasters.Length; i++)
+            {
+                // Get the shadowcaster bounds points in world space
+                var points = new FrustumPoints(shadowCasters[i]);
+                // Transforms the world space points into light space
+                FrustumPoints.ApplyTransform(in points, in worldToLightSpace, out var newPoints);
+                
+                IntersectsIgnoreZ(newPoints.Near00, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Near01, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Near10, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Near11, frustumAABB, ref newMaxZ);
+
+                IntersectsIgnoreZ(newPoints.Far00, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Far01, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Far10, frustumAABB, ref newMaxZ);
+                IntersectsIgnoreZ(newPoints.Far11, frustumAABB, ref newMaxZ);
+
+                static void IntersectsIgnoreZ(Vector3 point, Box3 box, ref float max)
+                {
+                    // FIXME!!!
+                    //if (box.Min.X < point.X && point.X < box.Max.X &&
+                    //   box.Min.Y < point.Y && point.Y < box.Max.Y)
+                    {
+                        if (point.Z > max) max = point.Z;
+                    }
+                }
+            }
+
+            // FIXME: Calculate min Z from Shadow receivers
+            //if (frustumAABB.Min.Z > newMaxZ) frustumAABB.Min = new Vector3(frustumAABB.Min.X, frustumAABB.Min.Y, newMaxZ);
+            if (frustumAABB.Max.Z < newMaxZ) frustumAABB.Max = new Vector3(frustumAABB.Max.X, frustumAABB.Max.Y, newMaxZ);
+            
+            Matrix4.CreateOrthographic(frustumAABB.Size.X, frustumAABB.Size.Y, 0, frustumAABB.Size.Z, out projection);
+
+            var distance = -frustumAABB.HalfSize.Z;
+            viewPosition = Vector3.TransformPosition(frustumAABB.Center, lightToWorldSpace) + direction * distance;
 
             view = Matrix4.LookAt(viewPosition, viewPosition + direction, up);
-
+            
             var lightSpace = view * projection;
             lightSpace.Invert();
             FrustumPoints.ApplyProjection(FrustumPoints.NDC, lightSpace, out var test);

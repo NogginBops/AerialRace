@@ -258,6 +258,10 @@ namespace AerialRace
             return DateTime.Compare(before, later) < 0;
         }
 
+        public static Color4 WithAlpha(this Color4 color, float alpha)
+        {
+            return new Color4(color.R, color.G, color.B, alpha);
+        }
 
 
         public static float NextFloat(this Random rand) => (float)rand.NextDouble();

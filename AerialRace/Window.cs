@@ -93,9 +93,7 @@ namespace AerialRace
         //EntityManager Manager = new EntityManager();
 
         private readonly static DebugProc DebugProcCallback = Window_DebugProc;
-#pragma warning disable IDE0052 // Remove unread private members
         private static GCHandle DebugProcGCHandle;
-#pragma warning restore IDE0052 // Remove unread private members
 
         protected override void OnLoad()
         {
@@ -415,7 +413,7 @@ namespace AerialRace
                 var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
                 RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
                 */
-                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth16, 2048, 2048, Cascades); //4096, 4096, Cascades);
+                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth24, 2048, 2048, Cascades); //4096, 4096, Cascades);
                 RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, 0);
 
                 // The shadowmap should not resize with the size of the screen!
@@ -560,7 +558,7 @@ namespace AerialRace
             Span<Matrix4> lightSpaces = stackalloc Matrix4[Cascades];
 
             Camera shadowCamera = Player.Camera;
-            shadowCamera = camera;
+            //shadowCamera = camera;
 
             Span<float> splits = stackalloc float[Cascades];
             for (int i = 0; i < splits.Length; i++)
@@ -568,10 +566,20 @@ namespace AerialRace
                 splits[i] = Shadows.CalculateZSplit(i + 1, splits.Length, shadowCamera.NearPlane, shadowCamera.FarPlane, CorrectionFactor);
             }
 
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, shadowCamera.NearPlane, splits[0], out lightViews[0], out lightProjs[0], out lightPoss[0]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[0], splits[1], out lightViews[1], out lightProjs[1], out lightPoss[1]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[1], splits[2], out lightViews[2], out lightProjs[2], out lightPoss[2]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[2], splits[3], out lightViews[3], out lightProjs[3], out lightPoss[3]);
+            // FIXME: This is a bad allocation to have!
+            RefList<Box3> shadowCasters = new RefList<Box3>();
+            foreach (var meshRenderer in MeshRenderer.Instances)
+            {
+                if (meshRenderer.CastShadows)
+                {
+                    shadowCasters.Add(MeshRenderer.RecalculateAABB(meshRenderer.Mesh.AABB, meshRenderer.Transform));
+                }
+            }
+            Span<Box3> shadowCasterSpan = shadowCasters.AsSpan();
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, shadowCamera.NearPlane, splits[0], shadowCasterSpan, out lightViews[0], out lightProjs[0], out lightPoss[0]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[0], splits[1], shadowCasterSpan, out lightViews[1], out lightProjs[1], out lightPoss[1]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[1], splits[2], shadowCasterSpan, out lightViews[2], out lightProjs[2], out lightPoss[2]);
+            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[2], splits[3], shadowCasterSpan, out lightViews[3], out lightProjs[3], out lightPoss[3]);
             for (int i = 0; i < lightSpaces.Length; i++)
             {
                 lightSpaces[i] = lightViews[i] * lightProjs[i];
@@ -806,7 +814,7 @@ namespace AerialRace
                 };
 
                 RenderDataUtil.UsePipeline(Debug.DebugPipeline);
-                //DrawListRenderer.RenderDrawList(Debug.DepthTestList, ref drawListSettings);
+                DrawListRenderer.RenderDrawList(Debug.DepthTestList, ref drawListSettings);
 
                 RenderDataUtil.SetNormalAlphaBlending();
             }

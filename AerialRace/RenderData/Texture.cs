@@ -129,5 +129,10 @@ namespace AerialRace.RenderData
             MaxLevel = maxLevel;
             MipLevels = mipLevels;
         }
+
+        public override string ToString()
+        {
+            return $"{Name}({Handle}) {Type} {Format} {Width}x{Height}x{Depth}";
+        }
     }
 }

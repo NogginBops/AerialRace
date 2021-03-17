@@ -207,7 +207,7 @@ namespace AerialRace.Debugging
         // ----  New 3D helpers  ----
         // --------------------------
 
-        public static void Quad(DrawList list, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color4 color)
+        public static void Quad(DrawList list, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color4 color, Texture? tex = null)
         {
             list.PrewarmVertices(4);
             list.PrewarmIndices(6);
@@ -219,7 +219,7 @@ namespace AerialRace.Debugging
             list.AddVertexWithIndex(v4, (1, 1), color);
             list.AddIndex(i3);
 
-            list.AddCommand(PrimitiveType.Triangles, 6, BuiltIn.UVTest);
+            list.AddCommand(PrimitiveType.Triangles, 6, tex ?? BuiltIn.WhiteTex);
         }
 
         public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
@@ -252,6 +252,30 @@ namespace AerialRace.Debugging
             list.AddIndex(iFar11);
 
             list.AddCommand(PrimitiveType.Lines, 24, BuiltIn.WhiteTex);
+        }
+
+        public static void FrustumPointsBox(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
+        {
+            AddQuad(list, points.Near00, points.Near01, points.Near10, points.Near11, nearColor);
+            AddQuad(list, points.Far00, points.Far01, points.Far10, points.Far11, farColor);
+
+            AddQuad(list, points.Near00, points.Near01, points.Far00, points.Far01, farColor);
+            AddQuad(list, points.Near10, points.Near11, points.Far10, points.Far11, farColor);
+
+            AddQuad(list, points.Near00, points.Near10, points.Far00, points.Far10, farColor);
+            AddQuad(list, points.Near01, points.Near11, points.Far01, points.Far11, farColor);
+
+            list.AddCommand(PrimitiveType.Triangles, 6 * 6, BuiltIn.WhiteTex);
+
+            static void AddQuad(DrawList list, Vector3 p00, Vector3 p01, Vector3 p10, Vector3 p11, Color4 color)
+            {
+                list.AddVertexWithIndex(p00, (0, 0), color);
+                var i2 = list.AddVertexWithIndex(p01, (0, 1), color);
+                var i3 = list.AddVertexWithIndex(p10, (1, 0), color);
+                list.AddIndex(i2);
+                list.AddVertexWithIndex(p11, (1, 1), color);
+                list.AddIndex(i3);
+            }
         }
 
         public static void Line(DrawList list, Vector3 a, Vector3 b, Color4 colorA, Color4 colorB)

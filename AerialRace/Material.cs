@@ -140,6 +140,25 @@ namespace AerialRace
             Type = PropertyType.Matrix4;
             Matrix4Value = mat4;
         }
+
+        public override string ToString()
+        {
+            string value = Type switch
+            {
+                PropertyType.Invalid => "Invalid",
+                PropertyType.Bool => BoolValue.ToString(),
+                PropertyType.Int => IntValue.ToString(),
+                PropertyType.Float => FloatValue.ToString(),
+                PropertyType.Float2 => Vector2Value.ToString(),
+                PropertyType.Float3 => Vector3Value.ToString(),
+                PropertyType.Float4 => Vector4Value.ToString(),
+                PropertyType.Color => ColorValue.ToString(),
+                PropertyType.Matrix3 => Matrix3Value.ToString(),
+                PropertyType.Matrix4 => Matrix4Value.ToString(),
+                _ => throw new NotImplementedException(),
+            };
+            return $"{Name}: {value} ({Type})";
+        }
     }
 
     struct TextureProperty
@@ -153,6 +172,14 @@ namespace AerialRace
             Name = name;
             Texture = texture;
             Sampler = sampler;
+        }
+
+        public override string ToString()
+        {
+            if (Sampler == null)
+                return $"{Name}: {Texture}";
+            else return $"{Name}: {Texture} ({Sampler})";
+
         }
     }
 

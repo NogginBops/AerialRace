@@ -7,6 +7,8 @@ namespace AerialRace
 {
     struct BitArray128 : IEquatable<BitArray128>
     {
+        public const int Slots = 128;
+
         public ulong Field1, Field2;
 
         public BitArray128(ulong f1, ulong f2)
@@ -42,6 +44,12 @@ namespace AerialRace
                     field &= ~mask;
                 }
             }
+        }
+
+        public void Clear()
+        {
+            Field1 = 0;
+            Field2 = 0;
         }
 
         public override bool Equals(object? obj)

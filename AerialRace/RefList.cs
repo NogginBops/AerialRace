@@ -51,6 +51,12 @@ namespace AerialRace
             Count++;
         }
 
+        public void RemoveUnordered(int i)
+        {
+            Data[i] = Data[Count - 1];
+            Count--;
+        }
+
         public ref T this[int i]
         {
             get 
@@ -74,7 +80,7 @@ namespace AerialRace
         }
 
         public void Clear() => Count = 0;
-
+        
         public IEnumerator<T> GetEnumerator()
         {
             for (int i = 0; i < Count; i++)
@@ -83,10 +89,7 @@ namespace AerialRace
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         public override string ToString()
         {
