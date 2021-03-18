@@ -413,7 +413,7 @@ namespace AerialRace
                 var shaowMap = RenderDataUtil.CreateEmpty2DTexture("Shadowmap Texture", TextureFormat.Depth16, 2048 * 2, 2048 * 2);
                 RenderDataUtil.AddDepthAttachment(Shadowmap, shaowMap, 0);
                 */
-                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth24, 2048, 2048, Cascades); //4096, 4096, Cascades);
+                ShadowmapCascadeArray = RenderDataUtil.CreateEmpty2DTextureArray("Shadowmap cascades", TextureFormat.Depth24, 2048, 2048, Cascades); //*/4096, 4096, Cascades);
                 RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, 0);
 
                 // The shadowmap should not resize with the size of the screen!
