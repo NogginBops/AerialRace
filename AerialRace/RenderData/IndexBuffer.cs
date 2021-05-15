@@ -4,6 +4,7 @@ using System.Text;
 
 namespace AerialRace.RenderData
 {
+    [Serializable]
     enum IndexBufferType : int
     {
         UInt8 = BufferDataType.UInt8,
@@ -11,6 +12,7 @@ namespace AerialRace.RenderData
         UInt32 = BufferDataType.UInt32,
     }
 
+    [Serializable]
     class IndexBuffer
     {
         public string Name;

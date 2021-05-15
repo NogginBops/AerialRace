@@ -66,6 +66,15 @@ namespace AerialRace
             LabelObject(ObjectLabelIdentifier.Framebuffer, FBO, $"Framebuffer: {Name}");
         }
 
+        public static void CreateQueries(string Name, QueryTarget target, int[] queries)
+        {
+            GL.CreateQueries(target, queries.Length, queries);
+            for (int i = 0; i < queries.Length; i++)
+            {
+                LabelObject(ObjectLabelIdentifier.Query, queries[i], $"Query: {Name} #{i + 1}");
+            }
+        }
+
         // FIXME: Idk what this should be!!
         private const int DebugGroupMessageId = 1;
 

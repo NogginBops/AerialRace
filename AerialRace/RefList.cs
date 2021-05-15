@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace AerialRace
 {
     // I wanted to use unmanaged to bound T, but RefList<DrawCommand> won't work then.
-    class RefList<T> : IEnumerable<T> where T : struct
+    public class RefList<T> : IEnumerable<T> where T : struct
     {
         public const int DEFAULT_SIZE = 16;
 
@@ -55,6 +55,16 @@ namespace AerialRace
         {
             Data[i] = Data[Count - 1];
             Count--;
+        }
+
+        public void Sort()
+        {
+            AsSpan().Sort();
+        }
+
+        public void Sort(Comparison<T> comparison)
+        {
+            AsSpan().Sort(comparison);
         }
 
         public ref T this[int i]

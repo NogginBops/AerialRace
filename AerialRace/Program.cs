@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using AerialRace.Loading;
+using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using System;
@@ -8,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Text;
 
 namespace AerialRace
 {
@@ -29,11 +31,44 @@ namespace AerialRace
         }
     }
 
+    [Serializable]
+    class Person
+    {
+        [NonSerialized] public int NoSer = 18;
+        public string Name = "Hello";
+        public int Age = 32;
+        public Thing Thing = new Thing();
+    }
+
+    [Serializable]
+    class Thing
+    {
+        public int TestI = 0;
+        public char TestC = 'c';
+        public bool TestB = true;
+        public float TestF = 2.4f;
+    }
+
     class Program
     {
+        public static void TestSerialize<T>(T t)
+        {
+            TextWriter sWriter = File.CreateText("./serialize_test.txt");
+            var writer = new AerialRace.Loading.IndentedTextWriter(sWriter);
+            AerialRace.Loading.Serializer.Serialize(writer, t);
+            writer.Flush();
+        }
+
         static void Main(string[] args)
         {
             Trace.Listeners.Add(new DebugThing());
+
+            /*
+            TextWriter sWriter = File.CreateText("./serialize_test.txt");
+            var writer = new AerialRace.Loading.IndentedTextWriter(sWriter);
+            AerialRace.Loading.Serializer.Serialize(writer, new Person());
+            writer.Flush();
+            */
 
             /*
             {
@@ -61,7 +96,7 @@ namespace AerialRace
             NativeWindowSettings nwSettings = new NativeWindowSettings()
             {
                 API = ContextAPI.OpenGL,
-                //APIVersion = 
+                APIVersion = new Version(4, 6),
                 AutoLoadBindings = true,
                 //CurrentMonitor = 
                 Flags = ContextFlags.Debug | ContextFlags.ForwardCompatible,

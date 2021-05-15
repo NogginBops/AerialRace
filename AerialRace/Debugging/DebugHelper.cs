@@ -26,7 +26,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
+            List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y + Rect.Height), UVs.Xy, Color);
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y), UVs.Xw, Color);
@@ -36,7 +36,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color1, Color4 Color2, Color4 Color3, Color4 Color4)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
+            List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y + Rect.Height), UVs.Xy, Color1);
             List.AddVertexWithIndex(PixelsToGL(Rect.X, Rect.Y), UVs.Xw, Color2);
@@ -46,7 +46,7 @@ namespace AerialRace.Debugging
 
         public static void Rect(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.TriangleStrip, 4, Texture);
+            List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
             List.AddVertexWithIndex(PixelsToGL(Position.X, Position.Y + Size.Y), UVs.Xy, Color);
             List.AddVertexWithIndex(PixelsToGL(Position.X, Position.Y), UVs.Xw, Color);
@@ -56,7 +56,7 @@ namespace AerialRace.Debugging
 
         public static void RectOutline(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
         {
-            List.AddCommand(PrimitiveType.LineStrip, 5, Texture);
+            List.AddCommand(Primitive.LineStrip, 5, Texture);
 
             List.AddRelativeIndices(new[] { 0, 1, 2, 3, 0 });
 
@@ -84,7 +84,7 @@ namespace AerialRace.Debugging
                 list.AddVertexWithIndex(PixelsToGL(Position + pos), new Vector2(x, y), color);
             }
 
-            list.AddCommand(PrimitiveType.LineLoop, Segments, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, Segments, BuiltIn.WhiteTex);
         }
 
         public struct Vertex
@@ -153,7 +153,7 @@ namespace AerialRace.Debugging
                 list.AddVertexWithIndex(pos, v.UV, color);
             }
 
-            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
         public static void OutlineBox(DrawList list, Box3 box, Color4 color)
@@ -200,7 +200,7 @@ namespace AerialRace.Debugging
             list.AddIndex(i011);
             list.AddIndex(i111);
 
-            list.AddCommand(PrimitiveType.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
         // --------------------------
@@ -219,7 +219,7 @@ namespace AerialRace.Debugging
             list.AddVertexWithIndex(v4, (1, 1), color);
             list.AddIndex(i3);
 
-            list.AddCommand(PrimitiveType.Triangles, 6, tex ?? BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Triangles, 6, tex ?? BuiltIn.WhiteTex);
         }
 
         public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
@@ -251,7 +251,7 @@ namespace AerialRace.Debugging
             list.AddIndex(iNear11);
             list.AddIndex(iFar11);
 
-            list.AddCommand(PrimitiveType.Lines, 24, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Lines, 24, BuiltIn.WhiteTex);
         }
 
         public static void FrustumPointsBox(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
@@ -265,7 +265,7 @@ namespace AerialRace.Debugging
             AddQuad(list, points.Near00, points.Near10, points.Far00, points.Far10, farColor);
             AddQuad(list, points.Near01, points.Near11, points.Far01, points.Far11, farColor);
 
-            list.AddCommand(PrimitiveType.Triangles, 6 * 6, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Triangles, 6 * 6, BuiltIn.WhiteTex);
 
             static void AddQuad(DrawList list, Vector3 p00, Vector3 p01, Vector3 p10, Vector3 p11, Color4 color)
             {
@@ -283,7 +283,7 @@ namespace AerialRace.Debugging
             list.Prewarm(2);
             list.AddVertexWithIndex(a, new Vector2(0, 0), colorA);
             list.AddVertexWithIndex(b, new Vector2(1, 1), colorB);
-            list.AddCommand(PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
         public static void RectOutline(DrawList List, Vector3 center, Vector3 U, Vector3 V, Vector4 UVs, Texture Texture, Color4 Color)
@@ -296,7 +296,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(center + halfU + halfV, UVs.Xy, Color);
             List.AddVertexWithIndex(center - halfU + halfV, UVs.Xy, Color);
 
-            List.AddCommand(PrimitiveType.LineLoop, 4, Texture);
+            List.AddCommand(Primitive.LineLoop, 4, Texture);
         }
 
         public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4 color)
@@ -338,7 +338,7 @@ namespace AerialRace.Debugging
                 list.AddIndex(baseIndex + ((i + 1) % segments));
             }
 
-            list.AddCommand(PrimitiveType.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
         }
 
         public static (Vector3, Vector3) GetAny2Perp(Vector3 v)
@@ -400,7 +400,7 @@ namespace AerialRace.Debugging
                 list.AddIndex(baseIndex + ((i + 1) % segments));
             }
 
-            list.AddCommand(PrimitiveType.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
         }
 
         public static void Cylinder(DrawList list, Cylinder cylinder, int segments, Color4 color)
@@ -461,7 +461,7 @@ namespace AerialRace.Debugging
                 list.AddIndex(BNext);
             }
 
-            list.AddCommand(PrimitiveType.Triangles, segments * 3 * 4, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.Triangles, segments * 3 * 4, BuiltIn.WhiteTex);
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using OpenTK;
 using OpenTK.Graphics;
-using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -8,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AerialRace.Debugging;
+using AerialRace.RenderData;
 
 namespace AerialRace.Debugging
 {
@@ -51,7 +51,7 @@ namespace AerialRace.Debugging
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(A), new Vector2(0f, 0f), color);
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(B), new Vector2(0f, 0f), color);
             list.AddVertexWithIndex(DebugHelper.PixelsToGL(C), new Vector2(0f, 0f), color);
-            list.AddCommand(PrimitiveType.LineLoop, 3, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, 3, BuiltIn.WhiteTex);
         }
     }
 

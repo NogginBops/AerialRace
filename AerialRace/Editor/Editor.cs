@@ -25,7 +25,7 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(/*90*/60, 0.1f, 10000f, Color4.Black);
+            EditorCamera = new Camera(/*90*/60, 0.1f, 5000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
 
             EditorCamera.OrthograpicSize = 200;
@@ -173,10 +173,9 @@ namespace AerialRace.Editor
                 RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
                     Gizmos.GizmosOverlay,
                     default(Color4),
-                    OpenTK.Graphics.OpenGL4.ClearBufferMask.ColorBufferBit |
-                    OpenTK.Graphics.OpenGL4.ClearBufferMask.DepthBufferBit);
+                    ClearMask.Color | ClearMask.Depth);
 
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
 
                 RenderDataUtil.UsePipeline(Debug.DebugPipeline);
                 EditorCamera.CalcViewProjection(out var vp);
@@ -186,7 +185,7 @@ namespace AerialRace.Editor
                     DepthTest = true,
                     DepthWrite = true,
                     Vp = vp,
-                    CullMode = RenderDataUtil.CullMode.Back,
+                    CullMode = CullMode.Back,
                 };
                 DrawListRenderer.RenderDrawList(Gizmos.GizmoDrawList, ref settings);
                 Gizmos.GizmoDrawList.Clear();
@@ -219,6 +218,8 @@ namespace AerialRace.Editor
                     RenderDataUtil.DisableBlending();
                 }
             }
+
+            //ShowProfiler();
         }
 
         public static Transform? SelectedTransform;
@@ -373,6 +374,65 @@ namespace AerialRace.Editor
                 }
                 
             }
+        }
+
+        public static void ShowProfiler()
+        {
+            var data = Profiling.EnsureInitedOnThread();
+
+            if (ImGui.Begin("Profiler"))
+            {
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+
+                Stack<int> ids = new Stack<int>();
+                ids.Push(-1);
+                for (int i = 0; i < data.PreviousFramePasses.Count; i++)
+                {
+                    bool open = false;
+
+                    if (i < data.PreviousFramePasses.Count - 1 && data.PreviousFramePasses[i + 1].ParentID != i)
+                    {
+                        flags |= ImGuiTreeNodeFlags.Leaf;
+                    }
+
+                    while (ids.Count > 0 && ids.Peek() > data.PreviousFramePasses[i].ParentID)
+                    {
+                        ids.Pop();
+                        ImGui.TreePop();
+                    }
+
+                    int id = -1;
+                    if (ids.Count > 0)
+                    {
+                        id = ids.Peek();
+                    }
+
+                    bool show = id == data.PreviousFramePasses[i].ParentID;
+                    if (show)
+                    {
+                        var passInfo = data.PreviousFramePasses[i];
+                        var cpuTime = passInfo.CpuTime.Average;
+                        var gpuTime = passInfo.GpuTime.Average;
+                        open = ImGui.TreeNodeEx($"{cpuTime:0.000}ms | {gpuTime:0.000}ms | {passInfo.Name}###{i}", flags);
+                    }
+
+                    if (ImGui.IsItemClicked())
+                    {
+
+                    }
+
+                    if (open && flags.HasFlag(ImGuiTreeNodeFlags.Leaf) == false)
+                    {
+                        ids.Push(i);
+                    }
+
+                    if (show && flags.HasFlag(ImGuiTreeNodeFlags.Leaf))
+                    {
+                        ImGui.TreePop();
+                    }
+                }
+            }
+            ImGui.End();
         }
     }
 }

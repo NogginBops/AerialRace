@@ -15,7 +15,7 @@ namespace AerialRace.Debugging
         public bool DepthTest;
         public bool DepthWrite;
 
-        public RenderDataUtil.CullMode CullMode;
+        public CullMode CullMode;
     }
 
     static class DrawListRenderer
@@ -55,7 +55,7 @@ namespace AerialRace.Debugging
                             RenderDataUtil.BindTexture(0, command.Texture);
                             RenderDataUtil.BindSampler(0, (ISampler?)null);
 
-                            RenderDataUtil.DrawElements((OpenTK.Graphics.OpenGL4.PrimitiveType)command.Command, command.ElementCount, IndexBufferType.UInt32, indexBufferOffset * sizeof(uint));
+                            RenderDataUtil.DrawElements((Primitive)command.Command, command.ElementCount, IndexBufferType.UInt32, indexBufferOffset * sizeof(uint));
                             
                             indexBufferOffset += command.ElementCount;
                         }

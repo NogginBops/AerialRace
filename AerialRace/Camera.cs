@@ -24,6 +24,7 @@ namespace AerialRace
         Orthographic,
     }
 
+    [Serializable]
     class Camera
     {
         public static RenderData.Buffer CameraData;

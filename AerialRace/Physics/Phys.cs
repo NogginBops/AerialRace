@@ -98,18 +98,26 @@ namespace AerialRace.Physics
             return new StaticReference(handle, Simulation.Statics);
         }
 
+        public static float TotalTime = 0;
+        public static float Steps = 0;
+
         public static float Accumulator = 0;
         public static void Update(float dt)
         {
+            TotalTime += dt;
+
             Accumulator += dt;
             while (Accumulator > TimeStep)
             {
+                Debug.WriteLine($"Step! TotalTime: {TotalTime}, Steps: {Steps}");
+
                 // FIXME: Is there a way to avoid doing this?
                 foreach (var body in RigidBody.Instances)
                 {
                     body.UpdatePreviousState();
                 }
-                
+
+                Steps++;
                 Simulation.Timestep(TimeStep);
                 Accumulator -= TimeStep;
             }

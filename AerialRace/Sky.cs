@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AerialRace
 {
-    class SkyRenderer
+    class Sky
     {
         public static readonly RenderData.Buffer FarPlaneNDCQuadBuffer;
         public static readonly Vector3[] FarPlaneNDCQuad = new Vector3[]
@@ -20,23 +20,23 @@ namespace AerialRace
             new Vector3( 1, -1, 1),
         };
 
-        public static readonly AttributeSpecification[] skyboxAttribs = new[]
+        public static readonly AttributeSpecification[] SkyboxAttribs = new[]
         {
             new AttributeSpecification("Position", 3, RenderData.AttributeType.Float, false, 0),
         };
 
-        public static readonly AttributeBufferLink[] skyboxAttribBufferLinks = new[]
+        public static readonly AttributeBufferLink[] SkyboxAttribBufferLinks = new[]
         {
             // Pos attribute to Pos buffer
             new AttributeBufferLink(0, 0)
         };
 
-        static SkyRenderer()
+        static Sky()
         {
             FarPlaneNDCQuadBuffer = RenderDataUtil.CreateDataBuffer<Vector3>("Sky far plane quad", FarPlaneNDCQuad, BufferFlags.None);
         }
 
-        public static SkyRenderer Instance;
+        public static Sky Instance;
 
         public Material SkyMaterial;
         public Vector3 SunDirection;
@@ -44,7 +44,7 @@ namespace AerialRace
         public Color4 SkyColor;
         public Color4 GroundColor;
 
-        public SkyRenderer(Material skyMat, Vector3 sunDir, Color4 sunColor, Color4 skyColor, Color4 groundColor)
+        public Sky(Material skyMat, Vector3 sunDir, Color4 sunColor, Color4 skyColor, Color4 groundColor)
         {
             // FIXME: We might not want this later but it's fine for now.
             if (Instance == null)
@@ -72,8 +72,8 @@ namespace AerialRace
             // Setup skybox render data
             RenderDataUtil.BindIndexBuffer(StaticGeometry.UnitQuadIndexBuffer);
             RenderDataUtil.BindVertexAttribBuffer(0, FarPlaneNDCQuadBuffer);
-            RenderDataUtil.SetAndEnableVertexAttributes(skyboxAttribs);
-            RenderDataUtil.LinkAttributeBuffers(skyboxAttribBufferLinks);
+            RenderDataUtil.SetAndEnableVertexAttributes(SkyboxAttribs);
+            RenderDataUtil.LinkAttributeBuffers(SkyboxAttribBufferLinks);
 
             RenderDataUtil.UsePipeline(mat.Pipeline);
 
@@ -99,7 +99,7 @@ namespace AerialRace
             RenderDataUtil.UniformVector3("sky.SkyColor", ShaderStage.Fragment, settings.Sky.SkyColor);
             RenderDataUtil.UniformVector3("sky.GroundColor", ShaderStage.Fragment, settings.Sky.GroundColor);
 
-            RenderDataUtil.DrawAllElements(PrimitiveType.Triangles);
+            RenderDataUtil.DrawAllElements(Primitive.Triangles);
         }
     }
 }

@@ -34,6 +34,7 @@ namespace AerialRace
         }
     }
 
+    [Serializable]
     class Mesh
     {
         public string Name;

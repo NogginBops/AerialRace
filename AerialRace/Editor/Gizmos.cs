@@ -329,7 +329,7 @@ namespace AerialRace.Editor
             {
                 list.AddVertexWithIndex(origin, (0, 1), color);
                 list.AddVertexWithIndex(origin + (dir * length), (1, 0), color);
-                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+                list.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
             }
 
             static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
@@ -352,7 +352,7 @@ namespace AerialRace.Editor
                     }
                 }
 
-                list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, faces * 6, BuiltIn.WhiteTex);
+                list.AddCommand(Primitive.Triangles, faces * 6, BuiltIn.WhiteTex);
             }
 
             // From: https://nelari.us/post/gizmos/
@@ -558,7 +558,7 @@ namespace AerialRace.Editor
             list.AddVertexWithIndex(position - right2 + up2, (0, 1), color);
             list.AddVertexWithIndex(position + right2 + up2, (1, 1), color);
 
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.TriangleStrip, 4, texture);
+            list.AddCommand(Primitive.TriangleStrip, 4, texture);
         }
 
         public static void OutlineDisk(DrawList list, Disk disk, int segments, Color4 color)
@@ -580,7 +580,7 @@ namespace AerialRace.Editor
                 list.AddVertexWithIndex(disk.Center + offset, new Vector2(x, y), color);
             }
 
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, segments, BuiltIn.WhiteTex);
         }
 
         public static void OutlineSphere(DrawList list, Vector3 pos, float radius, int segments, Color4 color)
@@ -600,7 +600,7 @@ namespace AerialRace.Editor
                 list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
             }
 
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, segments, BuiltIn.WhiteTex);
 
             for (int i = 0; i < segments; i++)
             {
@@ -614,7 +614,7 @@ namespace AerialRace.Editor
                 list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
             }
 
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, segments, BuiltIn.WhiteTex);
 
             for (int i = 0; i < segments; i++)
             {
@@ -628,7 +628,7 @@ namespace AerialRace.Editor
                 list.AddVertexWithIndex(pos + offset, new Vector2(x, y), color);
             }
 
-            list.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.LineLoop, segments, BuiltIn.WhiteTex);
+            list.AddCommand(Primitive.LineLoop, segments, BuiltIn.WhiteTex);
         }
 
         public const string OverlayFrag = @"#version 460 core

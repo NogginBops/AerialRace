@@ -10,6 +10,7 @@ using Buffer = AerialRace.RenderData.Buffer;
 
 namespace AerialRace
 {
+    [Serializable]
     class TrailRenderer : SelfCollection<TrailRenderer>
     {
         public static readonly AttributeSpecification PositionAttributeSpec = new AttributeSpecification("Trail Position", 3, AttributeType.Float, false, 0);
@@ -75,10 +76,7 @@ namespace AerialRace
                     RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
                 }
 
-                RenderDataUtil.DrawArrays(
-                    OpenTK.Graphics.OpenGL4.PrimitiveType.LineStrip,
-                    0,
-                    vertices);
+                RenderDataUtil.DrawArrays(Primitive.LineStrip, 0, vertices);
             }
         }
     }
@@ -99,7 +97,11 @@ namespace AerialRace
         public int Write()
         {
             if (Count == Size)
-                throw new NotSupportedException("Ring buffer is full.");
+            {
+                //throw new NotSupportedException("Ring buffer is full.");
+                ReadHead = (ReadHead + 1) % Size;
+                Count--;
+            }
 
             int index = WriteHead;
 

@@ -61,9 +61,10 @@ namespace AerialRace
         }
     }
 
+    [Serializable]
     class MeshRenderer : SelfCollection<MeshRenderer>
     {
-        public Transform Transform;
+        [NonSerialized] public Transform Transform;
         public Mesh Mesh;
         public Material Material;
         public bool CastShadows;
@@ -135,67 +136,20 @@ namespace AerialRace
 
                 // Because the matrices should all be updated we don't need to calculate it again
                 //transform.GetTransformationMatrix(out var model);
-                var model = transform.LocalToWorld;
-
-                Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
-                Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
-
-                //Matrix4 modelToLightSpace = model * settings.LightSpace;
-
-                if (settings.Lights != null)
-                {
-                    RenderDataUtil.UniformBlock("LightBlock", ShaderStage.Fragment, settings.Lights!.PointLightBuffer);
-                }
-                
-                RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
-                RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
-                RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref settings.Projection);
-                RenderDataUtil.UniformMatrix4("mv", ShaderStage.Vertex, true, ref mv);
-                RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
-                RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
-
-                RenderDataUtil.Uniform1("camera.near", ShaderStage.Vertex, settings.NearPlane);
-                RenderDataUtil.Uniform1("camera.near", ShaderStage.Fragment, settings.NearPlane);
-                RenderDataUtil.Uniform1("camera.far", ShaderStage.Vertex, settings.FarPlane);
-                RenderDataUtil.Uniform1("camera.far", ShaderStage.Fragment, settings.FarPlane);
-                RenderDataUtil.UniformVector3("camera.position", ShaderStage.Vertex, settings.ViewPos);
-                RenderDataUtil.UniformVector3("camera.position", ShaderStage.Fragment, settings.ViewPos);
-
-                if (settings.LightMatrices != null)
-                {
-                    RenderDataUtil.UniformMatrix4Array("worldToLightSpace", ShaderStage.Fragment, true, settings.LightMatrices);
-                }
-                else if (settings.UseShadows) Debug.Assert();
-                
-                //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
-                //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
-
-                RenderDataUtil.UniformVector3("sky.SunDirection", ShaderStage.Fragment, settings.Sky.SunDirection);
-                RenderDataUtil.UniformVector3("sky.SunColor", ShaderStage.Fragment, settings.Sky.SunColor);
-                RenderDataUtil.UniformVector3("sky.SkyColor", ShaderStage.Fragment, settings.Sky.SkyColor);
-                RenderDataUtil.UniformVector3("sky.GroundColor", ShaderStage.Fragment, settings.Sky.GroundColor);
-
-                RenderDataUtil.UniformVector3("scene.ambientLight", ShaderStage.Fragment, settings.AmbientLight);
-
-                RenderDataUtil.Uniform1("AttenuationType", ShaderStage.Fragment, Window.LightFalloff);
-                RenderDataUtil.Uniform1("LightCutout", ShaderStage.Fragment, Window.LightCutout);
+                SetRenderPassUniforms(ref transform.LocalToWorld, ref settings);
 
                 int textureStartIndex = 0;
 
                 // FIXME!! Make binding texture better!
-                RenderDataUtil.Uniform1("UseShadows", ShaderStage.Vertex, settings.UseShadows ? 1 : 0);
-                RenderDataUtil.Uniform1("UseShadows", ShaderStage.Fragment, settings.UseShadows ? 1 : 0);
+                RenderDataUtil.Uniform1("UseShadows", settings.UseShadows ? 1 : 0);
                 if (settings.UseShadows)
                 {
                     textureStartIndex = 1;
 
-                    RenderDataUtil.Uniform1("ShadowCascades", ShaderStage.Vertex, 0);
-                    RenderDataUtil.Uniform1("ShadowCascades", ShaderStage.Fragment, 0);
-                    RenderDataUtil.BindTexture(0, settings.ShadowMap!);
-                    RenderDataUtil.BindSampler(0, settings.ShadowSampler!);
+                    RenderDataUtil.Uniform1("ShadowCascades", 0);
+                    RenderDataUtil.BindTexture(0, settings.ShadowMap!, settings.ShadowSampler!);
 
-                    RenderDataUtil.Uniform4("CascadeSplits", ShaderStage.Vertex, settings.Cascades);
-                    RenderDataUtil.Uniform4("CascadeSplits", ShaderStage.Fragment, settings.Cascades);
+                    RenderDataUtil.Uniform4("CascadeSplits", settings.Cascades);
                 }
 
                 var matProperties = material.Properties;
@@ -206,8 +160,7 @@ namespace AerialRace
                     var texProp = matProperties.Textures[i];
                     var name = texProp.Name;
 
-                    RenderDataUtil.Uniform1(name, ShaderStage.Vertex, ioff);
-                    RenderDataUtil.Uniform1(name, ShaderStage.Fragment, ioff);
+                    RenderDataUtil.Uniform1(name, ioff);
                     RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
                 }
 
@@ -218,10 +171,54 @@ namespace AerialRace
 
                 RenderDataUtil.DrawElements(
                     // FIXME: Make our own primitive type enum
-                    PrimitiveType.Triangles,
+                    Primitive.Triangles,
                     instance.Mesh.Indices!.Elements,
                     instance.Mesh.Indices.IndexType, 0);
             }
+        }
+
+        // This does not set shadow texture stuff atm as we don't have a nice model for binding textures
+        public static void SetRenderPassUniforms(ref Matrix4 model, ref RenderPassSettings settings)
+        {
+            Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
+            Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
+
+            //Matrix4 modelToLightSpace = model * settings.LightSpace;
+
+            if (settings.Lights != null)
+            {
+                RenderDataUtil.UniformBlock("LightBlock", ShaderStage.Fragment, settings.Lights!.PointLightBuffer);
+            }
+
+            RenderDataUtil.UniformMatrix4("model", true, ref model);
+            RenderDataUtil.UniformMatrix4("view", true, ref settings.View);
+            RenderDataUtil.UniformMatrix4("proj", true, ref settings.Projection);
+            RenderDataUtil.UniformMatrix4("mv", true, ref mv);
+            RenderDataUtil.UniformMatrix4("mvp", true, ref mvp);
+            RenderDataUtil.UniformMatrix3("normalMatrix", true, ref normalMatrix);
+
+            RenderDataUtil.Uniform1("camera.near", settings.NearPlane);
+            RenderDataUtil.Uniform1("camera.far", settings.FarPlane);
+            RenderDataUtil.UniformVector3("camera.position", settings.ViewPos);
+
+            if (settings.LightMatrices != null)
+            {
+                RenderDataUtil.UniformMatrix4Array("worldToLightSpace", ShaderStage.Fragment, true, settings.LightMatrices);
+            }
+            else if (settings.UseShadows) Debug.Assert();
+
+            //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
+            //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
+
+            RenderDataUtil.UniformVector3("sky.SunDirection", settings.Sky.SunDirection);
+            RenderDataUtil.UniformVector3("sky.SunColor", settings.Sky.SunColor);
+            RenderDataUtil.UniformVector3("sky.SkyColor", settings.Sky.SkyColor);
+            RenderDataUtil.UniformVector3("sky.GroundColor", settings.Sky.GroundColor);
+
+            RenderDataUtil.UniformVector3("scene.ambientLight", settings.AmbientLight);
+
+            RenderDataUtil.Uniform1("AttenuationType", Window.LightFalloff);
+            RenderDataUtil.Uniform1("LightCutout", Window.LightCutout);
         }
 
         public static void RenderAABBs(DrawList list)

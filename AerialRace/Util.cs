@@ -279,13 +279,24 @@ namespace AerialRace
 
         public static Vector3 NextOnUnitSphere(this Random rand)
         {
-            double theta = 2 * Math.PI * rand.NextFloat();
-            double phi = Math.Acos(1 - 2 * rand.NextFloat());
-            double sinPhi = Math.Sin(phi);
-            double x = sinPhi * Math.Cos(theta);
-            double y = sinPhi * Math.Sin(theta);
-            double z = Math.Cos(phi);
-            return new Vector3((float)x, (float)y, (float)z);
+            float theta = 2 * MathF.PI * rand.NextFloat();
+            float phi = MathF.Acos(1 - 2 * rand.NextFloat());
+            float sinPhi = MathF.Sin(phi);
+            float x = sinPhi * MathF.Cos(theta);
+            float y = sinPhi * MathF.Sin(theta);
+            float z = MathF.Cos(phi);
+            return new Vector3(x, y, z);
+        }
+
+
+        public static Vector3 Floor(Vector3 vec)
+        {
+            return new Vector3(MathF.Floor(vec.X), MathF.Floor(vec.Y), MathF.Floor(vec.Z));
+        }
+
+        public static Vector3 Ceil(Vector3 vec)
+        {
+            return new Vector3(MathF.Ceiling(vec.X), MathF.Ceiling(vec.Y), MathF.Ceiling(vec.Z));
         }
     }
 }

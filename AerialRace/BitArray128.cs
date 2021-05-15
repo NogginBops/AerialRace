@@ -87,5 +87,10 @@ namespace AerialRace
         {
             return !(left == right);
         }
+
+        public override string ToString()
+        {
+            return $"{Convert.ToString((long)Field2, 2)}{Convert.ToString((long)Field1, 2)}";
+        }
     }
 }

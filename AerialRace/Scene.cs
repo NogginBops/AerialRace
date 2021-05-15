@@ -19,11 +19,11 @@ namespace AerialRace
         public Ship Player;
 
         // FIXME: Split the sky from the sky renderer
-        public SkyRenderer Sky;
+        public Sky Sky;
 
 
 
-        public Scene(string name, Ship player, SkyRenderer sky, List<StaticSetpiece> setpieces)
+        public Scene(string name, Ship player, Sky sky, List<StaticSetpiece> setpieces)
         {
             Name = name;
             Setpieces = setpieces;
@@ -42,7 +42,7 @@ namespace AerialRace
             Transforms.Add(setpiece.Transform);
         }
 
-        public void SetSun(SkyRenderer sky)
+        public void SetSun(Sky sky)
         {
             Sky = sky;
         }

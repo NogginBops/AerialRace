@@ -85,10 +85,13 @@ namespace AerialRace
         ShaderPipeline HDRToLDRPipeline;
         Sampler HDRSampler;
 
+        ShaderPipeline VectorscopePipeline;
+        RenderData.Buffer HDRSceneVectorscopeBuffer;
 
-        public SkyRenderer Sky;
+        // FIXME!!
+        public static Sky Sky;
 
-        public Lights Lights;
+        public static Lights Lights;
 
         //EntityManager Manager = new EntityManager();
 
@@ -124,17 +127,14 @@ namespace AerialRace
             AssetDB = new AssetDB();
             AssetDB.LoadAllAssetsFromDirectory("./", true);
 
-            // Enable backface culling
-            // FIXME: This should be a per-material setting
-            //GL.Enable(EnableCap.CullFace);
-            //GL.CullFace(CullFaceMode.Front);
-
             RenderDataUtil.SetDepthTesting(true);
-            RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+            RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
 
             RenderDataUtil.QueryLimits();
             BuiltIn.StaticCtorTrigger();
             Debug.Init(Width, Height);
+
+            VSync = VSyncMode.Off;
 
             Lights = new Lights();
             var light1 = Lights.AddPointLight("Light 1", new Vector3(1, 5, 1), Color4.AntiqueWhite, 30, 100);
@@ -161,8 +161,7 @@ namespace AerialRace
 
             var depthCutoutVertProgram = ShaderCompiler.CompileProgram("Cutout Depth Vertex", ShaderStage.Vertex, "./Shaders/Depth/CutoutDepth.vert");
             var depthCutoutFragProgram = ShaderCompiler.CompileProgram("Cutout Depth Fragment", ShaderStage.Fragment, "./Shaders/Depth/CutoutDepth.frag");
-            var depthCutoutPipeline = ShaderCompiler.CompilePipeline("Coutout Depth", depthCutoutVertProgram, depthCutoutFragProgram);
-
+            var depthCutoutPipeline = ShaderCompiler.CompilePipeline("Cutout Depth", depthCutoutVertProgram, depthCutoutFragProgram);
 
             var standardVertex = ShaderCompiler.CompileProgram("Standard Vertex Shader", ShaderStage.Vertex, "./Shaders/Standard.vert");
             var standardFragment = ShaderCompiler.CompileProgram("Standard Fragment Shader", ShaderStage.Fragment, "./Shaders/Standard.frag");
@@ -175,7 +174,6 @@ namespace AerialRace
 
             StandardSampler = RenderDataUtil.CreateSampler2D("Standard Sampler", MagFilter.Linear, MinFilter.LinearMipmapLinear, 16f, WrapMode.Repeat, WrapMode.Repeat);
 
-            //Material = new Material("First Material", firstShader, null);
             Material = new Material("Debug Material", standardShader, depthPipeline);
             Material.Properties.SetTexture("AlbedoTex", TestTexture, StandardSampler);
             Material.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
@@ -207,9 +205,6 @@ namespace AerialRace
             QuadRenderer = new MeshRenderer(QuadTransform, QuadMesh, Material);
             ChildRenderer = new MeshRenderer(ChildTransform, Mesh, Material);
 
-            //RenderDataUtil.CreateShaderProgram("Ship Vertex", ShaderStage.Vertex, new[] { File.ReadAllText("./Shaders/Ship.vert") }, out var shipVertex);
-            //RenderDataUtil.CreateShaderProgram("Ship Fragment", ShaderStage.Fragment, new[] { File.ReadAllText("./Shaders/Ship.frag") }, out var shipFragment);
-
             var shipPipeline = ShaderCompiler.CompilePipeline("Ship Shader", standardVertex, null, standardFragment);
 
             ShipTexture = TextureLoader.LoadRgbaImage("ship texture", "./Textures/ship.png", true, true);
@@ -221,6 +216,7 @@ namespace AerialRace
 
             shipMaterial.Properties.SetProperty(new Property("material.Metallic", 0.8f));
             shipMaterial.Properties.SetProperty(new Property("material.Roughness", 0.3f));
+            shipMaterial.Properties.SetProperty(new Property("InvertRoughness", false));
 
             var trailPipeline = ShaderCompiler.CompilePipeline("Trail", "./Shaders/Trail.vert", "./Shaders/Trail.frag");
             var trailMat = new Material("Player Trail Mat", trailPipeline, null);
@@ -229,8 +225,6 @@ namespace AerialRace
 
             Player = new Ship("Ship", MeshLoader.LoadObjMesh("./Models/plane.obj"), shipMaterial, trailMat);
             Player.IsPlayerShip = true;
-
-            //Camera.Transform.SetParent(Player.Transform);
 
             var cube = RenderDataUtil.CreateMesh("Test Cube", MeshLoader.LoadObjMesh("./Models/cube.obj"));
 
@@ -249,8 +243,9 @@ namespace AerialRace
 
                 floorMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
                 floorMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
+                floorMat.Properties.SetProperty(new Property("InvertRoughness", false));
 
-                floorMat.Properties.CullMode = RenderDataUtil.CullMode.None;
+                floorMat.Properties.CullMode = CullMode.None;
 
                 // FIXME: Figure out why we have a left-handed coordinate system and if that is what we want...
                 var FloorTransform = new Transform("Floor", new Vector3(0, 0, 0), Quaternion.FromAxisAngle(Vector3.UnitX, -MathF.PI / 2), Vector3.One * 500);
@@ -365,7 +360,7 @@ namespace AerialRace
                 plantMat.Properties.SetProperty(new Property("material.Metallic", 0.02f));
                 plantMat.Properties.SetProperty(new Property("material.Roughness", 1f));
 
-                plantMat.Properties.CullMode = RenderDataUtil.CullMode.None;
+                plantMat.Properties.CullMode = CullMode.None;
 
                 SimpleMaterial physMatDome = new SimpleMaterial()
                 {
@@ -387,11 +382,11 @@ namespace AerialRace
             {
                 HDRSceneBuffer = RenderDataUtil.CreateEmptyFramebuffer("HDR Scene Buffer");
 
-                var hdrTexture = RenderDataUtil.CreateEmpty2DTexture("HDR Texture", TextureFormat.Rgba32F, Width, Height);
-                RenderDataUtil.AddColorAttachment(HDRSceneBuffer, hdrTexture, 0, 0);
+                var hdrColor = RenderDataUtil.CreateEmpty2DTexture("HDR Texture", TextureFormat.Rgba32F, Width, Height);
+                RenderDataUtil.AddColorAttachment(HDRSceneBuffer, hdrColor, 0, 0);
 
-                var depthTex = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, Width, Height);
-                RenderDataUtil.AddDepthAttachment(HDRSceneBuffer, depthTex, 0);
+                var hdrDepth = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, Width, Height);
+                RenderDataUtil.AddDepthAttachment(HDRSceneBuffer, hdrDepth, 0);
 
                 Screen.RegisterFramebuffer(HDRSceneBuffer);
 
@@ -405,6 +400,10 @@ namespace AerialRace
                 HDRToLDRPipeline = ShaderCompiler.CompilePipeline("HDR to LDR", BuiltIn.FullscreenTriangleVertex, hdrToLdr);
 
                 HDRSampler = RenderDataUtil.CreateSampler2D("HDR Postprocess Sampler", MagFilter.Linear, MinFilter.Linear, 0, WrapMode.ClampToEdge, WrapMode.ClampToEdge);
+
+                VectorscopePipeline = ShaderCompiler.CompilePipeline("Vectorscope", "./Shaders/VectorScopeTest.vert", "./Shaders/Unlit.frag");
+
+                HDRSceneVectorscopeBuffer = RenderDataUtil.CreateDataBuffer("Vectorscope buffer", Width * Height, 4 * 4, BufferFlags.Dynamic);
             }
 
             {
@@ -436,7 +435,7 @@ namespace AerialRace
             Material skyMat = new Material("Sky Material", skyPipeline, null);
 
             var sunPosition = new Vector3(100, 100, 0);
-            Sky = new SkyRenderer(skyMat,
+            Sky = new Sky(skyMat,
                 sunPosition.Normalized(),
                 new Color4(1f, 1f, 1f, 1f),
                 //new Color4(2f, 3f, 6f, 1f),
@@ -453,6 +452,10 @@ namespace AerialRace
         protected override void OnRenderFrame(FrameEventArgs args)
         {
             base.OnRenderFrame(args);
+
+            Editor.Profiling.NewFrame();
+            // FIXME: passID = -1 is bad
+            Editor.Profiling.PushSpan("Frame", -1);
 
             ShaderReloadCheckTimer += (float)args.Time;
             if (ShaderReloadCheckTimer >= 1)
@@ -476,9 +479,6 @@ namespace AerialRace
             // Update above calls ImGui.NewFrame()...
             // ImGui.NewFrame();
 
-            //Manager.UpdateSystems();
-            //ShowEntityList(Manager);
-
             Player.Update(deltaTime);
 
             for (int i = 0; i < Transform.Transforms.Count; i++)
@@ -501,6 +501,8 @@ namespace AerialRace
                 RenderScene(Player.Camera);
             }
 
+            Editor.Editor.ShowProfiler();
+
             ImGui.EndFrame();
 
             using (_ = RenderDataUtil.PushGenericPass("ImGui"))
@@ -514,7 +516,12 @@ namespace AerialRace
             //GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             // Depth testing is also turned off!
 
-            SwapBuffers();
+            using (_ = RenderDataUtil.PushGenericPass("SwapBuffer"))
+            {
+                SwapBuffers();
+            }
+
+            Editor.Profiling.PopSpan(-1);
         }
 
         public void RenderScene(Camera camera)
@@ -524,7 +531,7 @@ namespace AerialRace
             // Disable culling here. We do this because the drawlist rendering can change this setting.
             // I don't want to figure out in what ways the current code relies on having no culling.
             // - 2020-12-21
-            RenderDataUtil.SetCullMode(RenderDataUtil.CullMode.None);
+            RenderDataUtil.SetCullMode(CullMode.None);
 
             RenderDataUtil.SetDepthTesting(true);
 
@@ -533,8 +540,8 @@ namespace AerialRace
 
             RenderDataUtil.SetColorWrite(ColorChannels.All);
 
-            GL.ClearColor(camera.ClearColor);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            RenderDataUtil.SetClearColor(camera.ClearColor);
+            RenderDataUtil.Clear(ClearMask.Color | ClearMask.Depth);
 
             SkySettings skySettings = new SkySettings()
             {
@@ -544,21 +551,13 @@ namespace AerialRace
                 GroundColor = Sky.GroundColor,
             };
 
-            // FIXME: This is a hack until we fit this to the camera frustum
-            //Vector3 directionalLightPos = Sky.SunDirection * 100f;
-            //var proj = Matrix4.CreateOrthographic(500, 500, 0.1f, 1000f);
-            //var lightView = Matrix4.LookAt(directionalLightPos, Vector3.Zero, directionalLightPos == Vector3.UnitY ? -Vector3.UnitZ : Vector3.UnitY);
-            //var lightSpace = lightView * proj;
-
-
-
             Span<Matrix4> lightViews = stackalloc Matrix4[Cascades];
             Span<Matrix4> lightProjs = stackalloc Matrix4[Cascades];
             Span<Vector3> lightPoss = stackalloc Vector3[Cascades];
             Span<Matrix4> lightSpaces = stackalloc Matrix4[Cascades];
 
             Camera shadowCamera = Player.Camera;
-            //shadowCamera = camera;
+            shadowCamera = camera;
 
             Span<float> splits = stackalloc float[Cascades];
             for (int i = 0; i < splits.Length; i++)
@@ -575,11 +574,24 @@ namespace AerialRace
                     shadowCasters.Add(MeshRenderer.RecalculateAABB(meshRenderer.Mesh.AABB, meshRenderer.Transform));
                 }
             }
-            Span<Box3> shadowCasterSpan = shadowCasters.AsSpan();
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, shadowCamera.NearPlane, splits[0], shadowCasterSpan, out lightViews[0], out lightProjs[0], out lightPoss[0]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[0], splits[1], shadowCasterSpan, out lightViews[1], out lightProjs[1], out lightPoss[1]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[1], splits[2], shadowCasterSpan, out lightViews[2], out lightProjs[2], out lightPoss[2]);
-            Shadows.FitDirectionalLightProjectionToCamera(shadowCamera, -Sky.SunDirection, splits[2], splits[3], shadowCasterSpan, out lightViews[3], out lightProjs[3], out lightPoss[3]);
+
+            CascadedShadowContext cascadesContext = new CascadedShadowContext()
+            {
+                Camera = shadowCamera,
+                // FIXME: A better way to get the resolution of an FBO
+                ShadowMapResolution = Shadowmap.DepthAttachment!.Value.Texture.Size2D,
+                Direction = -Sky.SunDirection,
+                ShadowCasters = shadowCasters.AsSpan(),
+                CorrectionFactor = CorrectionFactor,
+
+                Splits = splits,
+                LightPositions = lightPoss,
+                LightViews = lightViews,
+                LightProjs = lightProjs,
+            };
+
+            Shadows.CalculateCascades(ref cascadesContext);
+
             for (int i = 0; i < lightSpaces.Length; i++)
             {
                 lightSpaces[i] = lightViews[i] * lightProjs[i];
@@ -596,7 +608,7 @@ namespace AerialRace
             {
                 for (int i = 0; i < Cascades; i++)
                 {
-                    using (_ = RenderDataUtil.PushDepthPass($"Cascade {i}"))
+                    using (_ = RenderDataUtil.PushDepthPass($"Cascade {i}", i))
                     {
                         RenderPassSettings shadowPass = new RenderPassSettings()
                         {
@@ -618,38 +630,25 @@ namespace AerialRace
                         //Screen.ResizeToScreenSizeIfNecessary(Shadowmap);
                         RenderDataUtil.AddDepthLayerAttachment(Shadowmap, ShadowmapCascadeArray, 0, i);
 
-                        RenderDataUtil.BindDrawFramebuffer(Shadowmap);
-                        // FIXME: Clean this up
-                        GL.Viewport(0, 0, Shadowmap.DepthAttachment!.Value.Texture.Width, Shadowmap.DepthAttachment!.Value.Texture.Height);
+                        RenderDataUtil.BindDrawFramebufferSetViewport(Shadowmap);
 
                         RenderDataUtil.SetDepthWrite(true);
                         RenderDataUtil.SetColorWrite(ColorChannels.None);
-                        GL.Clear(ClearBufferMask.DepthBufferBit);
-                        RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                        RenderDataUtil.Clear(ClearMask.Depth);
+                        RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
 
                         MeshRenderer.Render(ref shadowPass);
                     }
                 }
             }
 
+            CascadeSplits.X = splits[0];
+            CascadeSplits.Y = splits[1];
+            CascadeSplits.Z = splits[2];
+            CascadeSplits.W = splits[3];
+
             if (ImGui.Begin("Cascades"))
             {
-                /*
-                var (c1, c2, c3, c4) = CascadeSplits;
-                c1 = Util.NDCDepthToLinear(c1, camera.NearPlane, camera.FarPlane);
-                c2 = Util.NDCDepthToLinear(c2, camera.NearPlane, camera.FarPlane);
-                c3 = Util.NDCDepthToLinear(c3, camera.NearPlane, camera.FarPlane);
-                c4 = Util.NDCDepthToLinear(c4, camera.NearPlane, camera.FarPlane);
-                ImGui.SliderFloat("Cascade 1", ref c1, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
-                ImGui.SliderFloat("Cascade 2", ref c2, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
-                ImGui.SliderFloat("Cascade 3", ref c3, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
-                ImGui.SliderFloat("Cascade 4", ref c4, camera.NearPlane, camera.FarPlane, null, ImGuiSliderFlags.Logarithmic);
-                c1 = Util.LinearDepthToNDC(c1, camera.NearPlane, camera.FarPlane);
-                c2 = Util.LinearDepthToNDC(c2, camera.NearPlane, camera.FarPlane);
-                c3 = Util.LinearDepthToNDC(c3, camera.NearPlane, camera.FarPlane);
-                c4 = Util.LinearDepthToNDC(c4, camera.NearPlane, camera.FarPlane);
-                CascadeSplits = (c1, c2, c3, c4);*/
-
                 CascadeSplits.X = Util.LinearDepthToNDC(splits[0], shadowCamera.NearPlane, shadowCamera.FarPlane);
                 CascadeSplits.Y = Util.LinearDepthToNDC(splits[1], shadowCamera.NearPlane, shadowCamera.FarPlane);
                 CascadeSplits.Z = Util.LinearDepthToNDC(splits[2], shadowCamera.NearPlane, shadowCamera.FarPlane);
@@ -679,13 +678,6 @@ namespace AerialRace
             }
             ImGui.End();
 
-           /*if (ImGui.Begin("Depth texture"))
-           {
-               var tex = ImGuiController.ReferenceTexture(Shadowmap.DepthAttachment.Value.Texture);
-               ImGui.Image((IntPtr)tex, new System.Numerics.Vector2(500, 500));
-           }*/
-           ImGui.End();
-
             Matrix4 proj;
             using (_ = RenderDataUtil.PushDepthPass("Depth prepass"))
             {
@@ -711,16 +703,13 @@ namespace AerialRace
                     Lights = Lights,
                 };
 
-                //RenderDataUtil.BindDrawFramebuffer(DepthBuffer);
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.None);
-                GL.Clear(ClearBufferMask.DepthBufferBit);
+                RenderDataUtil.Clear(ClearMask.Depth);
                 
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
 
                 MeshRenderer.Render(ref depthPrePass);
-
-                //RenderDataUtil.BindDrawFramebuffer(null);
             }
 
             using (_ = RenderDataUtil.PushColorPass("Color pass"))
@@ -749,11 +738,11 @@ namespace AerialRace
 
                 RenderDataUtil.SetDepthWrite(false);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
-                GL.Clear(ClearBufferMask.ColorBufferBit);
+                RenderDataUtil.Clear(ClearMask.Color);
 
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfEqual);
+                RenderDataUtil.SetDepthFunc(DepthFunc.PassIfEqual);
 
-                SkyRenderer.Render(ref colorPass);
+                Sky.Render(ref colorPass);
                 MeshRenderer.Render(ref colorPass);
                 // FIXME: Add transparent switch to render pass thing!
                 //TrailRenderer.Render(ref colorPass);
@@ -785,7 +774,7 @@ namespace AerialRace
 
                 RenderDataUtil.SetDepthWrite(false);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.PassIfLessOrEqual);
+                RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
                 RenderDataUtil.SetBlendModeFull(true,
                     BlendEquationMode.FuncAdd,
                     BlendEquationMode.FuncAdd,
@@ -810,7 +799,7 @@ namespace AerialRace
                     DepthTest = true,
                     DepthWrite = false,
                     Vp = camera.Transform.WorldToLocal * proj,
-                    CullMode = RenderDataUtil.CullMode.None,
+                    CullMode = CullMode.None,
                 };
 
                 RenderDataUtil.UsePipeline(Debug.DebugPipeline);
@@ -821,10 +810,10 @@ namespace AerialRace
 
             using (_ = RenderDataUtil.PushGenericPass("HDR to LDR pass"))
             {
-                RenderDataUtil.SetCullMode(RenderDataUtil.CullMode.Back);
+                RenderDataUtil.SetCullMode(CullMode.Back);
 
                 RenderDataUtil.BindDrawFramebuffer(null);
-                GL.Viewport(0, 0, Width, Height);
+                RenderDataUtil.SetViewport(0, 0, Width, Height);
 
                 RenderDataUtil.UsePipeline(HDRToLDRPipeline);
 
@@ -834,14 +823,38 @@ namespace AerialRace
 
                 RenderDataUtil.SetDepthWrite(false);
                 RenderDataUtil.SetColorWrite(ColorChannels.All);
-                GL.Clear(ClearBufferMask.ColorBufferBit);
+                RenderDataUtil.Clear(ClearMask.Color);
 
-                RenderDataUtil.SetDepthFunc(RenderDataUtil.DepthFunc.AlwaysPass);
+                RenderDataUtil.SetDepthFunc(DepthFunc.AlwaysPass);
                 RenderDataUtil.SetNormalAlphaBlending();
 
                 RenderDataUtil.BindIndexBuffer(null);
-                RenderDataUtil.DrawArrays(PrimitiveType.Triangles, 0, 3);
+                RenderDataUtil.DrawArrays(Primitive.Triangles, 0, 3);
             }
+
+            /**
+            using (_ = RenderDataUtil.PushGenericPass("HDR to Vectorscope"))
+            {
+                GL.BindBuffer(BufferTarget.PixelPackBuffer, HDRSceneVectorscopeBuffer.Handle);
+
+                //GL.PixelStore(PixelStoreParameter.PackAlignment, 1);
+
+                GL.GetTextureImage(HDRSceneBuffer.ColorAttachments![0].ColorTexture.Handle, 0, PixelFormat.Rgba, PixelType.Float, HDRSceneVectorscopeBuffer.SizeInBytes, IntPtr.Zero);
+
+                GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
+
+                RenderDataUtil.UsePipeline(VectorscopePipeline);
+
+                RenderDataUtil.BindIndexBuffer(null);
+                RenderDataUtil.DisableAllVertexAttributes();
+                RenderDataUtil.BindVertexAttribBuffer(0, HDRSceneVectorscopeBuffer);
+                var attrib = new AttributeSpecification("Test", 4, RenderData.AttributeType.Float, false, 0);
+                RenderDataUtil.SetAndEnableVertexAttribute(0, attrib);
+                RenderDataUtil.LinkAttributeBuffer(0, 0);
+
+                RenderDataUtil.DrawArrays(Primitive.Points, 0, HDRSceneVectorscopeBuffer.Elements);
+            }
+            */
 
             using (_ = RenderDataUtil.PushGenericPass("Scene Debug"))
             {
@@ -862,7 +875,7 @@ namespace AerialRace
                         DepthTest = false,
                         DepthWrite = false,
                         Vp = viewMatrix * proj,
-                        CullMode = RenderDataUtil.CullMode.None,
+                        CullMode = CullMode.None,
                     };
                     DrawListRenderer.RenderDrawList(Debug.List, ref settings);
                 }

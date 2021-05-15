@@ -11,6 +11,7 @@ using System.Text;
 
 namespace AerialRace
 {
+    [Serializable]
     class Ship
     {
         public Transform Transform;
@@ -97,6 +98,8 @@ namespace AerialRace
         // This is done per frame to update the ships position and stuff
         public void Update(float deltaTime)
         {
+            // FIXME: Introduce a physics update where we apply impuses!
+
             RigidBody.UpdateTransform(Transform);
             Transform.UpdateMatrices();
 
@@ -155,7 +158,7 @@ namespace AerialRace
             var perpRudderVelocity = rudderVelocity.Proj(Transform.Right);
             var reactionForce = RudderLiftFactor * ((density * -perpRudderVelocity) / 2f) * rudderArea;
             //RigidBody.Body.ApplyImpulse(reactionForce.AsNumerics(), TailRudderOffset.AsNumerics());
-            /*
+            
             Debug.Direction(
                 Transform.WorldPosition,
                 RigidBody.Body.Velocity.Angular.AsOpenTK(), Color4.Cyan);
@@ -171,7 +174,7 @@ namespace AerialRace
             Debug.Direction(
                 Vector3.TransformPosition(TailRudderOffset, Transform.LocalToWorld),
                 reactionForce, Color4.Yellow);
-            */
+            
             float separation = 4.5f;
             LeftTrail.Update(-Transform.Right * separation + Transform.WorldPosition, deltaTime);
             RightTrail.Update(Transform.Right * separation + Transform.WorldPosition, deltaTime);
@@ -233,7 +236,6 @@ namespace AerialRace
 
             Transform.LocalPosition += Velocity * deltaTime;
         }
-
 
         public KeyboardState state;
 
@@ -339,8 +341,7 @@ namespace AerialRace
             Quaternion rotation =
                     Transform.LocalRotation * RotationOffset *
                     Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
-                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation)
-                    ;
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
 
             targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
 

@@ -116,6 +116,9 @@ namespace AerialRace.RenderData
         public int MipLevels;
         // TODO: We could add swizzle and stencil parameters
 
+        public Vector2i Size2D => new Vector2i(Width, Height);
+        public Vector3i Size3D => new Vector3i(Width, Height, Depth);
+
         public Texture(string name, int handle, TextureType type, TextureFormat format, int width, int height, int depth, int baseLevel, int maxLevel, int mipLevels)
         {
             Name = name;

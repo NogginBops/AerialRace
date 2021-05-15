@@ -118,6 +118,8 @@ void main(void)
         float attenuation = CalcPointLightAttenuation5(distance, light.posAndInvRadius.w);
         vec3 radiance = light.intensity.rgb * light.intensity.w * attenuation;
 
+        if (attenuation < 0.0001f) continue;
+
         vec3 F0 = vec3(0.04f);
         vec3 F  = fresnelSchlick(max(dot(H, V), 0.0f), F0);
 

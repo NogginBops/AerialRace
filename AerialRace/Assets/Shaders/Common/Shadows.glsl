@@ -69,7 +69,7 @@ float ShadowCalculation(vec3 worldPos, float depth, vec3 normal, vec3 lightDir)
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
 
-    const float BIAS = 0.0002;
+    const float BIAS = 0.001;
     float bias = max(BIAS * (1.0 - abs(dot(normal, lightDir))), BIAS);
     //bias = biasAmount;
     //bias = 0.03 * (1.0 - abs(dot(normal, lightDir)));
@@ -81,6 +81,18 @@ float ShadowCalculation(vec3 worldPos, float depth, vec3 normal, vec3 lightDir)
     // inside atleast one shadow map
     //if (min(min(projCoords.x, projCoords.y), 1 - max(projCoords.x, projCoords.y)) < 0) return 0;
 
-    float pcf1 = texture(ShadowCascades, vec4(projCoords.xy, level, currentDepth - bias));
-    return pcf1;
+    //float pcf1 = texture(ShadowCascades, vec4(projCoords.xy, level, currentDepth - bias));
+    //return pcf1;
+
+    float sum = 0;
+    vec2 texSize = textureSize(ShadowCascades, 0).xy;
+    for (float x = -1.5; x <= 1.5; x++)
+    {
+        for (float y = -1.5; y <= 1.5; y++)
+        {
+            sum += texture(ShadowCascades, vec4(projCoords.xy + vec2(x, y) / texSize, level, currentDepth - bias));
+        }
+    }
+    sum /= 16;
+    return sum;
 }

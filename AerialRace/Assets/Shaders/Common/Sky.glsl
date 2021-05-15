@@ -42,12 +42,19 @@ vec3 skyColor(vec3 direction)
 
 vec3 skyIrradiance(mat3 tangentToWorld)
 {
+    //return vec3(0);
+    //return skyColor(tangentToWorld[2]);
+
+    const int SAMPLES = 20;
+
     vec3 sum = vec3(0);
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < SAMPLES; i++)
     {
         vec3 t = hemisphere[i];
+        // tangentToWorld is column major 
+        // so this is the correct multiplication order
         sum += skyColor(normalize(tangentToWorld * vec3(t.x,t.z,t.y)));
     }
-    return sum / 20;
+    return sum / SAMPLES;
 }
 

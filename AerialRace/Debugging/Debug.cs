@@ -60,7 +60,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(a, new Vector2(0, 1), color);
             List.AddVertexWithIndex(b, new Vector2(1, 0), color);
 
-            List.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            List.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
         public static void Direction(Vector3 origin, Vector3 direction, Color4 color)
@@ -68,7 +68,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(origin, new Vector2(0, 1), color);
             List.AddVertexWithIndex(origin + direction, new Vector2(1, 0), color);
 
-            List.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            List.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
         public static void DirectionNormalized(Vector3 origin, Vector3 direction, Color4 color)
@@ -76,7 +76,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(origin, new Vector2(0, 1), color);
             List.AddVertexWithIndex(origin + direction.Normalized(), new Vector2(1, 0), color);
 
-            List.AddCommand(OpenTK.Graphics.OpenGL4.PrimitiveType.Lines, 2, BuiltIn.WhiteTex);
+            List.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
 

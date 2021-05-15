@@ -21,6 +21,43 @@ namespace AerialRace.RenderData
     // FIXME: Find a place for this
     [Flags] public enum ColorChannels : byte { None = 0, Red = 1, Green = 2, Blue = 4, Alpha = 8, All = 0x0F }
 
+    [Flags]
+    public enum ClearMask
+    {
+        Color = 1 << 0,
+        Depth = 1 << 1,
+        Stencil = 1 << 2,
+    }
+
+    public enum CullMode
+    {
+        None = 0,
+        Front = 1,
+        Back = 2,
+        FrontAndBack = 3,
+    }
+
+    public enum DepthFunc
+    {
+        AlwaysPass = 0,
+        NeverPass = 1,
+        PassIfLessOrEqual = 2,
+        PassIfEqual = 3,
+    }
+
+    public enum Primitive
+    {
+        Points = 1,
+        Lines = 2,
+        LineLoop = 3,
+        LineStrip = 4,
+        Triangles = 5,
+        TriangleStrip = 6,
+        TriangleFan = 7,
+
+        // FIXME: Tesselation primitives?
+    }
+
     static class RenderDataUtil
     {
         public static float MaxAnisoLevel { get; private set; }
@@ -317,11 +354,47 @@ namespace AerialRace.RenderData
             _ => throw new InvalidEnumArgumentException(nameof(func), (int)func, typeof(DepthFunc)),
         };
 
-        #endregion
+        public static ClearBufferMask ToGLClearBufferMask(ClearMask mask)
+        {
+            ClearBufferMask result = default;
 
-        #region Creation 
+            if (mask.HasFlag(ClearMask.Color))
+                result |= ClearBufferMask.ColorBufferBit;
 
-        public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
+            if (mask.HasFlag(ClearMask.Depth))
+                result |= ClearBufferMask.DepthBufferBit;
+
+            if (mask.HasFlag(ClearMask.Stencil))
+                result |= ClearBufferMask.StencilBufferBit;
+
+            return result;
+        }
+
+        public static PrimitiveType ToGLPrimitiveType(Primitive primitive) => primitive switch
+        {
+            Primitive.Points => PrimitiveType.Points,
+            Primitive.Lines => PrimitiveType.Lines,
+            Primitive.LineLoop => PrimitiveType.LineLoop,
+            Primitive.LineStrip => PrimitiveType.LineStrip,
+            Primitive.Triangles => PrimitiveType.Triangles,
+            Primitive.TriangleStrip => PrimitiveType.TriangleStrip,
+            Primitive.TriangleFan => PrimitiveType.TriangleFan,
+
+            _ => throw new InvalidEnumArgumentException(nameof(primitive), (int)primitive, typeof(Primitive)),
+        };
+
+        public static QueryTarget ToGLQueryTarget(QueryType type) => type switch
+        {
+            QueryType.TimeElapsed => QueryTarget.TimeElapsed,
+            QueryType.Timestamp => QueryTarget.Timestamp,
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(QueryType)),
+        };
+
+    #endregion
+
+    #region Creation 
+
+    public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
         {
             GLUtil.CreateBuffer(name, out int Handle);
 
@@ -366,6 +439,21 @@ namespace AerialRace.RenderData
             GL.NamedBufferStorage(Handle, bytes, IntPtr.Zero, glFlags);
 
             return new Buffer(name, Handle, bufferType, -1, bytes, flags);
+        }
+
+        public static Buffer CreateDataBuffer(string name, int elements, int elementSize, BufferFlags flags)
+        {
+            GLUtil.CreateBuffer(name, out int Handle);
+
+            BufferDataType bufferType = BufferDataType.Custom;
+
+            BufferStorageFlags glFlags = ToGLStorageFlags(flags);
+            var bytes = elements * elementSize;
+
+            // GLEXT: ARB_direct_access
+            GL.NamedBufferStorage(Handle, bytes, IntPtr.Zero, glFlags);
+            
+            return new Buffer(name, Handle, bufferType, elementSize, bytes, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<byte> data, BufferFlags flags)
@@ -741,7 +829,7 @@ namespace AerialRace.RenderData
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
 
             GL.SamplerParameter(sampler, SamplerParameterName.TextureMaxAnisotropyExt, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
-
+            
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
         }
 
@@ -1202,6 +1290,25 @@ namespace AerialRace.RenderData
             return prog;
         }
 
+        public static bool TryGetPipelineStage(ShaderStage stage, [NotNullWhen(true)] out ShaderProgram? program)
+        {
+            if (CurrentPipeline == null)
+                throw new InvalidOperationException("There is no program pipeline bound so we can't set uniforms!!");
+
+            program = stage switch
+            {
+                ShaderStage.Vertex => CurrentPipeline.VertexProgram,
+                ShaderStage.Geometry => CurrentPipeline.GeometryProgram,
+                ShaderStage.Fragment => CurrentPipeline.FramgmentProgram,
+
+                ShaderStage.Compute => throw new NotImplementedException(),
+
+                _ => throw new ArgumentException($"Unknown shader stage: {stage}", nameof(stage)),
+            };
+
+            return program != null;
+        }
+
         public static int GetUniformLocation(string uniform, ShaderProgram? program)
         {
             if (program == null) return -1;
@@ -1296,12 +1403,21 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static void UniformMatrix4(string uniformName, bool transpose, ref Matrix4 matrix)
+        {
+            Debug.Assert(CurrentPipeline != null);
+            UniformMatrix4(uniformName, ShaderStage.Vertex, transpose, ref matrix);
+            UniformMatrix4(uniformName, ShaderStage.Geometry, transpose, ref matrix);
+            UniformMatrix4(uniformName, ShaderStage.Fragment, transpose, ref matrix);
+        }
+
         public static void UniformMatrix4(string uniformName, ShaderStage stage, bool transpose, ref Matrix4 matrix)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
-
-            GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
+            }
         }
 
         // FIXME: We probably want to handle matrices slightly different than we are currently doing
@@ -1317,52 +1433,100 @@ namespace AerialRace.RenderData
             }
         }
 
+        public static void UniformMatrix3(string uniformName, bool transpose, ref Matrix3 matrix)
+        {
+            UniformMatrix3(uniformName, ShaderStage.Vertex, transpose, ref matrix);
+            UniformMatrix3(uniformName, ShaderStage.Geometry, transpose, ref matrix);
+            UniformMatrix3(uniformName, ShaderStage.Fragment, transpose, ref matrix);
+        }
+
         public static void UniformMatrix3(string uniformName, ShaderStage stage, bool transpose, ref Matrix3 matrix)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniformMatrix3(prog.Handle, location, transpose, ref matrix);
+            }
+        }
 
-            GL.ProgramUniformMatrix3(prog.Handle, location, transpose, ref matrix);
+        public static void UniformVector3(string uniformName, Vector3 vec3)
+        {
+            UniformVector3(uniformName, ShaderStage.Vertex, vec3);
+            UniformVector3(uniformName, ShaderStage.Geometry, vec3);
+            UniformVector3(uniformName, ShaderStage.Fragment, vec3);
         }
 
         public static void UniformVector3(string uniformName, ShaderStage stage, Vector3 vec3)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniform3(prog.Handle, location, vec3);
+            }
+        }
 
-            GL.ProgramUniform3(prog.Handle, location, vec3);
+        public static void UniformVector3(string uniformName, Color4 color)
+        {
+            UniformVector3(uniformName, ShaderStage.Vertex, color);
+            UniformVector3(uniformName, ShaderStage.Geometry, color);
+            UniformVector3(uniformName, ShaderStage.Fragment, color);
         }
 
         public static void UniformVector3(string uniformName, ShaderStage stage, Color4 color)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniform3(prog.Handle, location, new Vector3(color.R, color.G, color.B));
+            }
+        }
 
-            GL.ProgramUniform3(prog.Handle, location, new Vector3(color.R, color.G, color.B));
+        public static void Uniform1(string uniformName, int i)
+        {
+            Uniform1(uniformName, ShaderStage.Vertex, i);
+            Uniform1(uniformName, ShaderStage.Geometry, i);
+            Uniform1(uniformName, ShaderStage.Fragment, i);
         }
 
         public static void Uniform1(string uniformName, ShaderStage stage, int i)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniform1(prog.Handle, location, i);
+            }
+        }
 
-            GL.ProgramUniform1(prog.Handle, location, i);
+        public static void Uniform1(string uniformName, float f)
+        {
+            Uniform1(uniformName, ShaderStage.Vertex, f);
+            Uniform1(uniformName, ShaderStage.Geometry, f);
+            Uniform1(uniformName, ShaderStage.Fragment, f);
         }
 
         public static void Uniform1(string uniformName, ShaderStage stage, float f)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniform1(prog.Handle, location, f);
+            }
+        }
 
-            GL.ProgramUniform1(prog.Handle, location, f);
+        public static void Uniform4(string uniformName, Vector4 vec4)
+        {
+            Uniform4(uniformName, ShaderStage.Vertex, vec4);
+            Uniform4(uniformName, ShaderStage.Geometry, vec4);
+            Uniform4(uniformName, ShaderStage.Fragment, vec4);
         }
 
         public static void Uniform4(string uniformName, ShaderStage stage, Vector4 vec4)
         {
-            var prog = GetPipelineStage(stage);
-            var location = GetUniformLocation(uniformName, prog);
-
-            GL.ProgramUniform4(prog.Handle, location, vec4);
+            if (TryGetPipelineStage(stage, out var prog))
+            {
+                var location = GetUniformLocation(uniformName, prog);
+                GL.ProgramUniform4(prog.Handle, location, vec4);
+            }
         }
 
         public static void UniformBlock(string blockName, ShaderStage stage, Buffer buffer)
@@ -1396,7 +1560,7 @@ namespace AerialRace.RenderData
 
         public static void BindTexture(int unit, Texture texture, ShadowSampler sampler)
         {
-            if (BoundTextures[unit]?.Type != sampler.Type.ToTextureType())
+            if (texture.Type != sampler.Type.ToTextureType())
             {
                 Debug.Print($"Sampler at unit '{unit}' doesn't match the bound texture type '{BoundTextures[unit]?.Type}' (sampler type: {sampler.Type})");
             }
@@ -1466,6 +1630,21 @@ namespace AerialRace.RenderData
 
         #region Framebuffer
 
+        public static Box2i CurrentViewport;
+        public static void SetViewport(int x, int y, int width, int height)
+        {
+            SetViewport(new Box2i(x, y, x + width, y + height));
+        }
+
+        public static void SetViewport(Box2i viewport)
+        {
+            if (CurrentViewport != viewport)
+            {
+                GL.Viewport(viewport.Min.X, viewport.Min.Y, viewport.Size.X, viewport.Size.Y);
+                CurrentViewport = viewport;
+            }
+        }
+
         public static Framebuffer? DrawBuffer;
         public static Framebuffer? ReadBuffer;
 
@@ -1530,42 +1709,62 @@ namespace AerialRace.RenderData
                 height = defaultHeight;
             }
 
-            GL.Viewport(0, 0, width, height);
+            SetViewport(0, 0, width, height);
         }
 
         // FIXME: This might be too much state change in one function 
         // making things harder to reason about...
         // FIXME: Make our own ClearBufferMask enum (leaking enum)
-        public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearBufferMask mask)
+        public static void BindDrawFramebufferSetViewportAndClear(Framebuffer buffer, Color4 clearColor, ClearMask mask)
         {
             BindDrawFramebufferSetViewport(buffer);
-            GL.ClearColor(clearColor);
-            GL.Clear(mask);
+            SetClearColor(clearColor);
+            Clear(mask);
         }
 
         #endregion
 
-        // FIXME: Make our own primitive type enum
-        public static void DrawElements(PrimitiveType type, int elements, IndexBufferType indexType, int offset)
+        public static Color4 ClearColor;
+        public static void SetClearColor(Color4 color)
+        {
+            if (ClearColor != color)
+            {
+                GL.ClearColor(color);
+                ClearColor = color;
+            }
+        }
+
+        public static void Clear(ClearMask mask)
+        {
+            if (mask.HasFlag(ClearMask.Color) && ColorWrite == ColorChannels.None)
+                Debug.WriteLine("[Warning] Trying to clear color with color write disabled!");
+
+            if (mask.HasFlag(ClearMask.Depth) && DepthWrite == false)
+                Debug.WriteLine("[Warning] Trying to clear depth with depth write disabled!");
+
+            GL.Clear(ToGLClearBufferMask(mask));
+        }
+
+        public static void DrawElements(Primitive type, int elements, IndexBufferType indexType, int offset)
         {
             if (CurrentIndexBuffer == null) throw new Exception("Cannot draw all elements if there is no element buffer bound!");
 
-            GL.DrawElements(type, elements, ToGLDrawElementsType(indexType), offset);
+            GL.DrawElements(ToGLPrimitiveType(type), elements, ToGLDrawElementsType(indexType), offset);
         }
 
-        public static void DrawAllElements(PrimitiveType type)
+        public static void DrawAllElements(Primitive type)
         {
             if (CurrentIndexBuffer == null) throw new Exception("Cannot draw all elements if there is no element buffer bound!");
 
-            GL.DrawElements(type, CurrentIndexBuffer.Elements, ToGLDrawElementsType(CurrentIndexBuffer.IndexType), 0);
+            GL.DrawElements(ToGLPrimitiveType(type), CurrentIndexBuffer.Elements, ToGLDrawElementsType(CurrentIndexBuffer.IndexType), 0);
         }
 
-        public static void DrawArrays(PrimitiveType type, int offset, int vertices)
+        public static void DrawArrays(Primitive type, int offset, int vertices)
         {
             if (CurrentIndexBuffer != null)
                 Debug.WriteLine("WARNING: Calling DrawArrays while there is an index buffer bound. This is probably not intentional.");
 
-            GL.DrawArrays(type, offset, vertices);
+            GL.DrawArrays(ToGLPrimitiveType(type), offset, vertices);
         }
 
         public static Recti CurrentScissor = Recti.Empty;
@@ -1601,18 +1800,14 @@ namespace AerialRace.RenderData
             }
         }
 
-        public enum DepthFunc
-        {
-            AlwaysPass,
-            NeverPass,
-            PassIfLessOrEqual,
-            PassIfEqual,
-        }
-
         private static DepthFunc CurrentDepthFunc;
         public static void SetDepthFunc(DepthFunc func)
         {
-            GL.DepthFunc(ToGLDepthFunction(func));
+            if (CurrentDepthFunc != func)
+            {
+                GL.DepthFunc(ToGLDepthFunction(func));
+                CurrentDepthFunc = func;
+            }
         }
 
         private static ColorChannels ColorWrite;
@@ -1630,20 +1825,11 @@ namespace AerialRace.RenderData
             }
         }
 
-        public enum CullMode
-        {
-            None,
-            Front,
-            Back,
-            FrontAndBack
-        }
-
-        // FIXME: Make our own enum
         private static bool CullingFaces = false;
-        private static CullMode Mode = CullMode.None;
+        private static CullMode CullMode = CullMode.None;
         public static void SetCullMode(CullMode mode)
         {
-            if (Mode != mode)
+            if (CullMode != mode)
             {
                 if (mode == CullMode.None)
                 {
@@ -1675,7 +1861,7 @@ namespace AerialRace.RenderData
                     }
                 }
 
-                Mode = mode;
+                CullMode = mode;
             }
         }
 
@@ -1707,34 +1893,65 @@ namespace AerialRace.RenderData
 
         public struct DebugGroup : IDisposable
         {
+            public int ProfileSpanID;
+
+            public static DebugGroup Create(string name, int passID)
+            {
+                DebugGroup group;
+                group.ProfileSpanID = passID;
+                Editor.Profiling.PushSpan(name, passID);
+                return group;
+            }
+
             public void Dispose()
             {
+                //EndQuery(PassInfo.Query);
+                //var ready = IsQueryReady(PassInfo.Query);
+                //long time = GetTimeElapsedQueryResult(PassInfo.Query, false);
+                //PassInfo.GPUTime.Current = time / 1_000_000_000d;
+                Editor.Profiling.PopSpan(ProfileSpanID);
+
+                //Debug.WriteLine($"{PassInfo.Name}: {PassInfo.GPUTime.Current}, {ready}");
                 PopDebugGroup();
             }
         }
 
-        public static DebugGroup PushGenericPass(string name)
+        // FIXME: Have PushIndexedPass instead of having a "seed" argument
+
+        public static DebugGroup PushGenericPass(string name,
+            int seed = 0,
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0)
         {
+            // Get callsite "unique" hash
             GLUtil.PushDebugGroup(name);
-            return default;
+            int callsiteHash = HashCode.Combine(seed, sourceFilePath, sourceLineNumber);
+            var group = DebugGroup.Create(name, callsiteHash);
+            return group;
         }
 
-        public static DebugGroup PushDepthPass(string name)
+        public static DebugGroup PushDepthPass(string name,
+            int seed = 0,
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0)
         {
-            GLUtil.PushDebugGroup($"Depth pass: {name}");
-            return default;
+            return PushGenericPass($"Depth pass: {name}", seed, sourceFilePath, sourceLineNumber);
         }
 
-        public static DebugGroup PushColorPass(string name)
+        public static DebugGroup PushColorPass(string name,
+            int seed = 0,
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0)
         {
-            GLUtil.PushDebugGroup($"Color pass: {name}");
-            return default;
+            return PushGenericPass($"Color pass: {name}", seed, sourceFilePath, sourceLineNumber);
         }
 
-        public static DebugGroup PushCombinedPass(string name)
+        public static DebugGroup PushCombinedPass(string name,
+            int seed = 0,
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0)
         {
-            GLUtil.PushDebugGroup($"Color + depth pass: {name}");
-            return default;
+            return PushGenericPass($"Color + depth pass: {name}", seed, sourceFilePath, sourceLineNumber);
         }
 
         public static void PopDebugGroup()
@@ -1742,6 +1959,115 @@ namespace AerialRace.RenderData
             GLUtil.PopDebugGroup();
         }
 
+        #endregion
+
+        #region Queries
+
+        public static BufferedQuery CreateQuery(string name, QueryType type, int bufferLength)
+        {
+            int[] startQueries = new int[bufferLength];
+            int[] endQueries = new int[bufferLength];
+            GLUtil.CreateQueries($"{name} start", ToGLQueryTarget(type), startQueries);
+            GLUtil.CreateQueries($"{name} end", ToGLQueryTarget(type), endQueries);
+            return new BufferedQuery(name, type, startQueries, endQueries);
+        }
+
+        public static void BeginQuery(BufferedQuery query)
+        {
+            GL.QueryCounter(query.StartHandles[query.CurrentQuery], QueryCounterTarget.Timestamp);
+        }
+
+        public static void EndQuery(BufferedQuery query)
+        {
+            GL.QueryCounter(query.EndHandles[query.CurrentQuery], QueryCounterTarget.Timestamp);
+
+            // The update the next query we want to record with
+            query.CurrentQuery = (query.CurrentQuery + 1) % query.StartHandles.Length;
+        }
+
+        public static bool IsQueryReady(BufferedQuery query)
+        {
+            int lastQuery = query.EndHandles[query.ReadQuery % query.EndHandles.Length];
+            GL.GetQueryObject(lastQuery, GetQueryObjectParam.QueryResultAvailable, out int isAvaiable);
+            return isAvaiable == (int)All.True;
+        }
+
+        public static long GetTimeElapsedQueryResult(BufferedQuery query, bool waitIfNotAvailable)
+        {
+            int lastStartQuery = query.StartHandles[query.ReadQuery % query.StartHandles.Length];
+            int lastEndQuery = query.EndHandles[query.ReadQuery % query.EndHandles.Length];
+
+            GetQueryObjectParam waitOrNot = waitIfNotAvailable ?
+                GetQueryObjectParam.QueryResult :
+                GetQueryObjectParam.QueryResultNoWait;
+
+            long startTime = 0;
+            long endTime = -1;
+            
+            GL.GetQueryObject(lastStartQuery, waitOrNot, out startTime);
+            GL.GetQueryObject(lastEndQuery, waitOrNot, out endTime);
+
+            // Go to the next query
+            query.ReadQuery++;
+            query.ReadQuery %= query.StartHandles.Length;
+
+            return endTime - startTime;
+        }
+
+        public const int QueryBufferingLength = 3;
+        public const int QueryAllocationSize = 16;
+
+        public unsafe struct QueryBuffer
+        {
+            public fixed int Handles[QueryBufferingLength];
+        }
+
+        public class Query
+        {
+            public int Handle;
+            public QueryBuffer Buffer;
+
+            public Query(int handle)
+            {
+                //Buffer.Handles[0] = handle;
+                Handle = handle;
+            }
+        }
+
+        public static Stack<int> UnusedQueries = new Stack<int>();
+
+        public static List<Query>[] AllQueries = new List<Query>[QueryBufferingLength];
+        public static List<Query> FrameQueries;
+
+        public static void FlipQueries(int frame)
+        {
+            FrameQueries = AllQueries[frame % QueryBufferingLength];
+        }
+        /*
+        public int BeginTime(QueryTarget target)
+        {
+            // Find first free query or allocate
+            if (UnusedQueries.Count < 0)
+            {
+                // Allocate queries
+                Span<int> queries = stackalloc int[QueryAllocationSize * QueryBufferingLength];
+                GL.GenQueries(QueryAllocationSize * QueryBufferingLength, out queries[0]);
+
+                for (int buffer = 0; buffer < QueryBufferingLength; buffer++)
+                {
+                    for (int i = 0; i < QueryAllocationSize; i++)
+                    {
+                        int handle = queries[i + buffer * QueryAllocationSize];
+                        AllQueries[buffer].Add(new Query(handle));
+
+                        if (buffer == 0) UnusedQueries.Push(AllQueries[0].Count - 1);
+                    }
+                }
+            }
+
+            GL.BeginQuery(target, 0);
+        }
+        */
         #endregion
     }
 }

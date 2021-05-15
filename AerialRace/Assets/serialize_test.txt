@@ -1,0 +1,114 @@
+Transform: 
+    Name: "Ship"
+    LinearizedIndex: 0
+    LocalPosition: v3(0, 0, 0)
+    LocalScale: v3(1, 1, 1)
+    LocalRotation: 
+        Xyz: v3(0, 0, 0)
+        W: 1
+    Parent: null
+    Children: null
+    LocalToWorld: 
+        Row0: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row1: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row2: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row3: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+    WorldToLocal: 
+        Row0: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row1: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row2: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+        Row3: 
+            X: 0
+            Y: 0
+            Z: 0
+            W: 0
+MeshRenderer: 
+    Transform: 
+        Name: "Ship"
+        LinearizedIndex: 0
+        LocalPosition: v3(0, 0, 0)
+        LocalScale: v3(1, 1, 1)
+        LocalRotation: 
+            Xyz: v3(0, 0, 0)
+            W: 1
+        Parent: null
+        Children: null
+        LocalToWorld: 
+            Row0: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row1: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row2: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row3: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+        WorldToLocal: 
+            Row0: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row1: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row2: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+            Row3: 
+                X: 0
+                Y: 0
+                Z: 0
+                W: 0
+    Mesh: 
+        Name: "Ship"
+        Indices: 
+            Name: "Ship"
+            Handle: 12
+            IndexType: 
+                value__: 3
+            ElementSize: 4
+            Elements: 7872

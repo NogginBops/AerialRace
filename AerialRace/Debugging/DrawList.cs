@@ -37,13 +37,13 @@ namespace AerialRace.Debugging
 
     enum DrawCommandType
     {
-        Points = PrimitiveType.Points,
-        Lines = PrimitiveType.Lines,
-        LineLoop = PrimitiveType.LineLoop,
-        LineStrip = PrimitiveType.LineStrip,
-        Triangles = PrimitiveType.Triangles,
-        TriangleStrip = PrimitiveType.TriangleStrip,
-        TriangleFan = PrimitiveType.TriangleFan,
+        Points = Primitive.Points,
+        Lines = Primitive.Lines,
+        LineLoop = Primitive.LineLoop,
+        LineStrip = Primitive.LineStrip,
+        Triangles = Primitive.Triangles,
+        TriangleStrip = Primitive.TriangleStrip,
+        TriangleFan = Primitive.TriangleFan,
         SetScissor,
     }
 
@@ -57,7 +57,7 @@ namespace AerialRace.Debugging
         public Matrix3 Transform;
         public Recti Scissor;
 
-        public DrawCommand(PrimitiveType primitive, int elementCount, Texture? texture = null, Material? material = null)
+        public DrawCommand(Primitive primitive, int elementCount, Texture? texture = null, Material? material = null)
         {
             Command = (DrawCommandType) primitive;
             ElementCount = elementCount;
@@ -115,7 +115,7 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddCommand(PrimitiveType type, int elementCount, Texture texture, Material? material = null)
+        public void AddCommand(Primitive type, int elementCount, Texture texture, Material? material = null)
         {
             Commands.Add(new DrawCommand(type, elementCount, texture, material));
         }
