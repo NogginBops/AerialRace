@@ -25,7 +25,7 @@ namespace AerialRace.Editor
         {
             Window = window;
             AssetDB = window.AssetDB;
-            EditorCamera = new Camera(/*90*/60, 0.1f, 5000f, Color4.Black);
+            EditorCamera = new Camera("Editor Camera", /*90*/60, 0.1f, 5000f, Color4.Black);
             EditorCamera.Transform.LocalPosition = new Vector3(0, 5, 5);
 
             EditorCamera.OrthograpicSize = 200;
@@ -147,7 +147,7 @@ namespace AerialRace.Editor
 
             if (SelectedTransform != null)
             {
-                Gizmos.TransformHandle(SelectedTransform);
+                //Gizmos.TransformHandle(SelectedTransform);
             }
 
             foreach (var light in Window.Lights.LightsList)
@@ -155,7 +155,7 @@ namespace AerialRace.Editor
                 Gizmos.LightIcon(light);
             }
 
-            Gizmos.CameraGizmo(Window.Player.Camera);
+            //Gizmos.CameraGizmo(Window.Player.Camera);
 
             // Gizmos drawlist rendering
             using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
@@ -382,15 +382,15 @@ namespace AerialRace.Editor
 
             if (ImGui.Begin("Profiler"))
             {
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
-
                 Stack<int> ids = new Stack<int>();
                 ids.Push(-1);
                 for (int i = 0; i < data.PreviousFramePasses.Count; i++)
                 {
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow | ImGuiTreeNodeFlags.SpanAvailWidth;
+
                     bool open = false;
 
-                    if (i < data.PreviousFramePasses.Count - 1 && data.PreviousFramePasses[i + 1].ParentID != i)
+                    if (i >= data.PreviousFramePasses.Count - 1 || data.PreviousFramePasses[i + 1].ParentID != i)
                     {
                         flags |= ImGuiTreeNodeFlags.Leaf;
                     }

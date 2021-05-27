@@ -58,8 +58,7 @@ namespace AerialRace
             Model = RenderDataUtil.CreateMesh(name, meshData);
             Material = material;
 
-            Camera = new Camera(100, 0.1f, 10_000f, new Color4(1f, 0, 1f, 1f));
-            Camera.Transform.Name = "Player Camera";
+            Camera = new Camera("Player Camera", 100, 0.1f, 10_000f, new Color4(1f, 0, 1f, 1f));
             Camera.Transform.LocalPosition = CameraOffset;
 
             MeshRenderer = new MeshRenderer(Transform, Model, Material);
@@ -95,8 +94,14 @@ namespace AerialRace
             Velocity = Vector3.Zero;// -Vector3.UnitZ;
         }
 
-        // This is done per frame to update the ships position and stuff
         public void Update(float deltaTime)
+        {
+            RigidBody.UpdateTransform(Transform);
+            Transform.UpdateMatrices();
+        }
+
+        // This is done per frame to update the ships position and stuff
+        public void FixedUpdate(float deltaTime)
         {
             // FIXME: Introduce a physics update where we apply impuses!
 

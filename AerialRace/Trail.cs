@@ -43,11 +43,11 @@ namespace AerialRace
 
                 //Matrix4 modelToLightSpace = model * settings.LightSpace;
 
-                RenderDataUtil.UniformMatrix4("model", ShaderStage.Vertex, true, ref model);
-                RenderDataUtil.UniformMatrix4("view", ShaderStage.Vertex, true, ref settings.View);
-                RenderDataUtil.UniformMatrix4("proj", ShaderStage.Vertex, true, ref settings.Projection);
-                RenderDataUtil.UniformMatrix4("mv", ShaderStage.Vertex, true, ref mv);
-                RenderDataUtil.UniformMatrix4("mvp", ShaderStage.Vertex, true, ref mvp);
+                RenderDataUtil.UniformMatrix4("model", true, ref model);
+                RenderDataUtil.UniformMatrix4("view", true, ref settings.View);
+                RenderDataUtil.UniformMatrix4("proj", true, ref settings.Projection);
+                RenderDataUtil.UniformMatrix4("mv", true, ref mv);
+                RenderDataUtil.UniformMatrix4("mvp", true, ref mvp);
                 //RenderDataUtil.UniformMatrix3("normalMatrix", ShaderStage.Vertex, true, ref normalMatrix);
 
                 //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);

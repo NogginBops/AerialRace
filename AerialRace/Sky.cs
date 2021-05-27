@@ -81,16 +81,9 @@ namespace AerialRace
             var invView = Matrix4.Invert(settings.View);
             var invViewProj = Matrix4.Invert(settings.View * settings.Projection);
 
-            RenderDataUtil.UniformMatrix4("invProj", ShaderStage.Vertex, true, ref invProj);
-            RenderDataUtil.UniformMatrix4("invView", ShaderStage.Vertex, true, ref invView);
-            RenderDataUtil.UniformMatrix4("invViewProj", ShaderStage.Vertex, true, ref invViewProj);
-
-            RenderDataUtil.UniformMatrix4("invProj", ShaderStage.Fragment, true, ref invProj);
-            RenderDataUtil.UniformMatrix4("invView", ShaderStage.Fragment, true, ref invView);
-            RenderDataUtil.UniformMatrix4("invViewProj", ShaderStage.Fragment, true, ref invViewProj);
-
-            RenderDataUtil.Uniform1("nearPlane", ShaderStage.Vertex, settings.NearPlane);
-            RenderDataUtil.Uniform1("farPlane", ShaderStage.Vertex, settings.FarPlane);
+            RenderDataUtil.UniformMatrix4("invProj", true, ref invProj);
+            RenderDataUtil.UniformMatrix4("invView", true, ref invView);
+            RenderDataUtil.UniformMatrix4("invViewProj", true, ref invViewProj);
 
             RenderDataUtil.UniformVector3("ViewPos", ShaderStage.Fragment, settings.ViewPos);
 

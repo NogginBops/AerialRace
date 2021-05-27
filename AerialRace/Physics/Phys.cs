@@ -109,13 +109,13 @@ namespace AerialRace.Physics
             Accumulator += dt;
             while (Accumulator > TimeStep)
             {
-                Debug.WriteLine($"Step! TotalTime: {TotalTime}, Steps: {Steps}");
-
                 // FIXME: Is there a way to avoid doing this?
                 foreach (var body in RigidBody.Instances)
                 {
                     body.UpdatePreviousState();
                 }
+
+                Window.Player.FixedUpdate(TimeStep);
 
                 Steps++;
                 Simulation.Timestep(TimeStep);

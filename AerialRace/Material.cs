@@ -34,6 +34,15 @@ namespace AerialRace
             DepthPipeline = depthPipeline;
             Properties = new MaterialProperties();
         }
+
+        // FIXME: Make a better material system
+        public Material(string name, Material material)
+        {
+            Name = name;
+            Pipeline = material.Pipeline;
+            DepthPipeline = material.DepthPipeline;
+            Properties = new MaterialProperties(material.Properties);
+        }
     }
 
     enum PropertyType : int

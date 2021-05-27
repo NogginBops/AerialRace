@@ -32,6 +32,11 @@ namespace AerialRace
             AttribIndex = attribIndex;
             BufferIndex = bufferIndex;
         }
+
+        public override string ToString()
+        {
+            return $"Attribute {AttribIndex} to Buffer {BufferIndex}";
+        }
     }
 
     [Serializable]

@@ -2,6 +2,7 @@
 using AerialRace.DebugGui;
 using AerialRace.RenderData;
 using ImGuiNET;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -1266,7 +1267,7 @@ namespace AerialRace.Loading
             }
             else
             {
-                collider = new Physics.StaticMeshCollider(meshData);
+                collider = new Physics.StaticMeshCollider(meshData, Vector3.One);
             }
 
             Setpiece = new StaticSetpiece(new Transform(), mesh.Mesh, material.LoadedMaterial, collider, physicsMaterial.Material);

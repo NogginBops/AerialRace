@@ -466,8 +466,6 @@ void main()
                 vtx_offset += cmd_list.VtxBuffer.Size;
             }
 
-            RenderDataUtil.BindTextureUnsafe(0, 0);
-
             GL.Disable(EnableCap.Blend);
             GL.Disable(EnableCap.ScissorTest);
         }

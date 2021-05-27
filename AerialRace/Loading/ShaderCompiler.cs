@@ -40,7 +40,10 @@ namespace AerialRace.Loading
 
             if (fragmentProgram != null)
                 GL.UseProgramStages(pipeline.Handle, ProgramStageMask.FragmentShaderBit, fragmentProgram.Handle);
-            pipeline.FramgmentProgram = fragmentProgram;
+            pipeline.FragmentProgram = fragmentProgram;
+
+            // FIXME: Move this function out of the class
+            pipeline.UpdateUniforms();
 
             GL.ValidateProgramPipeline(pipeline.Handle);
             GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.ValidateStatus, out int valid);
@@ -183,8 +186,8 @@ namespace AerialRace.Loading
             if (pipeline.GeometryProgram != null)
                 GL.UseProgramStages(handle, ProgramStageMask.GeometryShaderBit, pipeline.GeometryProgram.Handle);
 
-            if (pipeline.FramgmentProgram != null)
-                GL.UseProgramStages(handle, ProgramStageMask.FragmentShaderBit, pipeline.FramgmentProgram.Handle);
+            if (pipeline.FragmentProgram != null)
+                GL.UseProgramStages(handle, ProgramStageMask.FragmentShaderBit, pipeline.FragmentProgram.Handle);
 
             GL.ValidateProgramPipeline(handle);
             GL.GetProgramPipeline(handle, ProgramPipelineParameter.ValidateStatus, out int valid);
@@ -253,6 +256,9 @@ namespace AerialRace.Loading
 
                     int blockIndex = GL.GetUniformBlockIndex(program.Handle, uniformBlockName);
 
+                    // FIXME: Do something better here!
+                    GL.UniformBlockBinding(program.Handle, blockIndex, blockIndex);
+
                     blockInfo[i].Name = uniformBlockName;
                     blockInfo[i].Index = blockIndex;
                     blockInfo[i].Members = new UniformFieldInfo[uniformIndices.Length];
@@ -314,7 +320,7 @@ namespace AerialRace.Loading
 
             TrackShaderIfNotNullAndHasFile(pipeline.VertexProgram, pipeline);
             TrackShaderIfNotNullAndHasFile(pipeline.GeometryProgram, pipeline);
-            TrackShaderIfNotNullAndHasFile(pipeline.FramgmentProgram, pipeline);
+            TrackShaderIfNotNullAndHasFile(pipeline.FragmentProgram, pipeline);
 
             static void TrackShaderIfNotNullAndHasFile(ShaderProgram? shader, ShaderPipeline pipeline)
             {

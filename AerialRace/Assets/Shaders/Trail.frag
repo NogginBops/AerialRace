@@ -12,17 +12,6 @@ uniform vec3 ViewPos;
 
 uniform sampler2D AlbedoTex;
 
-uniform struct Sky {
-    vec3 SunDirection;
-    vec3 SunColor;
-    vec3 SkyColor;
-    vec3 GroundColor;
-} sky;
-
-uniform struct Scene {
-    vec3 ambientLight;
-} scene;
-
 uniform bool UseShadows;
 uniform sampler2DShadow ShadowMap;
 

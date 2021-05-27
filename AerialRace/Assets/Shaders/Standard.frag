@@ -79,10 +79,10 @@ void main(void)
     mat3 fragTangentToWorld = mat3(tangent2, bitangent2, normal);
 
     vec3 lightDir = sky.SunDirection;
-    vec3 viewDir = normalize(camera.position - fragPos.xyz);
+    vec3 viewDir = normalize(u_Camera.position.xyz - fragPos.xyz);
     vec3 halfwayDir = normalize(lightDir + viewDir);
 
-    vec3 albedo = vec3(texture(AlbedoTex, fragUV));
+    vec3 albedo = vec3(texture(AlbedoTex, fragUV)) * material.Tint;
 
     float diff = max(dot(normal, lightDir), 0.0f);
     vec3 diffuse = sky.SunColor * diff * albedo;
@@ -96,7 +96,7 @@ void main(void)
     //ambient = vec3(0.01);
     //diffuse = vec3(0);
 
-    vec3 V = normalize(camera.position - fragPos.xyz);
+    vec3 V = normalize(u_Camera.position.xyz - fragPos.xyz);
 
     vec3 lightColor = vec3(0);
     for (int i = 0; i < lights.lightCount; i++)

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace AerialRace
@@ -29,6 +30,8 @@ namespace AerialRace
         public Vector3 ViewPos;
 
         public float NearPlane, FarPlane;
+
+        public UniformBuffer<CameraUniformData> CameraUniforms;
 
         public SkySettings Sky;
         // FIXME: We can use the procedural skybox for ambient light
@@ -110,6 +113,9 @@ namespace AerialRace
             return new Box3(Bmin[0], Bmin[1], Bmin[2], Bmax[0], Bmax[1], Bmax[2]);
         }
 
+        static List<Texture> TexturesToBind = new List<Texture>();
+        static List<ISampler?> SamplersToBind = new List<ISampler?>();
+
         // FIXME: Passes
         public static void Render(ref RenderPassSettings settings)
         {
@@ -119,6 +125,8 @@ namespace AerialRace
                 var mesh = instance.Mesh;
                 var material = instance.Material;
 
+                //var worldBounds = RecalculateAABB(mesh.AABB, transform);
+                
                 RenderDataUtil.BindMeshData(mesh);
 
                 if (settings.IsDepthPass)
@@ -140,6 +148,12 @@ namespace AerialRace
 
                 int textureStartIndex = 0;
 
+                int numberOfTextures = material.Properties.Textures.Count;
+                if (settings.UseShadows) numberOfTextures++;
+
+                TexturesToBind.Clear();
+                SamplersToBind.Clear();
+
                 // FIXME!! Make binding texture better!
                 RenderDataUtil.Uniform1("UseShadows", settings.UseShadows ? 1 : 0);
                 if (settings.UseShadows)
@@ -147,7 +161,10 @@ namespace AerialRace
                     textureStartIndex = 1;
 
                     RenderDataUtil.Uniform1("ShadowCascades", 0);
-                    RenderDataUtil.BindTexture(0, settings.ShadowMap!, settings.ShadowSampler!);
+                    //RenderDataUtil.BindTexture(0, settings.ShadowMap!, settings.ShadowSampler!);
+                    
+                    TexturesToBind.Add(settings.ShadowMap!);
+                    SamplersToBind.Add(settings.ShadowSampler!);
 
                     RenderDataUtil.Uniform4("CascadeSplits", settings.Cascades);
                 }
@@ -161,8 +178,15 @@ namespace AerialRace
                     var name = texProp.Name;
 
                     RenderDataUtil.Uniform1(name, ioff);
-                    RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
+                    //RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
+
+                    TexturesToBind.Add(texProp.Texture);
+                    SamplersToBind.Add(texProp.Sampler);
                 }
+
+                RenderDataUtil.BindTextures(0,
+                    CollectionsMarshal.AsSpan(TexturesToBind),
+                    CollectionsMarshal.AsSpan(SamplersToBind));
 
                 for (int i = 0; i < matProperties.Properties.Count; i++)
                 {
@@ -187,8 +211,10 @@ namespace AerialRace
 
             if (settings.Lights != null)
             {
-                RenderDataUtil.UniformBlock("LightBlock", ShaderStage.Fragment, settings.Lights!.PointLightBuffer);
+                RenderDataUtil.UniformBlock("LightBlock", settings.Lights!.PointLightBuffer);
             }
+
+            RenderDataUtil.UniformBlock("u_CameraBlock", settings.CameraUniforms);
 
             RenderDataUtil.UniformMatrix4("model", true, ref model);
             RenderDataUtil.UniformMatrix4("view", true, ref settings.View);

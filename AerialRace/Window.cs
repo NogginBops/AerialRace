@@ -66,7 +66,8 @@ namespace AerialRace
 
         Sampler StandardSampler;
 
-        public Ship Player;
+        // FIXME: Remove static
+        public static Ship Player;
         Texture ShipTexture;
 
         RigidBody TestBox;
@@ -214,6 +215,7 @@ namespace AerialRace
             shipMaterial.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
             shipMaterial.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
 
+            shipMaterial.Properties.SetProperty(new Property("material.Tint", Vector3.One));
             shipMaterial.Properties.SetProperty(new Property("material.Metallic", 0.8f));
             shipMaterial.Properties.SetProperty(new Property("material.Roughness", 0.3f));
             shipMaterial.Properties.SetProperty(new Property("InvertRoughness", false));
@@ -230,7 +232,7 @@ namespace AerialRace
 
             SimpleMaterial physMat = new SimpleMaterial()
             {
-                FrictionCoefficient = 0.5f,
+                FrictionCoefficient = 0.9f,
                 MaximumRecoveryVelocity = 2f,
                 SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
             };
@@ -241,6 +243,7 @@ namespace AerialRace
                 floorMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
                 floorMat.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
 
+                floorMat.Properties.SetProperty(new Property("Tint", Vector3.One));
                 floorMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
                 floorMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
                 floorMat.Properties.SetProperty(new Property("InvertRoughness", false));
@@ -273,6 +276,7 @@ namespace AerialRace
 
                 terrainMat.Properties.SetProperty(new Property("InvertRoughness", false));
 
+                terrainMat.Properties.SetProperty(new Property("Tint", Vector3.One));
                 terrainMat.Properties.SetProperty(new Property("material.Metallic", 0.01f));
                 terrainMat.Properties.SetProperty(new Property("material.Roughness", 1f));
 
@@ -285,7 +289,7 @@ namespace AerialRace
                     SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
                 };
 
-                Terrain = new StaticSetpiece(TerrainTransform, terrainMesh, terrainMat, new StaticMeshCollider(terrainMeshData), physMatTerrain);
+                Terrain = new StaticSetpiece(TerrainTransform, terrainMesh, terrainMat, new StaticMeshCollider(terrainMeshData, TerrainTransform.LocalScale), physMatTerrain);
             }
 
             {
@@ -299,6 +303,7 @@ namespace AerialRace
                 rockMat.Properties.SetTexture("NormalTex", rockNormal, StandardSampler);
                 rockMat.Properties.SetTexture("RoughnessTex", rockSpecular, StandardSampler);
                 rockMat.Properties.SetProperty(new Property("InvertRoughness", true));
+                rockMat.Properties.SetProperty(new Property("Tint", Vector3.One));
                 rockMat.Properties.SetProperty(new Property("material.Metallic", 0.1f));
                 rockMat.Properties.SetProperty(new Property("material.Roughness", 0.6f));
 
@@ -311,7 +316,7 @@ namespace AerialRace
                     SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
                 };
 
-                Rock = new StaticSetpiece(rockTransform, rockMesh, rockMat, new StaticMeshCollider(rockData), physMatRock);
+                Rock = new StaticSetpiece(rockTransform, rockMesh, rockMat, new StaticMeshCollider(rockData, rockTransform.LocalScale), physMatRock);
             }
 
             new StaticCollider(new BoxCollider(new Vector3(1f, 4, 1f)), new Vector3(-0.5f, 1, 0f), physMat);
@@ -325,6 +330,7 @@ namespace AerialRace
                 domeMat.Properties.SetTexture("AlbedoTex", BuiltIn.UVTest, StandardSampler);
                 domeMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
 
+                domeMat.Properties.SetProperty(new Property("material.Tint", Vector3.One));
                 domeMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
                 domeMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
 
@@ -357,6 +363,7 @@ namespace AerialRace
 
                 plantMat.Properties.SetProperty(new Property("AlphaCutout", 0.1f));
 
+                plantMat.Properties.SetProperty(new Property("material.Tint", Vector3.One));
                 plantMat.Properties.SetProperty(new Property("material.Metallic", 0.02f));
                 plantMat.Properties.SetProperty(new Property("material.Roughness", 1f));
 
@@ -370,6 +377,87 @@ namespace AerialRace
                 };
 
                 //new StaticSetpiece(new Transform("Plant"), plant, plantMat, new MeshCollider(data), physMatDome);
+            }
+
+            // Load sponza
+            {
+                Transform baseTransform = new Transform("Sponza");
+
+                baseTransform.LocalScale = new Vector3(0.2f, 0.2f, 0.2f);
+
+                var objs = MeshLoader.LoadObjectsFromObj("./Models/Sponza/sponza.obj");
+
+                SimpleMaterial physMatSponza = new SimpleMaterial()
+                {
+                    FrictionCoefficient = 0.2f,
+                    MaximumRecoveryVelocity = 2f,
+                    SpringSettings = new BepuPhysics.Constraints.SpringSettings(30, 1),
+                };
+
+                var sponzaMat = new Material("Sponza Mat", standardShader, depthCutoutPipeline);
+
+                sponzaMat.Properties.SetTexture("AlbedoTex", BuiltIn.UVTest, StandardSampler);
+                sponzaMat.Properties.SetTexture("NormalTex", BuiltIn.FlatNormalTex, StandardSampler);
+                sponzaMat.Properties.SetTexture("RoughnessTex", BuiltIn.WhiteTex, StandardSampler);
+
+                sponzaMat.Properties.SetProperty(new Property("AlphaCutout", 0.1f));
+
+                sponzaMat.Properties.SetProperty(new Property("material.Tint", Vector3.One));
+                sponzaMat.Properties.SetProperty(new Property("material.Metallic", 0.02f));
+                sponzaMat.Properties.SetProperty(new Property("material.Roughness", 0.4f));
+
+                Dictionary<string, Texture> sponzaTextures = new Dictionary<string, Texture>();
+
+                sponzaMat.Properties.CullMode = CullMode.None;
+
+                foreach (var obj in objs)
+                {
+                    var objData = MeshLoader.ObjToMeshData(obj);
+
+                    var objMat = new Material($"Sponza {obj.Name} Mat", sponzaMat);
+
+                    if (obj.Material.MapKd != null)
+                    {
+                        if (sponzaTextures.TryGetValue(obj.Material.MapKd, out var texture) == false)
+                        {
+                            texture = TextureLoader.LoadRgbaImage($"Sponza {obj.Material.Name} map_Kd", obj.Material.MapKd, true, true);
+                            sponzaTextures.Add(obj.Material.MapKd, texture);
+                        }
+
+                        objMat.Properties.SetTexture("AlbedoTex", texture, StandardSampler);
+                    }
+                    else
+                    {
+                        objMat.Properties.SetTexture("AlbedoTex", BuiltIn.WhiteTex);
+                        objMat.Properties.SetProperty(new Property("Tint", obj.Material.Kd));
+                    }
+                    objMat.Properties.SetProperty(new Property("Tint", obj.Material.Kd));
+
+                    if (obj.Material.MapDisp != null)
+                    {
+                        if (sponzaTextures.TryGetValue(obj.Material.MapDisp, out var texture) == false)
+                        {
+                            texture = TextureLoader.LoadRgbaImage($"Sponza {obj.Material.Name} map_Disp", obj.Material.MapDisp, true, true);
+                            sponzaTextures.Add(obj.Material.MapDisp, texture);
+                        }
+
+                        objMat.Properties.SetTexture("NormalTex", texture, StandardSampler);
+                    }
+                    else
+                    {
+                        //objMat.Properties.SetTexture("AlbedoTex", BuiltIn.);
+                    }
+
+                    objMat.Properties.SetProperty(new Property("AlphaCutout", obj.Material.d * 0.5f));
+
+                    var mesh = RenderDataUtil.CreateMesh(obj.Name, objData);
+
+                    Transform transform = new Transform(obj.Name);
+                    transform.SetParent(baseTransform);
+
+                    //new MeshRenderer(transform, mesh, objMat);
+                    new StaticSetpiece(transform, mesh, objMat, new StaticMeshCollider(objData, transform.LocalScale * baseTransform.LocalScale), physMatSponza);
+                }
             }
 
             TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
@@ -434,7 +522,7 @@ namespace AerialRace
 
             Material skyMat = new Material("Sky Material", skyPipeline, null);
 
-            var sunPosition = new Vector3(100, 100, 0);
+            var sunPosition = new Vector3(100, 100, 20);
             Sky = new Sky(skyMat,
                 sunPosition.Normalized(),
                 new Color4(1f, 1f, 1f, 1f),
@@ -543,6 +631,9 @@ namespace AerialRace
             RenderDataUtil.SetClearColor(camera.ClearColor);
             RenderDataUtil.Clear(ClearMask.Color | ClearMask.Depth);
 
+            // FIXME: Find a better place to do this work.
+            camera.UpdateUniformBuffer();
+
             SkySettings skySettings = new SkySettings()
             {
                 SunDirection = Sky.SunDirection,
@@ -617,8 +708,13 @@ namespace AerialRace
                             Projection = lightProjs[i],
                             ViewPos = lightPoss[i],
 
+                            // FIXME: Are these correct??
+                            // or are these conceptually just the main camera
+                            // even if we are using a different projection??
                             NearPlane = camera.NearPlane,
                             FarPlane = camera.FarPlane,
+
+                            CameraUniforms = camera.UniformData,
 
                             Sky = skySettings,
                             AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
@@ -697,6 +793,8 @@ namespace AerialRace
                     NearPlane = camera.NearPlane,
                     FarPlane = camera.FarPlane,
 
+                    CameraUniforms = camera.UniformData,
+
                     Sky = skySettings,
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
@@ -723,6 +821,8 @@ namespace AerialRace
 
                     NearPlane = camera.NearPlane,
                     FarPlane = camera.FarPlane,
+
+                    CameraUniforms = camera.UniformData,
 
                     Sky = skySettings,
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
@@ -760,6 +860,8 @@ namespace AerialRace
                     NearPlane = camera.NearPlane,
                     FarPlane = camera.FarPlane,
 
+                    CameraUniforms = camera.UniformData,
+
                     Sky = skySettings,
                     AmbientLight = new Color4(0.1f, 0.1f, 0.1f, 1f),
 
@@ -788,7 +890,11 @@ namespace AerialRace
                 //MeshRenderer.Render(ref transparentPass);
                 TrailRenderer.Render(ref transparentPass);
 
-                //MeshRenderer.RenderAABBs(Debug.DepthTestList);
+                /*
+                using (_ = RenderDataUtil.PushGenericPass("AABB Debug"))
+                {
+                    MeshRenderer.RenderAABBs(Debug.DepthTestList);
+                }*/
 
                 //var frustum = Shadows.SliceFrustum(shadowCamera, splits[0], splits[1]);
 

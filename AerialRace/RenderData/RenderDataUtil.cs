@@ -394,7 +394,7 @@ namespace AerialRace.RenderData
 
     #region Creation 
 
-    public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
+        public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
         {
             GLUtil.CreateBuffer(name, out int Handle);
 
@@ -545,6 +545,16 @@ namespace AerialRace.RenderData
             GL.NamedBufferStorage(Handle, elements * Unsafe.SizeOf<T>(), IntPtr.Zero, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, elementSize, elements, flags);
+        }
+
+        public static UniformBuffer<T> CreateUniformBuffer<T>(string name, BufferFlags flags)
+            where T : unmanaged
+        {
+            GLUtil.CreateBuffer(name, out int handle);
+
+            GL.NamedBufferStorage(handle, Unsafe.SizeOf<T>(), IntPtr.Zero, ToGLStorageFlags(flags));
+
+            return new UniformBuffer<T>(name, handle, flags);
         }
 
         public static Framebuffer CreateEmptyFramebuffer(string name)
@@ -954,6 +964,8 @@ namespace AerialRace.RenderData
         // FIXME: Typesafe buffers?
         public static void UploadBufferData<T>(Buffer buffer, int byteOffset, Span<T> data) where T : unmanaged
         {
+            Debug.Assert(buffer.Flags.HasFlag(BufferFlags.Dynamic), $"Cannot upload to a buffer that is not marked dynamic.");
+
             if (data.Length != 0)
             {
                 int size = Unsafe.SizeOf<T>();
@@ -963,8 +975,18 @@ namespace AerialRace.RenderData
 
         public static void UploadBufferData<T>(Buffer buffer, int byteOffset, ref T data, int elements) where T : unmanaged
         {
+            Debug.Assert(buffer.Flags.HasFlag(BufferFlags.Dynamic), $"Cannot upload to a buffer that is not marked dynamic.");
+
             int size = Unsafe.SizeOf<T>();
             GL.NamedBufferSubData(buffer.Handle, (IntPtr)byteOffset, elements * size, ref data);
+        }
+
+        public static void UpdateUniformBuffer<T>(UniformBuffer<T> uBuffer, ref T data)
+            where T : unmanaged
+        {
+            Debug.Assert(uBuffer.Flags.HasFlag(BufferFlags.Dynamic), $"Cannot upload to a uniform buffer that is not marked dynamic.");
+
+            GL.NamedBufferSubData(uBuffer.Handle, IntPtr.Zero, Unsafe.SizeOf<T>(), ref data);
         }
 
         public static void ReallocBuffer(ref Buffer buffer, int newElementCount)
@@ -1076,6 +1098,11 @@ namespace AerialRace.RenderData
             public AttributeType Type;
             public bool Normalized;
             public int Offset;
+
+            public override string ToString()
+            {
+                return $"Active: {Active} {Type} {Size} Offset: {Offset} Normalized: {Normalized}";
+            }
         }
 
         public const int MinimumNumberOfVertexAttributes = 16;
@@ -1083,7 +1110,9 @@ namespace AerialRace.RenderData
         // Represents the state of the 16 guaranteed vertex attributes
         public static VertexAttribute[] Attributes = new VertexAttribute[MinimumNumberOfVertexAttributes];
         public static Buffer?[] AttributeBuffers     = new Buffer[MinimumNumberOfVertexAttributes];
+        public static int[] AttributeToBufferLinks = new int[MinimumNumberOfVertexAttributes];
         public static IndexBuffer? CurrentIndexBuffer = null;
+
 
         public static void SetupGlobalVAO()
         {
@@ -1096,6 +1125,11 @@ namespace AerialRace.RenderData
                 Attributes[i].Size = 0;
                 Attributes[i].Type = 0;
                 Attributes[i].Normalized = false;
+            }
+
+            for (int i = 0; i < AttributeToBufferLinks.Length; i++)
+            {
+                AttributeToBufferLinks[i] = i;
             }
         }
 
@@ -1166,6 +1200,12 @@ namespace AerialRace.RenderData
             {
                 SetAndEnableVertexAttribute(i, attribs[i]);
             }
+
+            // FIXME: Do we want to do this?
+            for (int i = attribs.Length; i < Attributes.Length; i++)
+            {
+                DisableVertexAttribute(i);
+            }
         }
 
         public static void BindVertexAttribBuffer(int index, Buffer buffer)
@@ -1190,7 +1230,12 @@ namespace AerialRace.RenderData
 
         public static void LinkAttributeBuffer(AttributeBufferLink link)
         {
-            GL.VertexAttribBinding(link.AttribIndex, link.BufferIndex);
+            if (AttributeToBufferLinks[link.AttribIndex] != link.BufferIndex)
+            {
+                GL.VertexAttribBinding(link.AttribIndex, link.BufferIndex);
+
+                AttributeToBufferLinks[link.AttribIndex] = link.BufferIndex;
+            }
         }
 
         public static void LinkAttributeBuffers(Span<AttributeBufferLink> links)
@@ -1203,7 +1248,12 @@ namespace AerialRace.RenderData
 
         public static void LinkAttributeBuffer(int attribIndex, int bufferIndex)
         {
-            GL.VertexAttribBinding(attribIndex, bufferIndex);
+            if (AttributeToBufferLinks[attribIndex] != bufferIndex)
+            {
+                GL.VertexAttribBinding(attribIndex, bufferIndex);
+
+                AttributeToBufferLinks[attribIndex] = bufferIndex;
+            }
         }
 
         public static void ClearVertexAttribBuffer(int index)
@@ -1247,6 +1297,12 @@ namespace AerialRace.RenderData
                 SetAndEnableVertexAttribute(i, mesh.Attributes[i]);
             }
 
+            // FIXME: Do we want to do this?
+            for (int i = mesh.Attributes.Length; i < Attributes.Length; i++)
+            {
+                DisableVertexAttribute(i);
+            }
+
             for (int i = 0; i < mesh.AttributeBufferLinks.Length; i++)
             {
                 LinkAttributeBuffer(mesh.AttributeBufferLinks[i]);
@@ -1277,7 +1333,7 @@ namespace AerialRace.RenderData
             {
                 ShaderStage.Vertex => CurrentPipeline.VertexProgram,
                 ShaderStage.Geometry => CurrentPipeline.GeometryProgram,
-                ShaderStage.Fragment => CurrentPipeline.FramgmentProgram,
+                ShaderStage.Fragment => CurrentPipeline.FragmentProgram,
 
                 ShaderStage.Compute => throw new NotImplementedException(),
 
@@ -1299,7 +1355,7 @@ namespace AerialRace.RenderData
             {
                 ShaderStage.Vertex => CurrentPipeline.VertexProgram,
                 ShaderStage.Geometry => CurrentPipeline.GeometryProgram,
-                ShaderStage.Fragment => CurrentPipeline.FramgmentProgram,
+                ShaderStage.Fragment => CurrentPipeline.FragmentProgram,
 
                 ShaderStage.Compute => throw new NotImplementedException(),
 
@@ -1354,8 +1410,10 @@ namespace AerialRace.RenderData
             var vert = pipeline.VertexProgram!;
             var vertLoc = GetUniformLocation(property.Name, vert);
 
-            var frag = pipeline.FramgmentProgram!;
+            var frag = pipeline.FragmentProgram!;
             var fragLoc = GetUniformLocation(property.Name, frag);
+
+            if (vertLoc == -1 && fragLoc == -1) return;
 
             switch (property.Type)
             {
@@ -1406,9 +1464,25 @@ namespace AerialRace.RenderData
         public static void UniformMatrix4(string uniformName, bool transpose, ref Matrix4 matrix)
         {
             Debug.Assert(CurrentPipeline != null);
-            UniformMatrix4(uniformName, ShaderStage.Vertex, transpose, ref matrix);
-            UniformMatrix4(uniformName, ShaderStage.Geometry, transpose, ref matrix);
-            UniformMatrix4(uniformName, ShaderStage.Fragment, transpose, ref matrix);
+            if (CurrentPipeline.Uniforms.TryGetValue(uniformName, out var uniform))
+            {
+                if (uniform.Stages.HasFlag(ShaderStages.Vertex))
+                    GL.ProgramUniformMatrix4(
+                        CurrentPipeline.VertexProgram.Handle,
+                        uniform.VertexLocation,
+                        transpose,
+                        ref matrix);
+
+                if (uniform.Stages.HasFlag(ShaderStages.Fragment))
+                    GL.ProgramUniformMatrix4(
+                        CurrentPipeline.FragmentProgram.Handle,
+                        uniform.FragmentLocation,
+                        transpose,
+                        ref matrix);
+            }
+            //UniformMatrix4(uniformName, ShaderStage.Vertex, transpose, ref matrix);
+            //UniformMatrix4(uniformName, ShaderStage.Geometry, transpose, ref matrix);
+            //UniformMatrix4(uniformName, ShaderStage.Fragment, transpose, ref matrix);
         }
 
         public static void UniformMatrix4(string uniformName, ShaderStage stage, bool transpose, ref Matrix4 matrix)
@@ -1416,6 +1490,7 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniformMatrix4(prog.Handle, location, transpose, ref matrix);
             }
         }
@@ -1445,15 +1520,28 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniformMatrix3(prog.Handle, location, transpose, ref matrix);
             }
         }
 
         public static void UniformVector3(string uniformName, Vector3 vec3)
         {
-            UniformVector3(uniformName, ShaderStage.Vertex, vec3);
-            UniformVector3(uniformName, ShaderStage.Geometry, vec3);
-            UniformVector3(uniformName, ShaderStage.Fragment, vec3);
+            Debug.Assert(CurrentPipeline != null);
+            if (CurrentPipeline.Uniforms.TryGetValue(uniformName, out var uniform))
+            {
+                if (uniform.Stages.HasFlag(ShaderStages.Vertex))
+                    GL.ProgramUniform3(
+                        CurrentPipeline.VertexProgram.Handle,
+                        uniform.VertexLocation,
+                        ref vec3);
+
+                if (uniform.Stages.HasFlag(ShaderStages.Fragment))
+                    GL.ProgramUniform3(
+                        CurrentPipeline.FragmentProgram.Handle,
+                        uniform.FragmentLocation,
+                        ref vec3);
+            }
         }
 
         public static void UniformVector3(string uniformName, ShaderStage stage, Vector3 vec3)
@@ -1461,6 +1549,7 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniform3(prog.Handle, location, vec3);
             }
         }
@@ -1477,6 +1566,7 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniform3(prog.Handle, location, new Vector3(color.R, color.G, color.B));
             }
         }
@@ -1493,6 +1583,7 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniform1(prog.Handle, location, i);
             }
         }
@@ -1509,6 +1600,7 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniform1(prog.Handle, location, f);
             }
         }
@@ -1525,21 +1617,46 @@ namespace AerialRace.RenderData
             if (TryGetPipelineStage(stage, out var prog))
             {
                 var location = GetUniformLocation(uniformName, prog);
+                if (location == -1) return;
                 GL.ProgramUniform4(prog.Handle, location, vec4);
             }
         }
 
+        public static void UniformBlock(string blockName, Buffer buffer)
+        {
+            UniformBlock(blockName, ShaderStage.Vertex, buffer);
+            UniformBlock(blockName, ShaderStage.Geometry, buffer);
+            UniformBlock(blockName, ShaderStage.Fragment, buffer);
+        }
+
         public static void UniformBlock(string blockName, ShaderStage stage, Buffer buffer)
         {
-            var program = GetPipelineStage(stage);
-
-            if (program.UniformBlockIndices.TryGetValue(blockName, out int index))
+            if (TryGetPipelineStage(stage, out var program))
             {
-                GL.BindBufferBase(BufferRangeTarget.UniformBuffer, index, buffer.Handle);
+                if (program.UniformBlockIndices.TryGetValue(blockName, out int index))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, index, buffer.Handle);
+                }
             }
-            else
+        }
+
+        public static void UniformBlock<T>(string blockName, UniformBuffer<T> buffer)
+            where T : unmanaged
+        {
+            UniformBlock(blockName, ShaderStage.Vertex, buffer);
+            UniformBlock(blockName, ShaderStage.Geometry, buffer);
+            UniformBlock(blockName, ShaderStage.Fragment, buffer);
+        }
+
+        public static void UniformBlock<T>(string blockName, ShaderStage stage, UniformBuffer<T> buffer)
+            where T : unmanaged
+        {
+            if (TryGetPipelineStage(stage, out var program))
             {
-                //throw new Exception($"There was no block called {blockName}.");
+                if (program.UniformBlockIndices.TryGetValue(blockName, out int index))
+                {
+                    GL.BindBufferBase(BufferRangeTarget.UniformBuffer, index, buffer.Handle);
+                }
             }
         }
 
@@ -1624,6 +1741,52 @@ namespace AerialRace.RenderData
 
                 BoundSamplers[unit] = sampler;
             }
+        }
+
+        public static void BindTextures(int startUnit, Span<Texture> textures, Span<ISampler?> samplers)
+        {
+            Debug.Assert(textures.Length == samplers.Length);
+
+            BindTextures(startUnit, textures);
+            BindSamplers(startUnit, samplers);
+        }
+
+        public static void BindTextures(int startUnit, Span<Texture> textures)
+        {
+            // We could add thing that looks the how many textures
+            // match the currently bound textures from the start of the span
+            // and skip binding them.
+
+            if (textures.Length == 0) return;
+
+            Span<int> handles = stackalloc int[textures.Length];
+            for (int i = 0; i < textures.Length; i++)
+            {
+                BoundTextures[startUnit + i] = textures[i];
+
+                handles[i] = textures[i].Handle;
+            }
+
+            GL.BindTextures(startUnit, handles.Length, ref handles[0]);
+        }
+
+        public static void BindSamplers(int startUnit, Span<ISampler?> samplers)
+        {
+            // We could add thing that looks the how many textures
+            // match the currently bound textures from the start of the span
+            // and skip binding them.
+
+            if (samplers.Length == 0) return;
+
+            Span<int> handles = stackalloc int[samplers.Length];
+            for (int i = 0; i < samplers.Length; i++)
+            {
+                BoundSamplers[startUnit + i] = samplers[i];
+
+                handles[i] = samplers[i]?.Handle ?? 0;
+            }
+
+            GL.BindSamplers(startUnit, handles.Length, ref handles[0]);
         }
 
         #endregion

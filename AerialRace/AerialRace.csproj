@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BEPUphysics" Version="2.3.0" />
+    <PackageReference Include="BEPUphysics" Version="2.4.0-beta3" />
     <PackageReference Include="ImGui.NET" Version="1.78.0" />
     <PackageReference Include="OpenTK" Version="4.6.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.3" />

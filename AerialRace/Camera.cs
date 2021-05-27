@@ -8,14 +8,14 @@ using System.Text;
 
 namespace AerialRace
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 16)]
-    struct CameraData
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    struct CameraUniformData
     {
-        public Vector3 Pos;
-        public float Fov;
-        public float Aspect;
+        public Vector4 Position;
         public float NearPlane;
         public float FarPlane;
+        public float FieldOfView;
+        public float Aspect;
     }
 
     enum ProjectionType
@@ -27,18 +27,6 @@ namespace AerialRace
     [Serializable]
     class Camera
     {
-        public static RenderData.Buffer CameraData;
-
-        static Camera()
-        {
-            CameraData = RenderDataUtil.CreateDataBuffer<CameraData>("Camera Uniform Data Buffer", 16, BufferFlags.Dynamic);
-        }
-
-        public static void UpdateCameraData(Camera camera)
-        {
-
-        }
-
         public Transform Transform;
 
         public Color4 ClearColor;
@@ -50,6 +38,8 @@ namespace AerialRace
         public float NearPlane;
         public float FarPlane;
 
+        public UniformBuffer<CameraUniformData> UniformData;
+
         // The vertical orthograpic size
         public float OrthograpicSize;
 
@@ -59,14 +49,16 @@ namespace AerialRace
         // We can remove this later
         public float YAxisRotation, XAxisRotation;
 
-        public Camera(float fov, float near, float far, Color4 clear)
+        public Camera(string name, float fov, float near, float far, Color4 clear)
         {
-            Transform = new Transform();
+            Transform = new Transform(name);
             ClearColor = clear;
             Fov = fov;
             Viewport = new Box2((0, 0), (1, 1));
             NearPlane = near;
             FarPlane = far;
+
+            UniformData = RenderDataUtil.CreateUniformBuffer<CameraUniformData>(name, BufferFlags.Dynamic);
         }
 
         public void CalcViewProjection(out Matrix4 vp)
@@ -101,13 +93,20 @@ namespace AerialRace
             }
         }
 
-        public void GetCameraDataBlock(out CameraData data)
+        public void UpdateUniformBuffer()
         {
-            data.Pos = Transform.WorldPosition;
-            data.Fov = Fov;
-            data.Aspect = Screen.Aspect;
+            GetCameraDataBlock(out var data);
+            RenderDataUtil.UpdateUniformBuffer(UniformData, ref data);
+        }
+
+        public void GetCameraDataBlock(out CameraUniformData data)
+        {
+            // FIXME: 1/0 depending on perspective vs ortho?
+            data.Position = new Vector4(Transform.WorldPosition, 1);
             data.NearPlane = NearPlane;
             data.FarPlane = FarPlane;
+            data.FieldOfView = Fov;
+            data.Aspect = Aspect;
         }
 
         public Ray RayFromPixel(Vector2 pixel, Vector2i resolution)

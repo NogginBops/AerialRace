@@ -293,6 +293,7 @@ namespace AerialRace.Mathematics
             //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, test,
             //    Color4.Magenta, Color4.Magenta);
         }
+        
         public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, float minDistance, float maxDistance, Span<Box3> shadowCasters, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
         {
             // Figure out all frustum corner points.

@@ -16,9 +16,6 @@ uniform mat4 invProj;
 uniform mat4 invView;
 uniform mat4 invViewProj;
 
-uniform float nearPlane;
-uniform float farPlane;
-
 vec3 unproject(vec3 pos)
 {
     vec4 unproj = vec4(pos.xyz, 1f) * invViewProj;

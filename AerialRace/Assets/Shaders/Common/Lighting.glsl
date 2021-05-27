@@ -10,7 +10,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 f0)
 // f90 = saturate(50.0 * dot(fresnel0, 0.33));
 vec3 F_Schlick(vec3 f0, float f90, float u)
 {
-    return f0 + (f90 - f0) * pow(1.0f - u, 5f);
+    return f0 + (f90 - f0) * pow(1.0f - u, 5.0f);
 }
 
 float Fr_DisneyDiffuse(float NdotV, float NdotL, float LdotH, float linearRoughness)

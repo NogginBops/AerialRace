@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Runtime.Serialization.Formatters;
@@ -66,54 +67,104 @@ namespace AerialRace.Loading
         // FIXME: Add support for additional data streams
     }
 
+    struct ObjMeshData
+    {
+        public string Name;
+        public IndexBufferType IndexType;
+        public int[]? Int32Indices;
+        public short[]? Int16Indices;
+        public byte[]? Int8Indices;
+        public StandardVertex[] Vertices;
+        public Box3 AABB;
+        public MtlMaterial Material;
+        // FIXME: Add support for additional data streams
+    }
+
+    struct ObjData
+    {
+        public List<Vector3> Verts;
+        public List<Vector2> Uvs;
+        public List<Vector3> Normals;
+
+        public RefList<ObjObject> Objects;
+    }
+
+    struct ObjObject
+    {
+        public string Name;
+        public List<Face> Faces;
+        public Box3 AABB;
+        public string Material;
+        public string Group;
+        // FIXME: Add support for additional data streams
+    }
+
+    struct MtlMaterial
+    {
+        public string Name;
+
+        public Color4 Ka;
+        public Color4 Kd;
+        public Color4 Ks;
+        public float Ns;
+        public float d;
+
+        public int Illum;
+
+        public string MapKa;
+        public string MapKd;
+        public string MapDisp;
+        public string Map_d;
+    }
+
+    public struct VertexIndices : IEquatable<VertexIndices>
+    {
+        public int PosIdx, UvIdx, NormalIdx;
+
+        public VertexIndices(int posIdx, int uvIdx, int normalIdx)
+        {
+            this.PosIdx = posIdx;
+            this.UvIdx = uvIdx;
+            this.NormalIdx = normalIdx;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is VertexIndices indices && Equals(indices);
+        }
+
+        public bool Equals(VertexIndices other)
+        {
+            return PosIdx == other.PosIdx &&
+                   UvIdx == other.UvIdx &&
+                   NormalIdx == other.NormalIdx;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(PosIdx, UvIdx, NormalIdx);
+        }
+
+        public static bool operator ==(VertexIndices left, VertexIndices right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(VertexIndices left, VertexIndices right)
+        {
+            return !(left == right);
+        }
+    }
+
+    public struct Face
+    {
+        public VertexIndices v1;
+        public VertexIndices v2;
+        public VertexIndices v3;
+    }
+
     static class MeshLoader
     {
-        public struct Face
-        {
-            public VertexIndices v1;
-            public VertexIndices v2;
-            public VertexIndices v3;
-        }
-
-        public struct VertexIndices : IEquatable<VertexIndices>
-        {
-            public int posIdx, uvIdx, normalIdx;
-
-            public VertexIndices(int posIdx, int uvIdx, int normalIdx)
-            {
-                this.posIdx = posIdx;
-                this.uvIdx = uvIdx;
-                this.normalIdx = normalIdx;
-            }
-
-            public override bool Equals(object? obj)
-            {
-                return obj is VertexIndices indices && Equals(indices);
-            }
-
-            public bool Equals(VertexIndices other)
-            {
-                return posIdx == other.posIdx &&
-                       uvIdx == other.uvIdx &&
-                       normalIdx == other.normalIdx;
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(posIdx, uvIdx, normalIdx);
-            }
-
-            public static bool operator ==(VertexIndices left, VertexIndices right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(VertexIndices left, VertexIndices right)
-            {
-                return !(left == right);
-            }
-        }
-
         public static MeshData LoadObjMesh(string filename)
         {
             Stopwatch watch = new Stopwatch();
@@ -200,17 +251,17 @@ namespace AerialRace.Loading
                     int index31 = line.IndexOf('/', index3, line.Length - index3) + 1;
                     int index32 = line.IndexOf('/', index31, line.Length - index31) + 1;
 
-                    f.v1.posIdx = Util.ParseIntFast(lineSpan[index1..(index11 - 1)]) - 1;
-                    f.v1.uvIdx = Util.ParseIntFast(lineSpan[index11..(index12 - 1)]) - 1;
-                    f.v1.normalIdx = Util.ParseIntFast(lineSpan[index12..(index2 - 1)]) - 1;
+                    f.v1.PosIdx = Util.ParseIntFast(lineSpan[index1..(index11 - 1)]) - 1;
+                    f.v1.UvIdx = Util.ParseIntFast(lineSpan[index11..(index12 - 1)]) - 1;
+                    f.v1.NormalIdx = Util.ParseIntFast(lineSpan[index12..(index2 - 1)]) - 1;
 
-                    f.v2.posIdx = Util.ParseIntFast(lineSpan[index2..(index21 - 1)]) - 1;
-                    f.v2.uvIdx = Util.ParseIntFast(lineSpan[index21..(index22 - 1)]) - 1;
-                    f.v2.normalIdx = Util.ParseIntFast(lineSpan[index22..(index3 - 1)]) - 1;
+                    f.v2.PosIdx = Util.ParseIntFast(lineSpan[index2..(index21 - 1)]) - 1;
+                    f.v2.UvIdx = Util.ParseIntFast(lineSpan[index21..(index22 - 1)]) - 1;
+                    f.v2.NormalIdx = Util.ParseIntFast(lineSpan[index22..(index3 - 1)]) - 1;
 
-                    f.v3.posIdx = Util.ParseIntFast(lineSpan[index3..(index31 - 1)]) - 1;
-                    f.v3.uvIdx = Util.ParseIntFast(lineSpan[index31..(index32 - 1)]) - 1;
-                    f.v3.normalIdx = Util.ParseIntFast(lineSpan[index32..]) - 1;
+                    f.v3.PosIdx = Util.ParseIntFast(lineSpan[index3..(index31 - 1)]) - 1;
+                    f.v3.UvIdx = Util.ParseIntFast(lineSpan[index31..(index32 - 1)]) - 1;
+                    f.v3.NormalIdx = Util.ParseIntFast(lineSpan[index32..]) - 1;
 
                     faces.Add(f);
                 }
@@ -234,9 +285,9 @@ namespace AerialRace.Loading
                     indices.Add(index);
                     verticesIndexDict.Add(face.v1, index++);
 
-                    Vector3 pos = verts[face.v1.posIdx];
-                    Vector2 uv = uvs[face.v1.uvIdx];
-                    Vector3 norm = norms[face.v1.normalIdx];
+                    Vector3 pos = verts[face.v1.PosIdx];
+                    Vector2 uv = uvs[face.v1.UvIdx];
+                    Vector3 norm = norms[face.v1.NormalIdx];
                     vertices.Add(new StandardVertex(pos, uv, norm));
                 }
 
@@ -249,9 +300,9 @@ namespace AerialRace.Loading
                 {
                     indices.Add(index);
                     verticesIndexDict.Add(face.v2, index++);
-                    Vector3 pos = verts[face.v2.posIdx];
-                    Vector2 uv = uvs[face.v2.uvIdx];
-                    Vector3 norm = norms[face.v2.normalIdx];
+                    Vector3 pos = verts[face.v2.PosIdx];
+                    Vector2 uv = uvs[face.v2.UvIdx];
+                    Vector3 norm = norms[face.v2.NormalIdx];
                     vertices.Add(new StandardVertex(pos, uv, norm));
                 }
 
@@ -264,9 +315,9 @@ namespace AerialRace.Loading
                 {
                     indices.Add(index);
                     verticesIndexDict.Add(face.v3, index++);
-                    Vector3 pos = verts[face.v3.posIdx];
-                    Vector2 uv = uvs[face.v3.uvIdx];
-                    Vector3 norm = norms[face.v3.normalIdx];
+                    Vector3 pos = verts[face.v3.PosIdx];
+                    Vector2 uv = uvs[face.v3.UvIdx];
+                    Vector3 norm = norms[face.v3.NormalIdx];
                     vertices.Add(new StandardVertex(pos, uv, norm));
                 }
             }
@@ -280,6 +331,331 @@ namespace AerialRace.Loading
                 Int32Indices = indices.ToArray(),
                 Vertices = vertices.ToArray(),
                 AABB = aabb,
+            };
+        }
+
+        public static List<ObjMeshData> LoadObjectsFromObj(string filename)
+        {
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+
+            var objs = LoadObjFile(filename, out var mtllib);
+
+            var mats = LoadMtlLib(Path.Combine(Path.GetDirectoryName(filename), mtllib));
+
+            List<ObjMeshData> meshData = new List<ObjMeshData>();
+            foreach (var obj in objs.Objects)
+            {
+                meshData.Add(MeshDataFromObj(objs, mats, obj));
+            }
+
+            Debug.WriteLine($"Loaded '{filename}' in {watch.ElapsedMilliseconds}ms");
+
+            return meshData;
+            
+            static RefList<MtlMaterial> LoadMtlLib(string? mtllib)
+            {
+                if (mtllib == null) return new RefList<MtlMaterial>();
+
+                RefList<MtlMaterial> materials = new RefList<MtlMaterial>();
+                ref MtlMaterial currentMat = ref Unsafe.NullRef<MtlMaterial>();
+
+                string dir = Path.GetDirectoryName(mtllib);
+
+                string[] lines = File.ReadAllLines(mtllib);
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i];
+                    var lineSpan = line.AsSpan();
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    if (line.StartsWithFast("newmtl "))
+                    {
+                        materials.Add(new MtlMaterial());
+                        currentMat = ref materials[^1];
+                        currentMat.Name = line["newmtl ".Length..];
+                    }
+                    else if (line.StartsWithFast("Ns "))
+                    {
+                        float ns = Util.ParseFloatFast(lineSpan["Ns ".Length..]);
+                        currentMat.Ns = ns;
+                    }
+                    else if (line.StartsWithFast("Ka "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        float ka1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float ka2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                        float ka3 = Util.ParseFloatFast(lineSpan[index3..]);
+
+                        currentMat.Ka = new Color4(ka1, ka2, ka3, 1f);
+                    }
+                    else if (line.StartsWithFast("Kd "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        float kd1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float kd2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                        float kd3 = Util.ParseFloatFast(lineSpan[index3..]);
+
+                        currentMat.Kd = new Color4(kd1, kd2, kd3, 1f);
+                    }
+                    else if (line.StartsWithFast("Ks "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        float ks1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float ks2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                        float ks3 = Util.ParseFloatFast(lineSpan[index3..]);
+
+                        currentMat.Ks = new Color4(ks1, ks2, ks3, 1f);
+                    }
+                    else if (line.StartsWithFast("d "))
+                    {
+                        float d = Util.ParseFloatFast(lineSpan["d ".Length..]);
+                        currentMat.d = d;
+                    }
+                    else if (line.StartsWithFast("map_Kd "))
+                    {
+                        string name = line["map_Kd ".Length..];
+                        currentMat.MapKd = Path.Combine(dir, name);
+                    }
+                    else continue;
+                }
+
+                return materials;
+            }
+
+            static ObjMeshData MeshDataFromObj(ObjData data, RefList<MtlMaterial> materials, ObjObject obj)
+            {
+                List<StandardVertex> vertices = new List<StandardVertex>();
+
+                Dictionary<VertexIndices, int> verticesIndexDict = new Dictionary<VertexIndices, int>();
+                List<int> indices = new List<int>();
+
+                int dups = 0;
+                int index = 0;
+                foreach (var face in obj.Faces)
+                {
+                    if (verticesIndexDict.TryGetValue(face.v1, out int i1))
+                    {
+                        indices.Add(i1);
+                        dups++;
+                    }
+                    else
+                    {
+                        indices.Add(index);
+                        verticesIndexDict.Add(face.v1, index++);
+
+                        Vector3 pos = data.Verts[face.v1.PosIdx];
+                        Vector2 uv = data.Uvs[face.v1.UvIdx];
+                        Vector3 norm = data.Normals[face.v1.NormalIdx];
+                        vertices.Add(new StandardVertex(pos, uv, norm));
+                    }
+
+                    if (verticesIndexDict.TryGetValue(face.v2, out int i2))
+                    {
+                        indices.Add(i2);
+                        dups++;
+                    }
+                    else
+                    {
+                        indices.Add(index);
+                        verticesIndexDict.Add(face.v2, index++);
+                        Vector3 pos = data.Verts[face.v2.PosIdx];
+                        Vector2 uv = data.Uvs[face.v2.UvIdx];
+                        Vector3 norm = data.Normals[face.v2.NormalIdx];
+                        vertices.Add(new StandardVertex(pos, uv, norm));
+                    }
+
+                    if (verticesIndexDict.TryGetValue(face.v3, out int i3))
+                    {
+                        indices.Add(i3);
+                        dups++;
+                    }
+                    else
+                    {
+                        indices.Add(index);
+                        verticesIndexDict.Add(face.v3, index++);
+                        Vector3 pos = data.Verts[face.v3.PosIdx];
+                        Vector2 uv = data.Uvs[face.v3.UvIdx];
+                        Vector3 norm = data.Normals[face.v3.NormalIdx];
+                        vertices.Add(new StandardVertex(pos, uv, norm));
+                    }
+                }
+
+                int mtlIndex = materials.FindIndex(m => m.Name == obj.Material);
+                MtlMaterial mat = mtlIndex == -1 ? new MtlMaterial() : materials[mtlIndex];
+
+                return new ObjMeshData()
+                {
+                    Name = obj.Name,
+                    IndexType = IndexBufferType.UInt32,
+                    Int32Indices = indices.ToArray(),
+                    Vertices = vertices.ToArray(),
+                    AABB = obj.AABB,
+                    Material = mat,
+                };
+            }
+
+            static ObjData LoadObjFile(string filename, out string? mtllib)
+            {
+                Stopwatch watch = new Stopwatch();
+                watch.Start();
+
+                mtllib = null;
+
+                // TODO: Figure out if reading lines or reading the whole file is faster for this!
+                string[] lines = File.ReadAllLines(filename);
+
+                ObjData data = new ObjData();
+
+                data.Verts = new List<Vector3>();
+                data.Uvs = new List<Vector2>();
+                data.Normals = new List<Vector3>();
+
+                data.Objects = new RefList<ObjObject>();
+
+                ref ObjObject currentObject = ref Unsafe.NullRef<ObjObject>();
+
+                bool initiatedAABB = false;
+
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i];
+                    var lineSpan = line.AsSpan();
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    if (line.StartsWithFast("o "))
+                    {
+                        data.Objects.Add(new ObjObject());
+
+                        currentObject = ref data.Objects[^1];
+                        currentObject.Name = line["o ".Length..];
+                        
+                        currentObject.Faces = new List<Face>();
+
+                        initiatedAABB = false;
+                    }
+                    else if (line.StartsWithFast("mtllib "))
+                    {
+                        mtllib = line["mtllib ".Length..];
+                    }
+                    else if (line.StartsWithFast("usemtl "))
+                    {
+                        if (currentObject.Faces.Count > 0)
+                        {
+                            string name = currentObject.Name;
+                            data.Objects.Add(new ObjObject());
+                            currentObject = ref data.Objects[^1];
+                            currentObject.Name = $"{name} {line["usemtl ".Length..]}";
+
+                            currentObject.Faces = new List<Face>();
+
+                            initiatedAABB = false;
+                        }
+                        currentObject.Material = line["usemtl ".Length..];
+                    }
+                    else if (line.StartsWithFast("v "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        float f1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float f2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                        float f3 = Util.ParseFloatFast(lineSpan[index3..]);
+
+                        var pos = new Vector3(f1, f2, f3);
+                        if (initiatedAABB == false)
+                        {
+                            currentObject.AABB = new Box3(pos, pos);
+                            initiatedAABB = true;
+                        }
+                        else
+                        {
+                            currentObject.AABB.Inflate(pos);
+                        }
+
+                        data.Verts.Add(pos);
+                    }
+                    else if (line.StartsWithFast("vt "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+
+                        float u = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float v = Util.ParseFloatFast(lineSpan[index2..]);
+
+                        data.Uvs.Add(new Vector2(u, v));
+                    }
+                    else if (line.StartsWithFast("vn "))
+                    {
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        float n1 = Util.ParseFloatFast(lineSpan[index1..(index2 - 1)]);
+                        float n2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
+                        float n3 = Util.ParseFloatFast(lineSpan[index3..]);
+
+                        data.Normals.Add(new Vector3(n1, n2, n3));
+                    }
+                    else if (line.StartsWithFast("f "))
+                    {
+                        Face f;
+
+                        int index1 = line.IndexOf(' ') + 1;
+                        int index2 = line.IndexOf(' ', index1) + 1;
+                        int index3 = line.IndexOf(' ', index2) + 1;
+
+                        int index11 = line.IndexOf('/', index1, (index2 - 1) - index1) + 1;
+                        int index12 = line.IndexOf('/', index11, (index2 - 1) - index11) + 1;
+
+                        int index21 = line.IndexOf('/', index2, (index3 - 1) - index2) + 1;
+                        int index22 = line.IndexOf('/', index21, (index3 - 1) - index21) + 1;
+
+                        int index31 = line.IndexOf('/', index3, line.Length - index3) + 1;
+                        int index32 = line.IndexOf('/', index31, line.Length - index31) + 1;
+
+                        f.v1.PosIdx = Util.ParseIntFast(lineSpan[index1..(index11 - 1)]) - 1;
+                        f.v1.UvIdx = Util.ParseIntFast(lineSpan[index11..(index12 - 1)]) - 1;
+                        f.v1.NormalIdx = Util.ParseIntFast(lineSpan[index12..(index2 - 1)]) - 1;
+
+                        f.v2.PosIdx = Util.ParseIntFast(lineSpan[index2..(index21 - 1)]) - 1;
+                        f.v2.UvIdx = Util.ParseIntFast(lineSpan[index21..(index22 - 1)]) - 1;
+                        f.v2.NormalIdx = Util.ParseIntFast(lineSpan[index22..(index3 - 1)]) - 1;
+
+                        f.v3.PosIdx = Util.ParseIntFast(lineSpan[index3..(index31 - 1)]) - 1;
+                        f.v3.UvIdx = Util.ParseIntFast(lineSpan[index31..(index32 - 1)]) - 1;
+                        f.v3.NormalIdx = Util.ParseIntFast(lineSpan[index32..]) - 1;
+
+                        currentObject.Faces.Add(f);
+                    }
+                    else continue;
+                }
+
+                return data;
+            }
+        }
+
+        public static MeshData ObjToMeshData(ObjMeshData obj)
+        {
+            return new MeshData()
+            {
+                Vertices = obj.Vertices,
+                IndexType = obj.IndexType,
+                Int32Indices = obj.Int32Indices,
+                Int16Indices = obj.Int16Indices,
+                Int8Indices = obj.Int8Indices,
+                AABB = obj.AABB,
             };
         }
 

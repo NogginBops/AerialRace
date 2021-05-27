@@ -19,13 +19,13 @@ namespace AerialRace.Physics
 
         public Box3 Bounds;
 
-        public StaticMeshCollider(MeshData mesh)
+        public StaticMeshCollider(MeshData mesh, Vector3 scale)
         {
             // FIXME: We might want to make this faster!
             var positions = mesh.Vertices.Select(v => v.Position.AsNumerics()).ToArray();
             var tris = AllocateTriangles(mesh);
 
-            var scale = Vector3.One;
+            //var scale = Vector3.One;
             Mesh = new BepuPhysics.Collidables.Mesh(tris, scale.AsNumerics(), Phys.BufferPool);
 
             TypedIndex = Phys.Simulation.Shapes.Add(Mesh);

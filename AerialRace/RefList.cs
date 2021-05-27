@@ -76,6 +76,16 @@ namespace AerialRace
             }
         }
 
+        public ref T this[Index i]
+        {
+            get
+            {
+                int index = i.IsFromEnd ? Count - i.Value : i.Value;
+                if (index < 0 || index >= Count) throw new IndexOutOfRangeException();
+                return ref Data[index];
+            }
+        }
+
         public int FindIndex(Predicate<T> match)
         {
             for (int i = 0; i < Count; i++)
