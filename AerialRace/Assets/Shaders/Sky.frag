@@ -25,9 +25,11 @@ void main(void)
 {
     vec3 near = unproject(vec3(uv, 1));
     vec3 far = unproject(vec3(uv, -1));
-    vec3 viewDir = normalize(far - near);
+    //vec3 viewDir = normalize(far - near);
+    vec3 viewDir = normalize(near - far);
     // FIXME: Figure out why we have to do this!
-    viewDir.xy *= -1f;
+    //viewDir.xy *= -1f;
+    //viewDir.y *= -1f;
 
 /*
     vec3 sun = SunColor * pow(max(dot(viewDir, SunDirection), 0f), 200);
@@ -39,4 +41,5 @@ void main(void)
     vec3 sky = SkyColor * groundMask * skyGradient + (GroundColor * (1-groundMask));*/
     
     Color = vec4(skyColor(viewDir), 1);
+    //Color = vec4(uv, 0, 1);
 }

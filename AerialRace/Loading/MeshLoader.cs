@@ -574,16 +574,7 @@ namespace AerialRace.Loading
                         float f3 = Util.ParseFloatFast(lineSpan[index3..]);
 
                         var pos = new Vector3(f1, f2, f3);
-                        if (initiatedAABB == false)
-                        {
-                            currentObject.AABB = new Box3(pos, pos);
-                            initiatedAABB = true;
-                        }
-                        else
-                        {
-                            currentObject.AABB.Inflate(pos);
-                        }
-
+                        
                         data.Verts.Add(pos);
                     }
                     else if (line.StartsWithFast("vt "))
@@ -638,6 +629,19 @@ namespace AerialRace.Loading
                         f.v3.NormalIdx = Util.ParseIntFast(lineSpan[index32..]) - 1;
 
                         currentObject.Faces.Add(f);
+
+                        if (initiatedAABB == false)
+                        {
+                            currentObject.AABB = new Box3(data.Verts[f.v1.PosIdx], data.Verts[f.v2.PosIdx]);
+                            currentObject.AABB.Inflate(data.Verts[f.v3.PosIdx]);
+                            initiatedAABB = true;
+                        }
+                        else
+                        {
+                            currentObject.AABB.Inflate(data.Verts[f.v1.PosIdx]);
+                            currentObject.AABB.Inflate(data.Verts[f.v2.PosIdx]);
+                            currentObject.AABB.Inflate(data.Verts[f.v3.PosIdx]);
+                        }
                     }
                     else continue;
                 }

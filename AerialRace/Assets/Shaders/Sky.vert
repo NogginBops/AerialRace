@@ -24,9 +24,14 @@ vec3 unproject(vec3 pos)
 
 void main(void)
 {
-    gl_Position = vec4(in_position, 1f);
+    float x = -1.0 + float((gl_VertexID & 1) << 2);
+    float y = -1.0 + float((gl_VertexID & 2) << 1);
+    uv = vec2(x,y);
+    gl_Position = vec4(x, y, 1f, 1f);
 
-    uv = in_position.xy;
+    //gl_Position = vec4(in_position, 1f);
+
+    //uv = in_position.xy;
     // FIXME: This methods seems to have some jittering when moving
     //far = unproject(vec3(in_position.x, in_position.y, 0.9f));
     //near = unproject(vec3(in_position.x, in_position.y, 1));

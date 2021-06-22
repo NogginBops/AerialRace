@@ -57,7 +57,7 @@ namespace AerialRace.Loading
             watch.Stop();
             Debug.WriteLine($"Loaded texture '{path}' in {watch.ElapsedMilliseconds}ms ({loadTime}ms load time)");
 
-            return new Texture(name, texture, TextureType.Texture2D, TextureFormat.Rgba8, image.Width, image.Height, 1, 0, mipmapLevels - 1, mipmapLevels);
+            return new Texture(name, texture, TextureType.Texture2D, TextureFormat.Rgba8, image.Width, image.Height, 1, 0, mipmapLevels - 1, mipmapLevels, 1, false);
         }
     }
 }

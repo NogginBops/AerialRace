@@ -197,6 +197,8 @@ namespace AerialRace
         public RefList<Property> Properties = new RefList<Property>();
         public List<TextureProperty> Textures = new List<TextureProperty>();
         public CullMode CullMode = CullMode.Back;
+        public bool Transparent = false;
+        public bool AlphaToCoverage = false;
 
         public MaterialProperties()
         { }
@@ -205,6 +207,9 @@ namespace AerialRace
         {
             Properties = new RefList<Property>(properties.Properties);
             Textures = new List<TextureProperty>(properties.Textures);
+            CullMode = properties.CullMode;
+            Transparent = properties.Transparent;
+            AlphaToCoverage = properties.AlphaToCoverage;
         }
 
         public void SetProperty(Property property)

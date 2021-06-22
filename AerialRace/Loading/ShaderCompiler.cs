@@ -98,8 +98,7 @@ namespace AerialRace.Loading
                 GL.DeleteProgram(handle);
                 GL.DeleteShader(shader);
 
-                // FIXME: return null?
-                throw new Exception();
+                return GetErrorShaderForStage(name, stage, sourceDesc);
             }
 
             GL.AttachShader(handle, shader);
@@ -115,7 +114,7 @@ namespace AerialRace.Loading
                 Debug.WriteLine($"Error in {stage} program '{name}':\n{info}");
 
                 GL.DeleteProgram(handle);
-                throw new Exception();
+                return GetErrorShaderForStage(name, stage, sourceDesc);
             }
 
             var result = new ShaderProgram(name, sourceDesc, handle, stage, null!, null!, null, null);
@@ -149,8 +148,10 @@ namespace AerialRace.Loading
                 GL.DeleteProgram(handle);
                 GL.DeleteShader(shader);
 
-                // FIXME: return null?
-                throw new Exception();
+                program.Handle = GetErrorProgramHandleForStage(program.Stage);
+
+                UpdateUniformInformation(program);
+                return;
             }
 
             GL.AttachShader(handle, shader);
@@ -206,6 +207,10 @@ namespace AerialRace.Loading
             var oldHandle = pipeline.Handle;
             pipeline.Handle = handle;
             GL.DeleteProgramPipeline(oldHandle);
+
+            // FIXME: Remove this?
+            pipeline.Uniforms.Clear();
+            pipeline.UpdateUniforms();
         }
 
         public static void UpdateUniformInformation(ShaderProgram program)
@@ -213,7 +218,7 @@ namespace AerialRace.Loading
             Dictionary<string, int> uniformLocations = new Dictionary<string, int>();
 
             UniformFieldInfo[] uniformInfo;
-            {
+            if (false) {
                 GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
 
                 uniformInfo = new UniformFieldInfo[uniformCount];
@@ -234,6 +239,38 @@ namespace AerialRace.Loading
 
                     //Debug.WriteLine($"{name} uniform {location} '{uniformName}' {type} ({size})");
                 }
+            }
+
+            {
+                GL.GetProgramInterface(program.Handle, ProgramInterface.Uniform, ProgramInterfaceParameter.ActiveResources, out int uniformCount);
+                RefList<UniformFieldInfo> uniformInfo2 = new RefList<UniformFieldInfo>(uniformCount);
+                Span<ProgramProperty> props = stackalloc ProgramProperty[] {
+                    ProgramProperty.BlockIndex,
+                    ProgramProperty.NameLength,
+                    ProgramProperty.Type,
+                    ProgramProperty.Location,
+                    ProgramProperty.ArraySize,
+                };
+                Span<int> data = stackalloc int[props.Length];
+
+                for (int i = 0; i < uniformCount; i++)
+                {
+                    GL.GetProgramResource(program.Handle, ProgramInterface.Uniform, i, props.Length, ref props[0], data.Length, out _, out data[0]);
+
+                    if (data[0] != -1) continue;
+
+                    ref var uniform = ref uniformInfo2.RefAdd();
+
+                    GL.GetProgramResourceName(program.Handle, ProgramInterface.Uniform, i, data[1], out _, out uniform.Name);
+
+                    uniform.Type = (ActiveUniformType)data[2];
+                    uniform.Location = data[3];
+                    uniform.Size = data[4];
+
+                    uniformLocations.Add(uniform.Name, uniform.Location);
+                }
+
+                uniformInfo = uniformInfo2.ToArray();
             }
 
             Dictionary<string, int> uniformBlockBindings = new Dictionary<string, int>();
@@ -290,6 +327,21 @@ namespace AerialRace.Loading
             program.UniformBlockInfo = blockInfo;
         }
 
+        public static ShaderProgram GetErrorShaderForStage(string name, ShaderStage stage, ShaderSourceDescription? sourceDesc)
+        {
+            int handle = GetErrorProgramHandleForStage(stage);
+            return new ShaderProgram(name, sourceDesc, handle, stage, null!, null!, null, null);
+        }
+
+        public static int GetErrorProgramHandleForStage(ShaderStage stage)
+        {
+            return stage switch
+            {
+                ShaderStage.Vertex => BuiltIn.ErrorVertexProgram.Handle,
+                ShaderStage.Fragment => BuiltIn.ErrorFragmentProgram.Handle,
+                _ => throw new Exception(), // FIXME: return null?
+            };
+        }
     }
 
     static class LiveShaderLoader
@@ -348,6 +400,22 @@ namespace AerialRace.Loading
             static void TrackFile(FileInfo file, ShaderProgram program)
             {
                 // FIXME: More efficient test!!
+                // Here we go through and try to find a file with the same path as this file
+                // this means we want to use the instance of FileInfo to do the rest of the
+                // operations in this function.
+                bool found = false;
+                foreach (var tracked in TrackedFiles)
+                {
+                    if (tracked.File.FullName == file.FullName)
+                    {
+                        file = tracked.File;
+                        break;
+                    }
+                }
+
+                if (found == false)
+                    TrackedFiles.Add(new TrackedFile(file));
+
                 if (TrackedFiles.Any(t => t.File.FullName == file.FullName) == false)
                     TrackedFiles.Add(new TrackedFile(file));
 

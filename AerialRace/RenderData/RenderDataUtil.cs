@@ -64,11 +64,17 @@ namespace AerialRace.RenderData
 
         public static int MaxCombinedTextureUnits { get; private set; }
 
+        public static int MaxSamples;
+        public static int MaxColorTextureSamples;
+        public static int MaxDepthStencilTextureSamples;
+
         public static void QueryLimits()
         {
             MaxAnisoLevel = GL.GetFloat((GetPName)All.MaxTextureMaxAnisotropy);
 
             MaxCombinedTextureUnits = GL.GetInteger(GetPName.MaxCombinedTextureImageUnits);
+
+            MaxSamples = GL.GetInteger(GetPName.MaxSamples);
         }
 
         #region MISC
@@ -208,6 +214,25 @@ namespace AerialRace.RenderData
 
             TextureType.Texture2DMultisample => TextureTarget.Texture2DMultisample,
             TextureType.Texture2DMultisampleArray => TextureTarget.Texture2DMultisampleArray,
+
+            _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(TextureType)),
+        };
+
+        public static ImageTarget ToGLImageTarget(TextureType type) => type switch
+        {
+            TextureType.Texture1D => ImageTarget.Texture1D,
+            TextureType.Texture2D => ImageTarget.Texture2D,
+            TextureType.Texture3D => ImageTarget.Texture3D,
+            TextureType.TextureCube => ImageTarget.TextureCubeMap,
+
+            TextureType.TextureBuffer => ImageTarget.TextureBuffer,
+
+            TextureType.Texture1DArray => ImageTarget.Texture1DArray,
+            TextureType.Texture2DArray => ImageTarget.Texture2DArray,
+            TextureType.TextureCubeArray => ImageTarget.TextureCubeMapArray,
+
+            TextureType.Texture2DMultisample => ImageTarget.Texture2DMultisample,
+            TextureType.Texture2DMultisampleArray => ImageTarget.Texture2DMultisampleArray,
 
             _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(TextureType)),
         };
@@ -390,9 +415,19 @@ namespace AerialRace.RenderData
             _ => throw new InvalidEnumArgumentException(nameof(type), (int)type, typeof(QueryType)),
         };
 
-    #endregion
+        public static bool IsMultisampleType(TextureType type)
+        {
+            return type switch
+            {
+                TextureType.Texture2DMultisample => true,
+                TextureType.Texture2DMultisampleArray => true,
+                _ => false,
+            };
+        }
 
-    #region Creation 
+        #endregion
+
+        #region Creation 
 
         public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
         {
@@ -843,6 +878,21 @@ namespace AerialRace.RenderData
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
         }
 
+        public static Sampler CreateSampler2DMultisample(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
+        {
+            GLUtil.CreateSampler(name, out int sampler);
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+
+            GL.SamplerParameter(sampler, SamplerParameterName.TextureMaxAnisotropyExt, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+
+            return new Sampler(name, sampler, SamplerType.Sampler2DMultisample, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4(0f, 0f, 0f, 0f), false);
+        }
+
         public static ShadowSampler CreateShadowSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap, DepthTextureCompareMode depthCompMode, DepthTextureCompareFunc depthCompFunc)
         {
             GLUtil.CreateSampler(name, out int sampler);
@@ -918,7 +968,7 @@ namespace AerialRace.RenderData
 
             GL.GenerateTextureMipmap(texture);
 
-            return new Texture(name, texture, TextureType.Texture2D, format, 1, 1, 1, 0, 0, 1);
+            return new Texture(name, texture, TextureType.Texture2D, format, 1, 1, 1, 0, 0, 1, 1, false);
         }
 
         public static Texture CreateEmpty2DTexture(string name, TextureFormat format, int width, int height)
@@ -927,7 +977,7 @@ namespace AerialRace.RenderData
 
             GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), width, height);
 
-            return new Texture(name, texture, TextureType.Texture2D, format, width, height, 1, 0, 0, 1);
+            return new Texture(name, texture, TextureType.Texture2D, format, width, height, 1, 0, 0, 1, 1, false);
         }
 
         public static Texture CreateEmpty2DTextureArray(string name, TextureFormat format, int width, int height, int length)
@@ -936,7 +986,20 @@ namespace AerialRace.RenderData
 
             GL.TextureStorage3D(texture, 1, ToGLSizedInternalFormat(format), width, height, length);
             
-            return new Texture(name, texture, TextureType.Texture2DArray, format, width, height, length, 0, 0, 1);
+            return new Texture(name, texture, TextureType.Texture2DArray, format, width, height, length, 0, 0, 1, 1, false);
+        }
+
+        public static Texture CreateEmptyMultisample2DTexture(string name, TextureFormat format, int width, int height, int samples, bool fixedSampleLocations)
+        {
+            GLUtil.CreateTexture(name, TextureTarget.Texture2DMultisample, out int texture);
+
+            GL.GetInternalformat(ImageTarget.Texture2DMultisample, ToGLSizedInternalFormat(format), InternalFormatParameter.Samples, 1, out int maxFormatSamples);
+            // FIXME: Don't assert? Maybe just print a warning?
+            Debug.Assert(samples <= maxFormatSamples, $"Texture does not support the specified number of samples!");
+
+            GL.TextureStorage2DMultisample(texture, samples, ToGLSizedInternalFormat(format), width, height, fixedSampleLocations);
+
+            return new Texture(name, texture, TextureType.Texture2DMultisample, format, width, height, 1, 0, 0, 1, samples, fixedSampleLocations);
         }
 
         #endregion
@@ -1017,41 +1080,48 @@ namespace AerialRace.RenderData
         /// </summary>
         public static void ResizeFramebuffer(Framebuffer buffer, Vector2i newSize)
         {
-            ColorAttachement[]? newAttachments = 
-                buffer.ColorAttachments == null ? null :
-                new ColorAttachement[buffer.ColorAttachments.Length];
             for (int i = 0; i < buffer.ColorAttachments?.Length; i++)
             {
                 var original = buffer.ColorAttachments[i].ColorTexture;
-                var tex = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
 
-                // newAttachments will not be null, because we won't get into this loop
+                Texture tex = CreateResizedTexture2D(original, newSize);
+
                 AddColorAttachment(buffer, tex, buffer.ColorAttachments[i].Index, buffer.ColorAttachments[i].MipLevel);
-                newAttachments![i] = new ColorAttachement(buffer.ColorAttachments[i].Index, buffer.ColorAttachments[i].MipLevel, tex);
+
+                // FIXME: Figure out if we should really delete the texture here?
+                DeleteTexture(ref original);
             }
-            buffer.ColorAttachments = newAttachments;
 
             bool combinedDepthStencil = buffer.DepthAttachment?.Texture == buffer.StencilAttachment?.Texture;
             if (combinedDepthStencil && buffer.DepthAttachment.HasValue)
             {
                 var original = buffer.DepthAttachment.Value.Texture;
-                var combined = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                var combined = CreateResizedTexture2D(original, newSize);
                 AddDepthStencilAttachment(buffer, combined, buffer.DepthAttachment.Value.MipLevel);
+
+                // FIXME: Figure out if we should really delete the texture here?
+                DeleteTexture(ref original);
             }
             else
             {
                 if (buffer.DepthAttachment.HasValue)
                 {
                     var original = buffer.DepthAttachment.Value.Texture;
-                    var depth = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                    var depth = CreateResizedTexture2D(original, newSize);
                     AddDepthAttachment(buffer, depth, buffer.DepthAttachment.Value.MipLevel);
+
+                    // FIXME: Figure out if we should really delete the texture here?
+                    DeleteTexture(ref original);
                 }
 
                 if (buffer.StencilAttachment.HasValue)
                 {
                     var original = buffer.StencilAttachment.Value.Texture;
-                    var stencil = CreateEmpty2DTexture(original.Name, original.Format, newSize.X, newSize.Y);
+                    var stencil = CreateResizedTexture2D(original, newSize);
                     AddStencilAttachment(buffer, stencil, buffer.StencilAttachment.Value.MipLevel);
+
+                    // FIXME: Figure out if we should really delete the texture here?
+                    DeleteTexture(ref original);
                 }
             }
 
@@ -1060,6 +1130,37 @@ namespace AerialRace.RenderData
             {
                 Debug.WriteLine($"Fame buffer not complete after resize! {status}");
             }
+        }
+
+        /// <summary>
+        /// This function handles resizing all 2D textures, including depth/stencil and multisample.
+        /// </summary>
+        public static Texture CreateResizedTexture2D(Texture texture, Vector2i newSize)
+        {
+            Debug.Assert(texture.Depth == 1, $"We only support resizing 2D textures atm (this means we can't resize 2D texture arrays)");
+            Debug.Assert(texture.BaseLevel == 0, $"We don't handle special mip setups in this function yet.");
+            Debug.Assert(texture.MaxLevel == texture.MipLevels - 1, $"We don't handle special mip setups in this function yet.");
+
+            GLUtil.CreateTexture(texture.Name, ToGLTextureTarget(texture.Type), out int handle);
+
+            if (IsMultisampleType(texture.Type))
+            {
+                GL.GetInternalformat(ToGLImageTarget(texture.Type), ToGLSizedInternalFormat(texture.Format), InternalFormatParameter.Samples, 1, out int maxFormatSamples);
+                // FIXME: Don't assert? Maybe just print a warning?
+                Debug.Assert(texture.Samples <= maxFormatSamples, $"Texture does not support the specified number of samples!");
+
+                GL.TextureStorage2DMultisample(handle, texture.Samples, ToGLSizedInternalFormat(texture.Format), newSize.X, newSize.Y, texture.FixedSampleLocations);
+            }
+            else
+            {
+                GL.TextureStorage2D(handle, texture.MipLevels, ToGLSizedInternalFormat(texture.Format), newSize.X, newSize.Y);
+            }
+
+            return new Texture(texture.Name, handle,
+                texture.Type, texture.Format,
+                newSize.X, newSize.Y, texture.Depth,
+                texture.BaseLevel, texture.MaxLevel, texture.MipLevels,
+                texture.Samples, texture.FixedSampleLocations);
         }
 
         #region Deletion
@@ -1315,6 +1416,7 @@ namespace AerialRace.RenderData
 
         public static ShaderPipeline? CurrentPipeline;
 
+        [MemberNotNull(nameof(CurrentPipeline))]
         public static void UsePipeline(ShaderPipeline pipeline)
         {
             if (CurrentPipeline != pipeline)
@@ -2025,6 +2127,17 @@ namespace AerialRace.RenderData
                 }
 
                 CullMode = mode;
+            }
+        }
+
+        private static bool AlphaToCoverage = false;
+        public static void SetAlphaToCoverage(bool alphaToCoverage)
+        {
+            if (AlphaToCoverage != alphaToCoverage)
+            {
+                if (alphaToCoverage) GL.Enable(EnableCap.SampleAlphaToCoverage);
+                else                 GL.Disable(EnableCap.SampleAlphaToCoverage);
+                AlphaToCoverage = alphaToCoverage;
             }
         }
 

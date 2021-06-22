@@ -26,10 +26,16 @@ namespace AerialRace
             Data = new T[DEFAULT_SIZE];
         }
 
+        public RefList(int initialCapacity)
+        {
+            Data = new T[initialCapacity];
+        }
+
         public RefList(RefList<T> list)
         {
             Data = new T[list.Count];
             Array.Copy(list.Data, Data, list.Count);
+            Count = list.Count;
         }
 
         private void Grow(int minCap)
@@ -49,6 +55,14 @@ namespace AerialRace
             EnsureCapacity(Count + 1);
             Data[Count] = element;
             Count++;
+        }
+
+        public ref T RefAdd()
+        {
+            EnsureCapacity(Count + 1);
+            ref T @ref = ref Data[Count];
+            Count++;
+            return ref @ref;
         }
 
         public void RemoveUnordered(int i)
@@ -100,6 +114,13 @@ namespace AerialRace
         }
 
         public void Clear() => Count = 0;
+
+        public T[] ToArray()
+        {
+            T[] arr = new T[Count];
+            Array.Copy(Data, arr, Count);
+            return arr;
+        }
         
         public IEnumerator<T> GetEnumerator()
         {

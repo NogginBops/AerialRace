@@ -73,7 +73,7 @@ uniform mat4 mvp;
 
 void main(void)
 {
-    gl_Position = vec4(in_position, 1f) * mvp;
+    gl_Position = vec4(in_position, 1.0) * mvp;
 }
 ";
 
@@ -83,11 +83,11 @@ out vec4 Color;
 
 void main(void)
 {
-    Color = vec4(1, 0, 1, 1);
+    Color = vec4(1.0, 0.0, 1.0, 1.0);
 }
 ";
 
-        public const string FullscreenTriangleVertexSource = @"#version 460 core
+        public const string FullscreenTriangleVertexSource = @"#version 450 core
 
 out gl_PerVertex
 {
@@ -105,7 +105,7 @@ void main()
     float y = -1.0 + float((gl_VertexID & 2) << 1);
     uv.x = (x+1.0)*0.5;
     uv.y = (y+1.0)*0.5;
-    gl_Position = vec4(x, y, 0, 1);
+    gl_Position = vec4(x, y, 0.0, 1.0);
 }
 ";
 

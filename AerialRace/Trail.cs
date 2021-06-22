@@ -76,6 +76,9 @@ namespace AerialRace
                     RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
                 }
 
+                settings.Metrics.DrawCalls++;
+                settings.Metrics.Vertices += vertices;
+
                 RenderDataUtil.DrawArrays(Primitive.LineStrip, 0, vertices);
             }
         }

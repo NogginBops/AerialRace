@@ -29,7 +29,7 @@ namespace AerialRace.Physics
             Mesh = new BepuPhysics.Collidables.Mesh(tris, scale.AsNumerics(), Phys.BufferPool);
 
             TypedIndex = Phys.Simulation.Shapes.Add(Mesh);
-
+            
             //Center = center.ToOpenTK();
             Mesh.ComputeBounds(System.Numerics.Quaternion.Identity, out var min, out var max);
             Bounds = new Box3(min.AsOpenTK(), max.AsOpenTK());

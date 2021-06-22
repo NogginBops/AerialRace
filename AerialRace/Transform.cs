@@ -30,6 +30,11 @@ namespace AerialRace
             set => LocalPosition = Vector3.TransformPosition(value, WorldToLocal); //= Transformations.MultPosition(value, ref WorldToLocal);
         }
 
+        public Quaternion WorldRotation
+        {
+            get => Quaternion.FromMatrix(new Matrix3(LocalToWorld));
+        }
+
         public Transform? Parent = null;
         public List<Transform>? Children = null;
 

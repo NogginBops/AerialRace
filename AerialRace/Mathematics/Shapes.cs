@@ -68,6 +68,14 @@ namespace AerialRace.Mathematics
             Offset = offset;
         }
 
+        public static Plane FromPositionAndNormal(Vector3 position, Vector3 normal)
+        {
+            Plane plane;
+            plane.Normal = normal;
+            plane.Offset = Vector3.Dot(normal, position);
+            return plane;
+        }
+
         public static float Intersect(in Plane plane, in Ray ray)
         {
             var denom = Vector3.Dot(plane.Normal, ray.Direction);
@@ -78,6 +86,13 @@ namespace AerialRace.Mathematics
                 return t;
             }
             else return float.NaN;
+        }
+
+        public Vector3 Project(Vector3 point)
+        {
+            Vector3 v = point - (Normal * Offset);
+            var distance = Vector3.Dot(Normal, v);
+            return point - distance * Normal;
         }
     }
 

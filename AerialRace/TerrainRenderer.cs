@@ -99,7 +99,9 @@ namespace AerialRace
 
                 RenderDataUtil.SetCullMode(material.Properties.CullMode);
 
-                MeshRenderer.SetRenderPassUniforms(ref transform.LocalToWorld, ref settings);
+                // FIXME
+                MeshRenderer.SetRenderPassUniforms(ref settings);
+                MeshRenderer.SetPerModelData(ref transform.LocalToWorld, ref settings);
 
                 int textureStartIndex = 0;
 

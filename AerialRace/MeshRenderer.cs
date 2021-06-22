@@ -20,10 +20,37 @@ namespace AerialRace
         public Color4 GroundColor;
     }
 
+    struct RenderPassMetrics
+    {
+        public int Vertices;
+        public int Triangles;
+
+        public int DrawCalls;
+        public int Culled;
+
+        public int MeshesRenderers;
+
+
+
+        public void Combine(RenderPassMetrics metrics)
+        {
+            Vertices += metrics.Vertices;
+            Triangles += metrics.Triangles;
+
+            DrawCalls += metrics.DrawCalls;
+            Culled += metrics.Culled;
+
+            MeshesRenderers += metrics.MeshesRenderers;
+        }
+    }
+
     // FIXME: Add transparent switch!
     unsafe struct RenderPassSettings
     {
+        public string Name;
+
         public bool IsDepthPass;
+        public bool IsTransparentPass;
         public Matrix4 View;
         public Matrix4 Projection;
         //public Matrix4 LightSpace;
@@ -31,6 +58,7 @@ namespace AerialRace
 
         public float NearPlane, FarPlane;
 
+        public CameraFrustumCullingData? CullingData;
         public UniformBuffer<CameraUniformData> CameraUniforms;
 
         public SkySettings Sky;
@@ -44,6 +72,12 @@ namespace AerialRace
         public Matrix4[]? LightMatrices;
 
         public Lights? Lights;
+
+        // Shadow pass data
+        public RefList<Mathematics.ShadowCaster>? ShadowCasterCullingData;
+        public int Cascade;
+
+        public RenderPassMetrics Metrics;
     }
 
     abstract class SelfCollection<TSelf> where TSelf : SelfCollection<TSelf>
@@ -113,40 +147,189 @@ namespace AerialRace
             return new Box3(Bmin[0], Bmin[1], Bmin[2], Bmax[0], Bmax[1], Bmax[2]);
         }
 
+        public static bool InFrustum(CameraFrustumCullingData camera, Box3 AABB)
+        {
+            bool aboveLeft = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Left, ref AABB);
+            bool aboveRight = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Right, ref AABB);
+            bool aboveTop = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Top, ref AABB);
+            bool aboveBottom = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Bottom, ref AABB);
+            bool aboveNear = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Near, ref AABB);
+            bool aboveFar = Mathematics.Shadows.IsBoxAbovePlane(ref camera.Planes.Far, ref AABB);
+
+            Mathematics.FrustumPoints points = new Mathematics.FrustumPoints(AABB);
+
+            /*
+            */
+            /*
+            if (aboveNear)
+            {
+                Color4 color = Color4.Red.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+            if (aboveFar)
+            {
+                Color4 color = Color4.Green.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+
+            if (aboveLeft)
+            {
+                Color4 color = Color4.Blue.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+
+            if (aboveRight)
+            {
+                Color4 color = Color4.Yellow.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+
+            if (aboveTop)
+            {
+                Color4 color = Color4.Magenta.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+
+            if (aboveBottom)
+            {
+                Color4 color = Color4.Cyan.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+            if (aboveLeft && aboveRight && aboveTop && aboveBottom && aboveNear && aboveFar)
+            {
+                Color4 color = Color4.White.WithAlpha(0.5f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points,
+                                            color, color);
+            }
+            else
+            {
+                Color4 yellow = Color4.Red.WithAlpha(0.25f);
+                Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, points, yellow, yellow);
+            }
+            */
+
+            return aboveLeft && aboveRight && aboveTop && aboveBottom && aboveNear && aboveFar;
+            
+            if (InFrustum(camera, new Vector3(AABB.Min.X, AABB.Min.Y, AABB.Min.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Min.X, AABB.Max.Y, AABB.Min.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Max.X, AABB.Min.Y, AABB.Min.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Max.X, AABB.Max.Y, AABB.Min.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Min.X, AABB.Min.Y, AABB.Max.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Min.X, AABB.Max.Y, AABB.Max.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Max.X, AABB.Min.Y, AABB.Max.Z)) == true) return true;
+            if (InFrustum(camera, new Vector3(AABB.Max.X, AABB.Max.Y, AABB.Max.Z)) == true) return true;
+
+            return false;
+
+            static bool InFrustum(CameraFrustumCullingData camera, Vector3 point)
+            {
+                var v = point - camera.Position;
+                float distanceAlongForward = Vector3.Dot(v, camera.Forward);
+                if (distanceAlongForward < camera.NearPlane || distanceAlongForward > camera.FarPlane)
+                    return false;
+
+                return true;
+
+                float halfHeightAtZ = distanceAlongForward * camera.TanHalfVFov;
+                float verticalDistance = Vector3.Dot(v, camera.Up);
+                if (verticalDistance < -halfHeightAtZ || verticalDistance > halfHeightAtZ)
+                    return false;
+
+                Vector3 cameraRight = Vector3.Cross(camera.Forward, camera.Up);
+                float halfWidthAtZ = halfHeightAtZ * camera.Aspect;
+                float horizontalDistance = Vector3.Dot(v, cameraRight);
+                if (horizontalDistance < -halfWidthAtZ || horizontalDistance > halfWidthAtZ)
+                    return false;
+
+                return true;
+            }
+        }
+
         static List<Texture> TexturesToBind = new List<Texture>();
         static List<ISampler?> SamplersToBind = new List<ISampler?>();
+
+        static List<ShaderPipeline> PipelinesWithRenderPassUniformsSet = new List<ShaderPipeline>();
 
         // FIXME: Passes
         public static void Render(ref RenderPassSettings settings)
         {
+            PipelinesWithRenderPassUniformsSet.Clear();
+
+            int index = 0;
             foreach (var instance in Instances)
             {
                 var transform = instance.Transform;
                 var mesh = instance.Mesh;
                 var material = instance.Material;
 
-                //var worldBounds = RecalculateAABB(mesh.AABB, transform);
-                
+                if (Window.FrustumCulling && settings.IsDepthPass && settings.ShadowCasterCullingData != null)
+                {
+                    bool culled = (settings.ShadowCasterCullingData[index].CulledMask & (1 << settings.Cascade)) == 1;
+                    if (culled)
+                    {
+                        settings.Metrics.Culled++;
+                        index++;
+                        continue;
+                    }
+                }
+                index++;
+
+                if (Window.FrustumCulling && settings.CullingData != null)
+                {
+                    if (mesh.AABB == default)
+                    {
+                        Debug.Break();
+                    }
+
+                    var worldBounds = RecalculateAABB(mesh.AABB, transform);
+                    if (InFrustum(settings.CullingData.Value, worldBounds) == false)
+                    {
+                        settings.Metrics.Culled++;
+                        continue;
+                    }
+                }
+
                 RenderDataUtil.BindMeshData(mesh);
 
+                ShaderPipeline pipeline;
                 if (settings.IsDepthPass)
                 {
                     // FIXME: Should materials with no depth pipeline be considered transparent.
                     // i.e. not drawn in the depth pass?
-                    RenderDataUtil.UsePipeline(material.DepthPipeline ?? material.Pipeline);
+                    pipeline = material.DepthPipeline ?? material.Pipeline;
                 }
                 else
                 {
-                    RenderDataUtil.UsePipeline(material.Pipeline);
+                    pipeline = material.Pipeline;
                 }
 
+                if (settings.IsTransparentPass != material.Properties.Transparent)
+                {
+                    continue;
+                }
+
+                RenderDataUtil.UsePipeline(pipeline);
+
                 RenderDataUtil.SetCullMode(material.Properties.CullMode);
+                RenderDataUtil.SetAlphaToCoverage(material.Properties.AlphaToCoverage);
+
+                if (PipelinesWithRenderPassUniformsSet.Contains(pipeline) == false)
+                {
+                    SetRenderPassUniforms(ref settings);
+                    PipelinesWithRenderPassUniformsSet.Add(pipeline);
+                }
 
                 // Because the matrices should all be updated we don't need to calculate it again
-                //transform.GetTransformationMatrix(out var model);
-                SetRenderPassUniforms(ref transform.LocalToWorld, ref settings);
-
-                int textureStartIndex = 0;
+                // transform.GetTransformationMatrix(out var model);
+                SetPerModelData(ref transform.LocalToWorld, ref settings);
+                
+                //int textureStartIndex = 1;
 
                 int numberOfTextures = material.Properties.Textures.Count;
                 if (settings.UseShadows) numberOfTextures++;
@@ -155,33 +338,53 @@ namespace AerialRace
                 SamplersToBind.Clear();
 
                 // FIXME!! Make binding texture better!
-                RenderDataUtil.Uniform1("UseShadows", settings.UseShadows ? 1 : 0);
                 if (settings.UseShadows)
                 {
-                    textureStartIndex = 1;
+                    int location = RenderDataUtil.GetUniformLocation("ShadowCascades", RenderDataUtil.CurrentPipeline.FragmentProgram);
+                    if (location != -1)
+                    {
+                        RenderDataUtil.Uniform1("UseShadows", settings.UseShadows ? 1 : 0);
 
-                    RenderDataUtil.Uniform1("ShadowCascades", 0);
-                    //RenderDataUtil.BindTexture(0, settings.ShadowMap!, settings.ShadowSampler!);
-                    
-                    TexturesToBind.Add(settings.ShadowMap!);
-                    SamplersToBind.Add(settings.ShadowSampler!);
+                        //textureStartIndex = 1;
 
-                    RenderDataUtil.Uniform4("CascadeSplits", settings.Cascades);
+                        RenderDataUtil.Uniform1("ShadowCascades", 0);
+                        //RenderDataUtil.BindTexture(0, settings.ShadowMap!, settings.ShadowSampler!);
+
+                        TexturesToBind.Add(settings.ShadowMap!);
+                        SamplersToBind.Add(settings.ShadowSampler!);
+
+                        RenderDataUtil.Uniform4("CascadeSplits", settings.Cascades);
+                    }
                 }
 
                 var matProperties = material.Properties;
                 for (int i = 0; i < matProperties.Textures.Count; i++)
                 {
-                    var ioff = textureStartIndex + i;
+                    //var ioff = textureStartIndex + i;
 
                     var texProp = matProperties.Textures[i];
                     var name = texProp.Name;
 
-                    RenderDataUtil.Uniform1(name, ioff);
-                    //RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
+                    int location = RenderDataUtil.GetUniformLocation(name, RenderDataUtil.CurrentPipeline.FragmentProgram);
 
-                    TexturesToBind.Add(texProp.Texture);
-                    SamplersToBind.Add(texProp.Sampler);
+                    if (location != -1)
+                    {
+                        var ioff = TexturesToBind.Count;
+
+                        RenderDataUtil.Uniform1(name, ioff);
+                        //RenderDataUtil.BindTexture(ioff, texProp.Texture, texProp.Sampler);
+
+                        TexturesToBind.Add(texProp.Texture);
+                        SamplersToBind.Add(texProp.Sampler);
+                    }
+                    else
+                    {
+                        // FIXME: Remove this, this is so that stuff doesn't break
+                        // when we substitue a shader with an error shader.
+                        // It would cause the wrong texture to be bound and cause general weirdness.
+                        // We want a better way to make sure the right data is bound.
+                        RenderDataUtil.Uniform1(name, 10);
+                    }
                 }
 
                 RenderDataUtil.BindTextures(0,
@@ -193,39 +396,42 @@ namespace AerialRace
                     RenderDataUtil.UniformProperty(ref matProperties.Properties[i]);
                 }
 
+                ref var metrics = ref settings.Metrics;
+                metrics.DrawCalls++;
+                metrics.MeshesRenderers++;
+                metrics.Triangles += instance.Mesh.Indices!.Elements / 3;
+
+                // FIXME: Don't assume there is any data buffers!!
+                metrics.Vertices += instance.Mesh.DataBuffers[0].Elements;
+
                 RenderDataUtil.DrawElements(
                     // FIXME: Make our own primitive type enum
                     Primitive.Triangles,
                     instance.Mesh.Indices!.Elements,
                     instance.Mesh.Indices.IndexType, 0);
             }
+
+            //Debug.WriteLine($"Culled {culled} meshes for pass '{settings.Name}'");
         }
 
         // This does not set shadow texture stuff atm as we don't have a nice model for binding textures
-        public static void SetRenderPassUniforms(ref Matrix4 model, ref RenderPassSettings settings)
+        public static void SetPerModelData(ref Matrix4 model, ref RenderPassSettings settings)
         {
             Transform.MultMVP(ref model, ref settings.View, ref settings.Projection, out var mv, out var mvp);
             Matrix3 normalMatrix = Matrix3.Transpose(new Matrix3(Matrix4.Invert(model)));
 
-            //Matrix4 modelToLightSpace = model * settings.LightSpace;
+            RenderDataUtil.UniformMatrix4("model", true, ref model);
+            RenderDataUtil.UniformMatrix4("mv", true, ref mv);
+            RenderDataUtil.UniformMatrix4("mvp", true, ref mvp);
+            RenderDataUtil.UniformMatrix3("normalMatrix", true, ref normalMatrix);
+        }
 
+        public static void SetRenderPassUniforms(ref RenderPassSettings settings)
+        {
             if (settings.Lights != null)
             {
                 RenderDataUtil.UniformBlock("LightBlock", settings.Lights!.PointLightBuffer);
             }
-
-            RenderDataUtil.UniformBlock("u_CameraBlock", settings.CameraUniforms);
-
-            RenderDataUtil.UniformMatrix4("model", true, ref model);
-            RenderDataUtil.UniformMatrix4("view", true, ref settings.View);
-            RenderDataUtil.UniformMatrix4("proj", true, ref settings.Projection);
-            RenderDataUtil.UniformMatrix4("mv", true, ref mv);
-            RenderDataUtil.UniformMatrix4("mvp", true, ref mvp);
-            RenderDataUtil.UniformMatrix3("normalMatrix", true, ref normalMatrix);
-
-            RenderDataUtil.Uniform1("camera.near", settings.NearPlane);
-            RenderDataUtil.Uniform1("camera.far", settings.FarPlane);
-            RenderDataUtil.UniformVector3("camera.position", settings.ViewPos);
 
             if (settings.LightMatrices != null)
             {
@@ -233,8 +439,14 @@ namespace AerialRace
             }
             else if (settings.UseShadows) Debug.Assert();
 
-            //RenderDataUtil.UniformMatrix4("lightSpaceMatrix", ShaderStage.Vertex, true, ref settings.LightSpace);
-            //RenderDataUtil.UniformMatrix4("modelToLightSpace", ShaderStage.Vertex, true, ref modelToLightSpace);
+            RenderDataUtil.UniformBlock("u_CameraBlock", settings.CameraUniforms);
+
+            RenderDataUtil.UniformMatrix4("view", true, ref settings.View);
+            RenderDataUtil.UniformMatrix4("proj", true, ref settings.Projection);
+
+            RenderDataUtil.Uniform1("camera.near", settings.NearPlane);
+            RenderDataUtil.Uniform1("camera.far", settings.FarPlane);
+            RenderDataUtil.UniformVector3("camera.position", settings.ViewPos);
 
             RenderDataUtil.UniformVector3("sky.SunDirection", settings.Sky.SunDirection);
             RenderDataUtil.UniformVector3("sky.SunColor", settings.Sky.SunColor);

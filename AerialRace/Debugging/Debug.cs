@@ -98,6 +98,11 @@ namespace AerialRace.Debugging
             System.Diagnostics.Debug.WriteLine(message);
         }
 
+        public static void WriteLineIf(bool condition, string? message)
+        {
+            System.Diagnostics.Debug.WriteLineIf(condition, message);
+        }
+
         public static void WriteLine(object? message)
         {
             System.Diagnostics.Debug.WriteLine(message);
@@ -134,6 +139,14 @@ namespace AerialRace.Debugging
 
         [System.Diagnostics.DebuggerHidden]
         [System.Diagnostics.Conditional("DEBUG")]
+        [DoesNotReturn]
+        public static void Assert(string message)
+        {
+            throw new Exception(message);
+        }
+
+        [System.Diagnostics.DebuggerHidden]
+        [System.Diagnostics.Conditional("DEBUG")]
         public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue)
         {
             if (mustBeTrue == false)
@@ -144,11 +157,11 @@ namespace AerialRace.Debugging
 
         [System.Diagnostics.DebuggerHidden]
         [System.Diagnostics.Conditional("DEBUG")]
-        public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue, FormattableString message)
+        public static void Assert([DoesNotReturnIf(false)] bool mustBeTrue, string message)
         {
             if (mustBeTrue == false)
             {
-                throw new Exception(message.ToString());
+                throw new Exception(message);
             }
         }
 

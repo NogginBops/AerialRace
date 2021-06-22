@@ -189,7 +189,7 @@ void main()
             GL.TextureStorage2D(glTexture, 1, SizedInternalFormat.Rgba8, width, height);
             GL.TextureSubImage2D(glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
 
-            _fontTexture = new Texture("ImGui Text Atlas", glTexture, TextureType.Texture2D, TextureFormat.Rgba8, width, height, 1, 0, 0, 0);
+            _fontTexture = new Texture("ImGui Text Atlas", glTexture, TextureType.Texture2D, TextureFormat.Rgba8, width, height, 1, 0, 0, 1, 1, false);
 
             // Add this as a permanent texture reference
             PermanentRefs.Add(new TextureRef(_fontTexture));

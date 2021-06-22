@@ -61,10 +61,7 @@ namespace AerialRace.Editor
         public void Do(IAction element)
         {
             element.DoAction();
-            EnsureSize(Count + 1);
-            Elements[Count] = element;
-            Count++;
-            AvailableRedos = 0;
+            PushAlreadyDone(element);
         }
 
         public bool TryUndo()
@@ -143,6 +140,25 @@ namespace AerialRace.Editor
         public void UndoAction()
         {
             Transform.LocalScale = StartScale;
+        }
+    }
+
+    struct PhysTranslate : IAction
+    {
+        public StaticSetpiece Setpiece;
+        public Vector3 StartPosition;
+        public Vector3 EndPosition;
+
+        public void DoAction()
+        {
+            var pos = EndPosition + Setpiece.StaticCollider.Shape.Center;
+            Setpiece.StaticCollider.Static.Pose.Position = pos.AsNumerics();
+        }
+
+        public void UndoAction()
+        {
+            var pos = StartPosition + Setpiece.StaticCollider.Shape.Center;
+            Setpiece.StaticCollider.Static.Pose.Position = pos.AsNumerics();
         }
     }
 }

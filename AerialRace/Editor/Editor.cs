@@ -66,8 +66,8 @@ namespace AerialRace.Editor
             }
         }
 
-        public static float MouseSpeedX = 0.2f;
-        public static float MouseSpeedY = 0.2f;
+        public static float MouseSpeedX = 0.3f;
+        public static float MouseSpeedY = 0.3f;
         public static float CameraMinY = -80f;
         public static float CameraMaxY = 80f;
         public static void UpdateEditorCamera(KeyboardState keyboard, MouseState mouse, float deltaTime)
@@ -137,7 +137,7 @@ namespace AerialRace.Editor
         }
 
         // Called after rendering the scene
-        public static void ShowEditor()
+        public static void ShowEditor(ref RenderPassMetrics metrics)
         {
             AssetDB.ShowAssetBrowser();
 
@@ -147,7 +147,7 @@ namespace AerialRace.Editor
 
             if (SelectedTransform != null)
             {
-                //Gizmos.TransformHandle(SelectedTransform);
+                Gizmos.TransformHandle(SelectedTransform);
             }
 
             foreach (var light in Window.Lights.LightsList)
@@ -155,7 +155,7 @@ namespace AerialRace.Editor
                 Gizmos.LightIcon(light);
             }
 
-            //Gizmos.CameraGizmo(Window.Player.Camera);
+            Gizmos.CameraGizmo(Window.Player.Camera);
 
             // Gizmos drawlist rendering
             using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
@@ -190,6 +190,8 @@ namespace AerialRace.Editor
                 DrawListRenderer.RenderDrawList(Gizmos.GizmoDrawList, ref settings);
                 Gizmos.GizmoDrawList.Clear();
 
+                metrics.Combine(settings.Metrics);
+
                 RenderDataUtil.BindDrawFramebuffer(null);
 
                 // FIXME: Reset viewport
@@ -207,7 +209,7 @@ namespace AerialRace.Editor
 
                     RenderDataUtil.DisableAllVertexAttributes();
 
-                    // FIXME: Setup correct blend mode
+                    metrics.Triangles += 3;
 
                     OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
 
@@ -224,6 +226,7 @@ namespace AerialRace.Editor
 
         public static Transform? SelectedTransform;
         public static Vector3 OldPos;
+        public static Vector3 OldWorldPos;
         public static Vector3 OldScale;
         public static void ShowTransformHierarchy()
         {
@@ -245,6 +248,7 @@ namespace AerialRace.Editor
                     if (ImGui.IsItemActivated())
                     {
                         OldPos = SelectedTransform.LocalPosition;
+                        OldWorldPos = SelectedTransform.WorldPosition;
                     }
                     if (ImGui.IsItemDeactivatedAfterEdit())
                     {
@@ -254,6 +258,17 @@ namespace AerialRace.Editor
                             StartPosition = OldPos,
                             EndPosition = SelectedTransform.LocalPosition
                         });
+
+                        var setpiece = StaticSetpiece.Instances.Find(piece => piece.Transform == SelectedTransform);
+                        if (setpiece != null)
+                        {
+                            Undo.EditorUndoStack.Do(new PhysTranslate()
+                            {
+                                Setpiece = setpiece,
+                                StartPosition = OldWorldPos,
+                                EndPosition = SelectedTransform.WorldPosition,
+                            });
+                        }
                     }
 
                     // FIXME: Display euler angles
@@ -344,6 +359,9 @@ namespace AerialRace.Editor
         {
             if (ImGui.Begin("Scene settings"))
             {
+                ImGui.Checkbox("MSAA", ref Window.UseMSAA);
+                ImGui.Checkbox("Frustum culling", ref Window.FrustumCulling);
+
                 EnumCombo("Tonemap", ref Window.CurrentTonemap);
                 ImGui.DragFloat("Light cutoff", ref Window.LightCutout, 0.001f, 0, 0.5f);
 
@@ -351,6 +369,10 @@ namespace AerialRace.Editor
                 ImGui.ColorEdit3("Sun color", ref Window.Sky.SunColor.AsNumerics3(), flags);
                 ImGui.ColorEdit3("Sky color", ref Window.Sky.SkyColor.AsNumerics3(), flags);
                 ImGui.ColorEdit3("Ground color", ref Window.Sky.GroundColor.AsNumerics3(), flags);
+
+                float rads = Window.Player.Camera.VerticalFov * Util.D2R;
+                ImGui.SliderAngle("VFoV", ref rads, 10, 120);
+                Window.Player.Camera.VerticalFov = rads * Util.R2D;
             }
             ImGui.End();
 
@@ -376,12 +398,25 @@ namespace AerialRace.Editor
             }
         }
 
-        public static void ShowProfiler()
+        public static void ShowProfiler(RenderPassMetrics metrics)
         {
             var data = Profiling.EnsureInitedOnThread();
 
             if (ImGui.Begin("Profiler"))
             {
+                static string ToStringWithAppropriatePostfix(int n)
+                {
+                    if (n > 1_000_000) return $"{n / 1_000_000f:0.00} m";
+                    else if (n > 10_000) return $"{n / 1_000f:0.00} k";
+                    else return $"{n}";
+                }
+
+                ImGui.Text($"Triangles: {ToStringWithAppropriatePostfix(metrics.Triangles)}, Vertices: {ToStringWithAppropriatePostfix(metrics.Vertices)}");
+                ImGui.Text($"Draw calls: {ToStringWithAppropriatePostfix(metrics.DrawCalls)}, Culled: {ToStringWithAppropriatePostfix(metrics.Culled)}");
+                ImGui.Text($"Mesh renderers: {metrics.MeshesRenderers}");
+
+                ImGui.Spacing();
+
                 Stack<int> ids = new Stack<int>();
                 ids.Push(-1);
                 for (int i = 0; i < data.PreviousFramePasses.Count; i++)

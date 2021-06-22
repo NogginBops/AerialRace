@@ -43,7 +43,7 @@ namespace AerialRace
                     break;
                 }
 
-                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9');
 
                 wholeNumber *= 10;
                 wholeNumber += c - '0';
@@ -56,7 +56,7 @@ namespace AerialRace
             {
                 char c = str[offset + i];
 
-                Debug.Assert(c >= '0' && c <= '9' && c != '.', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9' && c != '.');
 
                 fractionNumber *= 10;
                 fractionNumber += c - '0';
@@ -86,7 +86,7 @@ namespace AerialRace
                     break;
                 }
 
-                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9');
 
                 wholeNumber *= 10;
                 wholeNumber += c - '0';
@@ -99,7 +99,7 @@ namespace AerialRace
             {
                 char c = str[i];
 
-                Debug.Assert(c >= '0' && c <= '9' && c != '.', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9' && c != '.');
 
                 fractionNumber *= 10;
                 fractionNumber += c - '0';
@@ -124,7 +124,7 @@ namespace AerialRace
             {
                 char c = str[offset + i];
 
-                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9');
 
                 number *= 10;
                 number += c - '0';
@@ -148,7 +148,7 @@ namespace AerialRace
             {
                 char c = str[i];
 
-                Debug.Assert(c >= '0' && c <= '9', $"Invalid character!");
+                Debug.Assert(c >= '0' && c <= '9');
 
                 number *= 10;
                 number += c - '0';

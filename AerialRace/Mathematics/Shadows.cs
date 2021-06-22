@@ -22,6 +22,12 @@ namespace AerialRace.Mathematics
             Far11 = ( 1f,  1f, 1f),
         };
 
+        // The 00 to 11 map to UV coordinates of the plane
+        // 00 is lower left
+        // 01 is upper left
+        // 10 is lower right
+        // 11 is upper right
+
         public Vector3 Near00;
         public Vector3 Near01;
         public Vector3 Near10;
@@ -31,6 +37,26 @@ namespace AerialRace.Mathematics
         public Vector3 Far01;
         public Vector3 Far10;
         public Vector3 Far11;
+
+        public Vector3 AveragePoint
+        {
+            get
+            {
+                Vector3 average = default;
+
+                average += Near00;
+                average += Near01;
+                average += Near10;
+                average += Near11;
+
+                average += Far00;
+                average += Far01;
+                average += Far10;
+                average += Far11;
+
+                return average / 8;
+            }
+        }
 
         public FrustumPoints(Box3 box)
         {
@@ -91,6 +117,7 @@ namespace AerialRace.Mathematics
             aabb.Inflate(points.Far11);
         }
 
+        [Obsolete]
         public static void FromAABB(in Box3 aabb, out FrustumPoints points)
         {
             var X = (aabb.HalfSize.X, 0, 0);
@@ -110,13 +137,45 @@ namespace AerialRace.Mathematics
         }
     }
 
+    public struct FrustumPlanes
+    {
+        public Plane Left, Right;
+        public Plane Top, Bottom;
+        public Plane Near, Far;
+        
+        public FrustumPlanes(in FrustumPoints points)
+        {
+            Vector3 lrUp = points.Near11 - points.Near10;
+            Vector3 lrForward = points.Far10 - points.Near10;
+            Vector3 lrLeft = points.Near00 - points.Near10;
+
+            Vector3 flDown = points.Far00 - points.Far01;
+            Vector3 flBack = points.Near01 - points.Far01;
+            Vector3 flRight = points.Far11 - points.Far01;
+
+            Near = Plane.FromPositionAndNormal(points.Near10, Vector3.Cross(lrUp, -lrLeft).Normalized());
+            Right = Plane.FromPositionAndNormal(points.Near10, Vector3.Cross(lrForward, -lrUp).Normalized());
+            Bottom = Plane.FromPositionAndNormal(points.Near10, Vector3.Cross(lrLeft, -lrForward).Normalized());
+
+            Far = Plane.FromPositionAndNormal(points.Far01, Vector3.Cross(flDown, flRight).Normalized());
+            Left = Plane.FromPositionAndNormal(points.Far01, Vector3.Cross(flBack, flDown).Normalized());
+            Top = Plane.FromPositionAndNormal(points.Far01, Vector3.Cross(flRight, flBack).Normalized());
+        }
+    }
+
+    struct ShadowCaster
+    {
+        public Box3 AABB;
+        public int CulledMask;
+    }
+
     ref struct CascadedShadowContext
     {
         public const int Cascades = 4;
         public Camera Camera;
         public Vector2i ShadowMapResolution;
         public Vector3 Direction;
-        public Span<Box3> ShadowCasters;
+        public Span<ShadowCaster> ShadowCasters;
         public float CorrectionFactor;
 
         public Span<float> Splits;
@@ -179,6 +238,12 @@ namespace AerialRace.Mathematics
 
         public static void FitDirectionalLightProjectionToCamera(ref CascadedShadowContext context, int cascadeIndex, float minDistance, float maxDistance)
         {
+            // TODO: Figure out why when there are shadow casters
+            // cascades 1, 2, & 3 render a lot of stuff that they shouldn't.
+            // Not sure why it's onl 1, 2, & 3 but that is what what happens.
+
+            //int debugIndex = Window.DebugCascadeSelection;
+
             // Figure out all frustum corner points.
             // Make them aligned to the light direction
             // Calculate a AABB of all the frustom points
@@ -210,8 +275,11 @@ namespace AerialRace.Mathematics
             // This projects the NDC coordinates into world space
             FrustumPoints.ApplyProjection(in cameraFrustum, in ivp, out cameraFrustum);
 
-            //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, cameraFrustum,
-            //   Color4.Yellow, Color4.YellowGreen);
+            /*if (cascadeIndex == debugIndex)
+            {
+                Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, cameraFrustum,
+                    Color4.Cyan, Color4.Blue);
+            }*/
 
             var up = Vector3.Dot(context.Direction, Vector3.UnitY) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
 
@@ -237,35 +305,184 @@ namespace AerialRace.Mathematics
             // Now we want to extend the AABB in the Z direction to include all
             // shadowcasters that could cast shadows in this direction.
 
+            /*
+            if (cascadeIndex == debugIndex)
+            {
+                Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList,
+                    AABBPoints, Color4.Red, Color4.Orange);
+
+                Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList,
+                    new FrustumPoints(frustumAABB), Color4.Red, Color4.Orange);
+
+                //var a = new FrustumPoints(frustumAABB);
+                //a = cameraFrustum;
+                //var boxb = frustumAABB.Translated((0, 10, 0));
+                //FrustumPoints.FromAABB(boxb, out var b);
+
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, Vector3.Zero, Vector3.UnitX * 10, Color4.White, Color4.Red);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, Vector3.Zero, Vector3.UnitY * 10, Color4.White, Color4.Green);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, Vector3.Zero, Vector3.UnitZ * 10, Color4.White, Color4.Blue);
+
+                /*
+                Matrix3 ident = Matrix3.Identity;
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Near00, new Vector3(1f), ident, Color4.Red);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Near01, new Vector3(1f), ident, Color4.Green);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Near10, new Vector3(1f), ident, Color4.Blue);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Near11, new Vector3(1f), ident, Color4.Yellow);
+
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Far00, new Vector3(1f), ident, Color4.Red);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Far01, new Vector3(1f), ident, Color4.Green);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Far10, new Vector3(1f), ident, Color4.Blue);
+                Debugging.DebugHelper.Cube(Editor.Gizmos.GizmoDrawList, a.Far11, new Vector3(1f), ident, Color4.Yellow);
+                /
+
+                /*Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList,
+                    a, Color4.Cyan, Color4.Red);
+                Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList,
+                    b, Color4.Magenta, Color4.Green);/
+
+
+                FrustumPlanes planes = new FrustumPlanes(new FrustumPoints(frustumAABB));
+                Vector3 average = frustumAABB.Center;
+                Vector2 halfSize = (10, 10);
+
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Near.Normal * 10, Color4.Red, Color4.Red);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Far.Normal * 10, Color4.Green, Color4.Green);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Left.Normal * 10, Color4.Blue, Color4.Blue);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Right.Normal * 10, Color4.Yellow, Color4.Yellow);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Top.Normal * 10, Color4.Magenta, Color4.Magenta);
+                Debugging.DebugHelper.Line(Editor.Gizmos.GizmoDrawList, average, planes.Bottom.Normal * 10, Color4.Cyan, Color4.Cyan);
+                /*
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Near, average, halfSize, Color4.Red);
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Far, average, halfSize, Color4.Green);
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Left, average, halfSize, Color4.Blue);
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Right, average, halfSize, Color4.Yellow);
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Top, average, halfSize, Color4.Magenta);
+                Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, planes.Bottom, average, halfSize, Color4.Cyan);
+                /
+            }
+            */
+
+            //int notCulled = context.ShadowCasters.Length;
+
             // Because -Z is forward we want the biggest Z value for shadow casters
             float newMaxZ = frustumAABB.Max.Z;
             for (int i = 0; i < context.ShadowCasters.Length; i++)
             {
                 // Get the shadowcaster bounds points in world space
-                var points = new FrustumPoints(context.ShadowCasters[i]);
+                var points = new FrustumPoints(context.ShadowCasters[i].AABB);
                 // Transforms the world space points into light space
-                FrustumPoints.ApplyTransform(in points, in worldToLightSpace, out var newPoints);
+                FrustumPoints.ApplyTransform(in points, in worldToLightSpace, out var lightSpacePoints);
 
-                IntersectsIgnoreZ(newPoints.Near00, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Near01, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Near10, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Near11, frustumAABB, ref newMaxZ);
+                Plane left = new Plane((-1, 0, 0), -frustumAABB.Center.X - frustumAABB.HalfSize.X);
+                Plane right = new Plane((1, 0, 0), frustumAABB.Center.X - frustumAABB.HalfSize.X);
+                Plane top = new Plane((0, -1, 0), -(frustumAABB.Center.Y + frustumAABB.HalfSize.Y));
+                Plane bottom = new Plane((0, 1, 0), frustumAABB.Center.Y - frustumAABB.HalfSize.Y);
 
-                IntersectsIgnoreZ(newPoints.Far00, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Far01, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Far10, frustumAABB, ref newMaxZ);
-                IntersectsIgnoreZ(newPoints.Far11, frustumAABB, ref newMaxZ);
+                bool aboveLeft = IsFrustumAbovePlane(left, lightSpacePoints);
+                bool aboveRight = IsFrustumAbovePlane(right, lightSpacePoints);
+                bool aboveTop = IsFrustumAbovePlane(top, lightSpacePoints);
+                bool aboveBottom = IsFrustumAbovePlane(bottom, lightSpacePoints);
 
-                static void IntersectsIgnoreZ(Vector3 point, Box3 box, ref float max)
+                if (aboveLeft && aboveRight && aboveTop && aboveBottom)
                 {
-                    // FIXME!!!
-                    //if (box.Min.X < point.X && point.X < box.Max.X &&
-                    //   box.Min.Y < point.Y && point.Y < box.Max.Y)
+                    newMaxZ = MathF.Max(lightSpacePoints.Near00.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Near01.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Near10.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Near11.Z, newMaxZ);
+
+                    newMaxZ = MathF.Max(lightSpacePoints.Far00.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Far01.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Far10.Z, newMaxZ);
+                    newMaxZ = MathF.Max(lightSpacePoints.Far11.Z, newMaxZ);
+                    
+                    /*if (cascadeIndex == debugIndex)
                     {
-                        if (point.Z > max) max = point.Z;
-                    }
+                        Color4 yellow = Color4.Red.WithAlpha(0.5f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints, yellow, yellow);
+                    }*/
                 }
+                else
+                {
+                    context.ShadowCasters[i].CulledMask |= 1 << cascadeIndex;
+                    //notCulled--;
+                }
+
+                /*
+                if (cascadeIndex == debugIndex)
+                {
+                    if (i == 0)
+                    {
+                        Vector2 size = (10, 10);
+                        Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, left, frustumAABB.Center, size, Color4.Blue);
+                        Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, right, frustumAABB.Center, size, Color4.Yellow);
+                        Debugging.DebugHelper.Plane(Debugging.Debug.DepthTestList, top, frustumAABB.Center, size, Color4.Magenta);
+                        Debugging.DebugHelper.Plane(Editor.Gizmos.GizmoDrawList, bottom, frustumAABB.Center, size, Color4.Cyan);
+                    }
+                    /*
+                    if (aboveLeft)
+                    {
+                        Color4 color = Color4.Blue.WithAlpha(0.25f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints,
+                                                    color, color);
+                    }
+                    
+                    if (aboveRight)
+                    {
+                        Color4 color = Color4.Yellow.WithAlpha(0.25f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints,
+                                                    color, color);
+                    }
+
+                    if (aboveTop)
+                    {
+                        Color4 color = Color4.Magenta.WithAlpha(0.25f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints,
+                                                    color, color);
+                    }
+
+                    if (aboveBottom)
+                    {
+                        Color4 color = Color4.Cyan.WithAlpha(0.25f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints,
+                                                    color, color);
+                    }
+                    */
+                    /*
+                    */
+                    /*if (intersected)
+                    {
+                        //Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, newPoints,
+                        //                            Color4.Magenta, Color4.Magenta);
+                    }*/
+                    /*
+                    if (aboveLeft && aboveRight && aboveTop && aboveBottom)
+                    {
+                        Color4 color = Color4.White.WithAlpha(0.5f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints,
+                                                    color, color);
+                    }
+                    else
+                    {
+                        Color4 yellow = Color4.Red.WithAlpha(0.5f);
+                        Debugging.DebugHelper.FrustumPoints(Debugging.Debug.DepthTestList, lightSpacePoints, yellow, yellow);
+                    }
+                    /
+                    {
+                        //Debugging.DebugHelper.Quad(Editor.Gizmos.GizmoDrawList,
+                        //    );
+                    }
+                    
+                }
+                */
             }
+
+            /*
+            if (cascadeIndex == debugIndex)
+            {
+                Debugging.Debug.WriteLine($"Not culled {notCulled}");
+            }
+            */
 
             // FIXME: Calculate min Z from Shadow receivers
             //if (frustumAABB.Min.Z > newMaxZ) frustumAABB.Min = new Vector3(frustumAABB.Min.X, frustumAABB.Min.Y, newMaxZ);
@@ -286,12 +503,21 @@ namespace AerialRace.Mathematics
             var view = Matrix4.LookAt(viewPosition, viewPosition + context.Direction, up);
             context.LightViews[cascadeIndex] = view;
 
-            //var lightSpace = view * projection;
-            //lightSpace.Invert();
-            //FrustumPoints.ApplyProjection(FrustumPoints.NDC, lightSpace, out var test);
+            /*
+            if (cascadeIndex == debugIndex)
+            {
+                Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList,
+                    new FrustumPoints(frustumAABB), Color4.Orange, Color4.Green);
 
-            //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, test,
-            //    Color4.Magenta, Color4.Magenta);
+                var view2 = Matrix4.LookAt(viewPosition, viewPosition + Vector3.UnitX, up);
+                var lightSpace = view * context.LightProjs[cascadeIndex];
+                lightSpace.Invert();
+                FrustumPoints.ApplyProjection(FrustumPoints.NDC, lightSpace, out var test);
+
+                //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, test,
+                //    Color4.Cyan, Color4.Blue);
+            }
+            */
         }
         
         public static void FitDirectionalLightProjectionToCamera(Camera camera, Vector3 direction, float minDistance, float maxDistance, Span<Box3> shadowCasters, out Matrix4 view, out Matrix4 projection, out Vector3 viewPosition)
@@ -399,6 +625,39 @@ namespace AerialRace.Mathematics
 
             //Debugging.DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, test,
             //    Color4.Magenta, Color4.Magenta);
+        }
+
+        public static bool IsBoxAbovePlane(ref Plane plane, ref Box3 aabb)
+        {
+            Vector4 planeVec = new Vector4(plane.Normal, -plane.Offset);
+            bool above = false;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Min.X, aabb.Min.Y, aabb.Min.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Max.X, aabb.Min.Y, aabb.Min.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Min.X, aabb.Max.Y, aabb.Min.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Max.X, aabb.Max.Y, aabb.Min.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Min.X, aabb.Min.Y, aabb.Max.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Max.X, aabb.Min.Y, aabb.Max.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Min.X, aabb.Max.Y, aabb.Max.Z, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(aabb.Max.X, aabb.Max.Y, aabb.Max.Z, 1f)) > 0;
+            return above;
+        }
+
+        public static bool IsFrustumAbovePlane(in Plane plane, in FrustumPoints points)
+        {
+            Vector4 planeVec = new Vector4(plane.Normal, -plane.Offset);
+            bool above = false;
+
+            above |= Vector4.Dot(planeVec, new Vector4(points.Near00, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Near01, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Near10, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Near11, 1f)) > 0;
+
+            above |= Vector4.Dot(planeVec, new Vector4(points.Far00, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Far01, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Far10, 1f)) > 0;
+            above |= Vector4.Dot(planeVec, new Vector4(points.Far11, 1f)) > 0;
+
+            return above;
         }
     }
 }

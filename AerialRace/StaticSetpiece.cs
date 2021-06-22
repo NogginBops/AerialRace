@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AerialRace
 {
-    class StaticSetpiece
+    class StaticSetpiece : SelfCollection<StaticSetpiece>
     {
         // Perf: This could be optimized to a constant matrix
         public Transform Transform;
@@ -20,7 +20,7 @@ namespace AerialRace
         public ICollider Collider;
         public StaticCollider StaticCollider;
 
-        public StaticSetpiece(Transform transform, Mesh mesh, Material material, ICollider collider, SimpleMaterial physMaterial)
+        public StaticSetpiece(Transform transform, Mesh mesh, Material material, ICollider collider, SimpleMaterial physMaterial) : base()
         {
             Transform = transform;
             Transform.UpdateMatrices();
@@ -31,7 +31,7 @@ namespace AerialRace
             Renderer = new MeshRenderer(transform, mesh, material);
 
             Collider = collider;
-            StaticCollider = new StaticCollider(Collider, transform.WorldPosition + Collider.Center, physMaterial);
+            StaticCollider = new StaticCollider(Collider, transform.WorldPosition, physMaterial);
         }
 
     }

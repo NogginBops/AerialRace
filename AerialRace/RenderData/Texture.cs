@@ -116,10 +116,18 @@ namespace AerialRace.RenderData
         public int MipLevels;
         // TODO: We could add swizzle and stencil parameters
 
+        // Multisample parameters
+        public int Samples;
+        public bool FixedSampleLocations;
+
         public Vector2i Size2D => new Vector2i(Width, Height);
         public Vector3i Size3D => new Vector3i(Width, Height, Depth);
 
-        public Texture(string name, int handle, TextureType type, TextureFormat format, int width, int height, int depth, int baseLevel, int maxLevel, int mipLevels)
+        public Texture(string name, int handle, 
+            TextureType type, TextureFormat format,
+            int width, int height, int depth,
+            int baseLevel, int maxLevel, int mipLevels,
+            int samples, bool fixedSampleLocations)
         {
             Name = name;
             Handle = handle;
@@ -131,11 +139,13 @@ namespace AerialRace.RenderData
             BaseLevel = baseLevel;
             MaxLevel = maxLevel;
             MipLevels = mipLevels;
+            Samples = samples;
+            FixedSampleLocations = fixedSampleLocations;
         }
 
         public override string ToString()
         {
-            return $"{Name}({Handle}) {Type} {Format} {Width}x{Height}x{Depth}";
+            return $"{Name}({Handle}) {Type} {Format} {Width}x{Height}x{Depth} {(RenderDataUtil.IsMultisampleType(Type) ? $"Samples: {Samples}" : "")}";
         }
     }
 }

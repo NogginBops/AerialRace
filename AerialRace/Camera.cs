@@ -18,6 +18,42 @@ namespace AerialRace
         public float Aspect;
     }
 
+    struct CameraFrustumCullingData
+    {
+        public FrustumPoints Points;
+        public FrustumPlanes Planes;
+
+        public Vector3 Position;
+        public Vector3 Forward;
+        public Vector3 Up;
+
+        public float NearPlane, FarPlane;
+        public float TanHalfVFov;
+        public float Aspect;
+
+        public static CameraFrustumCullingData FromCamera(Camera camera)
+        {
+            CameraFrustumCullingData data;
+
+            FrustumPoints ndc = FrustumPoints.NDC;
+            camera.CalcViewProjection(out var ivp);
+            ivp.Invert();
+
+            FrustumPoints.ApplyProjection(in ndc, in ivp, out data.Points);
+            data.Planes = new FrustumPlanes(data.Points);
+
+            data.Position = camera.Transform.WorldPosition;
+            data.Forward = camera.Transform.Forward;
+            data.Up = camera.Transform.Up;
+            data.NearPlane = camera.NearPlane;
+            data.FarPlane = camera.FarPlane;
+            data.TanHalfVFov = MathF.Tan(camera.VerticalFov * 0.5f);
+            data.Aspect = camera.Aspect;
+
+            return data;
+        }
+    }
+
     enum ProjectionType
     {
         Perspective,
@@ -33,7 +69,7 @@ namespace AerialRace
 
         public ProjectionType ProjectionType;
 
-        public float Fov;
+        public float VerticalFov;
         public Box2 Viewport;
         public float NearPlane;
         public float FarPlane;
@@ -49,11 +85,11 @@ namespace AerialRace
         // We can remove this later
         public float YAxisRotation, XAxisRotation;
 
-        public Camera(string name, float fov, float near, float far, Color4 clear)
+        public Camera(string name, float verticalFov, float near, float far, Color4 clear)
         {
             Transform = new Transform(name);
             ClearColor = clear;
-            Fov = fov;
+            VerticalFov = verticalFov;
             Viewport = new Box2((0, 0), (1, 1));
             NearPlane = near;
             FarPlane = far;
@@ -80,7 +116,7 @@ namespace AerialRace
             {
                 case ProjectionType.Perspective:
                     Matrix4.CreatePerspectiveFieldOfView(
-                        Fov * (MathF.PI / 180f),
+                        VerticalFov * Util.D2R,
                         Aspect, NearPlane, FarPlane, out projection);
                     break;
                 case ProjectionType.Orthographic:
@@ -105,7 +141,7 @@ namespace AerialRace
             data.Position = new Vector4(Transform.WorldPosition, 1);
             data.NearPlane = NearPlane;
             data.FarPlane = FarPlane;
-            data.FieldOfView = Fov;
+            data.FieldOfView = VerticalFov;
             data.Aspect = Aspect;
         }
 

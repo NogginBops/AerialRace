@@ -16,6 +16,8 @@ namespace AerialRace.Debugging
         public bool DepthWrite;
 
         public CullMode CullMode;
+
+        public RenderPassMetrics Metrics;
     }
 
     static class DrawListRenderer
@@ -39,6 +41,8 @@ namespace AerialRace.Debugging
 
             RenderDataUtil.UniformMatrix4("vp", ShaderStage.Vertex, true, ref settings.Vp);
 
+            settings.Metrics.Vertices += list.Vertices.Count;
+
             int indexBufferOffset = 0;
             foreach (var command in list.Commands)
             {
@@ -54,6 +58,14 @@ namespace AerialRace.Debugging
                         {
                             RenderDataUtil.BindTexture(0, command.Texture);
                             RenderDataUtil.BindSampler(0, (ISampler?)null);
+
+                            settings.Metrics.DrawCalls++;
+                            if (command.Command == DrawCommandType.Triangles)
+                                settings.Metrics.Triangles += command.ElementCount / 3;
+                            else if (command.Command == DrawCommandType.TriangleStrip)
+                                settings.Metrics.Triangles += command.ElementCount - 2;
+                            else if (command.Command == DrawCommandType.TriangleFan)
+                                settings.Metrics.Triangles += command.ElementCount - 2;
 
                             RenderDataUtil.DrawElements((Primitive)command.Command, command.ElementCount, IndexBufferType.UInt32, indexBufferOffset * sizeof(uint));
                             

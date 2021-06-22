@@ -203,6 +203,43 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
+        public static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
+        {
+            Span<int> iArray = stackalloc int[6] { 0, 1, 2, 1, 3, 2 };
+
+            const int faces = 6;
+
+            int index = 0;
+            for (int f = 0; f < faces; f++)
+            {
+                list.AddRelativeIndices(iArray);
+                for (int i = 0; i < 4; i++)
+                {
+                    Vector3 offset = (BoxVertices[index].Pos * halfSize) * rot;
+                    Vector3 pos = center + offset;
+                    list.AddVertex(pos, BoxVertices[index].UV, color);
+
+                    index++;
+                }
+            }
+
+            list.AddCommand(Primitive.Triangles, faces * 6, BuiltIn.WhiteTex);
+        }
+
+        public static void Plane(DrawList list, Plane plane, Vector3 around, Vector2 halfSize, Color4 color)
+        {
+            list.PrewarmVertices(4);
+            list.PrewarmIndices(6);
+
+            var (v1, v2) = GetAny2Perp(plane.Normal);
+            var center = plane.Project(around);
+
+            v1 *= halfSize.X;
+            v2 *= halfSize.Y;
+
+            Quad(list, center + v1 + v2, center - v1 + v2, center + v1 - v2, center - v1 - v2, color);
+        }
+
         // --------------------------
         // ----  New 3D helpers  ----
         // --------------------------
@@ -291,6 +328,7 @@ namespace AerialRace.Debugging
             var halfU = U / 2f;
             var halfV = V / 2f;
 
+            // FIXME: UVs
             List.AddVertexWithIndex(center - halfU - halfV, UVs.Xy, Color);
             List.AddVertexWithIndex(center + halfU - halfV, UVs.Xy, Color);
             List.AddVertexWithIndex(center + halfU + halfV, UVs.Xy, Color);

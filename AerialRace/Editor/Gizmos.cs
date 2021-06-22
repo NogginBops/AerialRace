@@ -23,6 +23,10 @@ namespace AerialRace.Editor
         // FIXME: We might want to view the gizmo from different cameras!
         public static Camera Camera;
 
+        public static bool DisplayLightGizmos = false;
+        public static bool DisplayCameraGizmos = false;
+        public static bool DisplayTransformGizmos = true;
+
         public static Vector2 MousePos;
         public static Vector2 MouseDelta;
 
@@ -95,11 +99,14 @@ namespace AerialRace.Editor
 
         static Axis EditAxis = Axis.None;
         static Vector3 StartPosition = default;
+        static Vector3 StartWorldPosition = default;
         static Quaternion StartRotation = default;
         static Vector3 StartRotationPos = default;
-        static Vector3 previousPoint = default;
+        static Vector3 PreviousPoint = default;
         public static void TransformHandle(Transform transform)
         {
+            if (DisplayTransformGizmos == false) return;
+
             float arrowLength = 2;
             float radius = 0.2f;
 
@@ -151,8 +158,9 @@ namespace AerialRace.Editor
             if (LeftMousePressed)
             {
                 EditAxis = closestAxis;
-                previousPoint = translationDistance < rotationDistance ? translationPoint : rotationPoint;
+                PreviousPoint = translationDistance < rotationDistance ? translationPoint : rotationPoint;
                 StartPosition = transform.LocalPosition;
+                StartWorldPosition = transform.WorldPosition;
                 StartRotationPos = rotationPoint;
                 StartRotation = transform.LocalRotation;
             }
@@ -167,6 +175,17 @@ namespace AerialRace.Editor
                         StartPosition = StartPosition,
                         EndPosition = transform.LocalPosition
                     });
+
+                    var setpiece = StaticSetpiece.Instances.Find(piece => piece.Transform == transform);
+                    if (setpiece != null)
+                    {
+                        Undo.EditorUndoStack.Do(new PhysTranslate()
+                        {
+                            Setpiece = setpiece,
+                            StartPosition = StartWorldPosition,
+                            EndPosition = transform.WorldPosition,
+                        });
+                    }
                 }
                 else if (EditAxis == Axis.XRotation || EditAxis == Axis.YRotation || EditAxis == Axis.ZRotation)
                 {
@@ -203,11 +222,24 @@ namespace AerialRace.Editor
 
                             var newPoint = ray.GetPoint(axisT);
 
+                            var localPrevPoint = transform.WorldPositionToLocal(PreviousPoint);
+                            var localNewPoint = transform.WorldPositionToLocal(newPoint);
+
                             // We are dragging some axis!
-                            var delta = newPoint - previousPoint;
+                            var delta = localNewPoint - localPrevPoint;
+
+                            //delta = newPoint - PreviousPoint;
+
+                            delta = transform.WorldDirectionToLocal(delta);
+
+                            if (delta.Length > 0)
+                            {
+                                ;
+                            }
+
                             transform.LocalPosition += delta;
                             transform.UpdateMatrices();
-                            previousPoint = newPoint;
+                            PreviousPoint = newPoint;
                         }
                         break;
                     case Axis.XRotation:
@@ -225,7 +257,7 @@ namespace AerialRace.Editor
                             ClosestDistanceToDisk(MouseRay, disk, out var newPoint);
 
                             var current = newPoint - translation;
-                            var previous = previousPoint - translation;
+                            var previous = PreviousPoint - translation;
 
                             DebugHelper.Line(GizmoDrawList, translation, StartRotationPos, Color4.Yellow, Color4.Yellow);
                             DebugHelper.Line(GizmoDrawList, translation, newPoint, Color4.Purple, Color4.Purple);
@@ -242,7 +274,7 @@ namespace AerialRace.Editor
                                 _ => throw new Exception()
                             };
                             transform.LocalRotation *= Quaternion.FromAxisAngle(axis, θ);
-                            previousPoint = newPoint;
+                            PreviousPoint = newPoint;
                         }
                         break;
                     case Axis.None:
@@ -510,6 +542,8 @@ namespace AerialRace.Editor
 
         public static void CameraGizmo(Camera camera)
         {
+            if (DisplayCameraGizmos == false) return;
+
             camera.CalcViewProjection(out var vp);
             vp.Invert();
             FrustumPoints.ApplyProjection(FrustumPoints.NDC, vp, out var frustum);
@@ -520,7 +554,8 @@ namespace AerialRace.Editor
         // When we fix this we should remove the discard from the DebugPipeline fragment shader.
         public static void LightIcon(Light light)
         {
-            return;
+            if (DisplayLightGizmos == false) return;
+
             Vector3 right = Camera.Transform.Right;
             Vector3 up = Camera.Transform.Up;
 
