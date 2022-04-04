@@ -6,7 +6,7 @@ uniform sampler2DArrayShadow ShadowCascades;
 // Split1|Split2|Split3|Unused
 uniform vec4 CascadeSplits;
 
-uniform float BlendBandWidth = 1f;
+uniform float BlendBandWidth = 1;
 
 uniform mat4 worldToLightSpace[4];
 
@@ -45,7 +45,7 @@ float GetCascadeDepthFromCascade(int cascade)
         return CascadeSplits.z;
     else if (cascade == 3)
         return CascadeSplits.w;
-    else return 1f/0f;
+    else return 1/0;
 }
 
 vec4 GetShadowCascadeDebugColorF(float cascade)
@@ -71,7 +71,7 @@ vec4 GetShadowCascadeDebugColor(int cascade)
 
 float GetShadowBlend(float depth, int cascade)
 {
-    return 1 - 0.3f*abs(depth - GetCascadeDepthFromCascade(cascade));
+    return 1 - 0.3*abs(depth - GetCascadeDepthFromCascade(cascade));
 }
 
 float ShadowCalculation(vec3 worldPos, float depth, vec3 normal, vec3 lightDir)

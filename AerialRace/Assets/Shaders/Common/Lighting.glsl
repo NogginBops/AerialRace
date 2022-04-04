@@ -10,15 +10,15 @@ vec3 fresnelSchlick(float cosTheta, vec3 f0)
 // f90 = saturate(50.0 * dot(fresnel0, 0.33));
 vec3 F_Schlick(vec3 f0, float f90, float u)
 {
-    return f0 + (f90 - f0) * pow(1.0f - u, 5.0f);
+    return f0 + (f90 - f0) * pow(1.0 - u, 5.0);
 }
 
 float Fr_DisneyDiffuse(float NdotV, float NdotL, float LdotH, float linearRoughness)
 {
-    float energyBias = mix(0, 0.5f, linearRoughness);
-    float energyFactor = mix(1.0f, 1.0f / 1.51f, linearRoughness);
-    float fd90 = energyBias + 2.0f * LdotH*LdotH * linearRoughness;
-    vec3 f0 = vec3(1.0f, 1.0f, 1.0f);
+    float energyBias = mix(0.0, 0.5, linearRoughness);
+    float energyFactor = mix(1.0, 1.0 / 1.51, linearRoughness);
+    float fd90 = energyBias + 2.0 * LdotH*LdotH * linearRoughness;
+    vec3 f0 = vec3(1.0, 1.0, 1.0);
     float lightScatter = F_Schlick(f0, fd90, NdotL).r;
     float viewScatter = F_Schlick(f0, fd90, NdotV).r;
 
@@ -39,7 +39,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
     float NdotH2 = NdotH * NdotH;
 
     float num = a2;
-    float denom = (NdotH2 * (a2 - 1.0f) + 1.0f);
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
     denom = PI * denom * denom;
 
     return num / denom;
@@ -71,7 +71,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 // N: Vertex normal
 float HorizonOcclusion(vec3 R, vec3 N)
 {
-    const float horizonFade = 0.2f;
+    const float horizonFade = 0.2;
     float horiz = 1.0 + horizonFade * dot(R, N);
     return clamp(horiz * horiz, 0, 1);
 }
@@ -95,7 +95,7 @@ float CalcLightRadius(float lightness)
 float CalcPointLightAttenuation(float distance, float lightness)
 {
     //return lightness / distance;
-    //const float LightCutout = 0.005f;
+    //const float LightCutout = 0.005;
     float radius = max(sqrt(lightness / LightCutout) - 1, 0);
     float xplus1 = distance + 1;
     float numerator = lightness * (radius - distance);
@@ -109,7 +109,7 @@ float CalcPointLightAttenuation2(float distance, float radius)
 {
     float xplus1 = distance + 1;
     float denom = radius * (xplus1 * xplus1);
-    float attenuation = 1f / denom;
+    float attenuation = 1 / denom;
     return attenuation;
 }
 

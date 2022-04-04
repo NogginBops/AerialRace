@@ -18,7 +18,7 @@ uniform mat4 invViewProj;
 
 vec3 unproject(vec3 pos)
 {
-    vec4 unproj = vec4(pos.xyz, 1f) * invViewProj;
+    vec4 unproj = vec4(pos.xyz, 1) * invViewProj;
     return unproj.xyz / unproj.w;
 }
 
@@ -27,12 +27,12 @@ void main(void)
     float x = -1.0 + float((gl_VertexID & 1) << 2);
     float y = -1.0 + float((gl_VertexID & 2) << 1);
     uv = vec2(x,y);
-    gl_Position = vec4(x, y, 1f, 1f);
+    gl_Position = vec4(x, y, 1, 1);
 
-    //gl_Position = vec4(in_position, 1f);
+    //gl_Position = vec4(in_position, 1);
 
     //uv = in_position.xy;
     // FIXME: This methods seems to have some jittering when moving
-    //far = unproject(vec3(in_position.x, in_position.y, 0.9f));
+    //far = unproject(vec3(in_position.x, in_position.y, 0.9));
     //near = unproject(vec3(in_position.x, in_position.y, 1));
 }

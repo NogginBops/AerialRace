@@ -25,7 +25,7 @@ uniform mat4 modelToLightSpace;
 
 void main(void)
 {
-    fragPos = vec4(in_position, 1f) * model;
-    gl_Position = vec4(in_position, 1f) * mvp;
-    lightSpacePosition = vec4(in_position, 1f) * modelToLightSpace;
+    fragPos = vec4(in_position, 1.0) * model;
+    gl_Position = vec4(in_position, 1.0) * mvp;
+    lightSpacePosition = vec4(in_position, 1.0) * modelToLightSpace;
 }

@@ -17,6 +17,6 @@ uniform sampler2DShadow ShadowMap;
 
 void main(void)
 {
-    Color = vec4(1, 0, 1, 0.5f);
+    Color = vec4(1, 0, 1, 0.5);
 }
 

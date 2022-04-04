@@ -16,6 +16,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Render\**" />
+    <EmbeddedResource Remove="Render\**" />
+    <None Remove="Render\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BEPUphysics" Version="2.4.0-beta3" />
     <PackageReference Include="ImGui.NET" Version="1.78.0" />
     <PackageReference Include="OpenTK" Version="4.6.4" />
@@ -24,7 +30,6 @@
 
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Render\" />
   </ItemGroup>
 
   <ItemGroup>

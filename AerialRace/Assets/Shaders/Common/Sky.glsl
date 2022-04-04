@@ -31,20 +31,20 @@ uniform struct Sky {
 
 vec3 skyColor(vec3 direction)
 {
-    const float rad = 0.001f;
-    vec3 sun = sky.SunColor * pow(max(dot(direction, sky.SunDirection), -rad) + rad, 1000f);
+    const float rad = 0.001;
+    vec3 sun = sky.SunColor * pow(max(dot(direction, sky.SunDirection), -rad) + rad, 1000);
     float directionDot = dot(direction, vec3(0,1,0));
     //return vec3(directionDot);
-    const float margin = 0.005f;
+    const float margin = 0.005;
     float groundMask = smoothstep(-margin, margin, directionDot);
-    float skyGradient = max(1-(directionDot - 0.3f), 0);
+    float skyGradient = max(1-(directionDot - 0.3), 0);
     vec3 skyColor = sky.SkyColor * groundMask * skyGradient + (sky.GroundColor * (1-groundMask));
     return skyColor + sun;
 }
 
 vec3 skyIrradiance(mat3 tangentToWorld)
 {
-    //return vec3(0.1f);
+    //return vec3(0.1);
     //return skyColor(tangentToWorld[2]);
 
     const int SAMPLES = 20;
@@ -64,7 +64,7 @@ vec3 skyIrradiance(mat3 tangentToWorld)
 
 vec3 skyIrradianceH(mat3 tangentToWorld, vec3 H)
 {
-    //return vec3(0.1f);
+    //return vec3(0.1);
     //return skyColor(tangentToWorld[2]);
 
     const int SAMPLES = 1;
@@ -84,7 +84,7 @@ vec3 skyIrradianceH(mat3 tangentToWorld, vec3 H)
 
 vec3 skyIrradianceVN(vec3 normal)
 {
-    //return vec3(0.1f);
+    //return vec3(0.1);
     return skyColor(normal);
 }
 

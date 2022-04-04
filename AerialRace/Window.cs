@@ -162,7 +162,7 @@ namespace AerialRace
                 light.Transform.SetParent(randLights);
             }
 
-            var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
+            var meshData = MeshLoader.LoadObjMesh("./Models/cube.obj");
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
@@ -946,7 +946,7 @@ namespace AerialRace
 
                 RenderDataUtil.SetDepthFunc(DepthFunc.PassIfEqual);
 
-                //Sky.Render(ref colorPass);
+                Sky.Render(ref colorPass);
                 MeshRenderer.Render(ref colorPass);
                 // FIXME: Add transparent switch to render pass thing!
                 //TrailRenderer.Render(ref colorPass);

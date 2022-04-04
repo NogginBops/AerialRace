@@ -29,7 +29,7 @@ void main(void)
     vec3 LDRColor;
     if (Tonemap == 0)
     {
-        LDRColor = clamp(HDRColor / vec3(2f), 0f, 1f);
+        LDRColor = clamp(HDRColor / vec3(2), 0, 1);
     }
     else if (Tonemap == 1)
     {

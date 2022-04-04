@@ -11,5 +11,5 @@ uniform vec4 Tint;
 
 void main(void)
 {
-    Color = vec4(sceneColor.rgb, 1);
+    Color = vec4(sceneColor.rgb, 1.0);
 }

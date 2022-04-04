@@ -15,7 +15,7 @@ vec3 apply_sRGB_gamma(vec3 color)
 
 vec3 reinhard(vec3 color)
 {
-    color = color / (color + vec3(1.0f));
+    color = color / (color + vec3(1.0));
     return color;
 }
 
@@ -37,8 +37,8 @@ const mat3 ACESOutputMat = mat3(
 
 vec3 RRTAndODTFit(vec3 v)
 {
-    vec3 a = v * (v + 0.0245786f) - 0.000090537f;
-    vec3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+    vec3 a = v * (v + 0.0245786) - 0.000090537;
+    vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
     return a / b;
 }
 
@@ -52,7 +52,7 @@ vec3 ACESFitted(vec3 color)
     color = color * ACESOutputMat;
 
     // Clamp to [0, 1]
-    color = clamp(color, 0f, 1f);
+    color = clamp(color, 0, 1);
 
     return color;
 }

@@ -30,10 +30,10 @@ uniform mat3 normalMatrix;
 
 void main(void)
 {
-    fragPos = vec4(in_position, 1f) * model;
-    gl_Position = vec4(in_position, 1f) * mvp;
-    //gl_Position = vec4(in_position, 1f) * model * view * proj;
+    fragPos = vec4(in_position, 1.0) * model;
+    gl_Position = vec4(in_position, 1.0) * mvp;
+    //gl_Position = vec4(in_position, 1.0) * model * view * proj;
     fragNormal = in_normal * normalMatrix;
     fragUV = in_uv;
-    //lightSpacePosition = vec4(in_position, 1f) * modelToLightSpace;
+    //lightSpacePosition = vec4(in_position, 1.0) * modelToLightSpace;
 }

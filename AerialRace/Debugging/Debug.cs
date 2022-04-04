@@ -196,7 +196,7 @@ uniform mat4 vp;
 
 void main(void)
 {
-    gl_Position = vec4(in_position, 1f) * vp;
+    gl_Position = vec4(in_position, 1.0) * vp;
     fragColor = in_color;
     fragUV = in_uv;
 }
