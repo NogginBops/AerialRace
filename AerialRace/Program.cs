@@ -102,7 +102,6 @@ namespace AerialRace
                 Flags = ContextFlags.Debug | ContextFlags.ForwardCompatible,
                 //Icon = 
                 IsEventDriven = false,
-                IsFullscreen = false,
                 //Location =
                 // TODO: We will probably just use FBO multisampling
                 //NumberOfSamples = 4,

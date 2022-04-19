@@ -132,6 +132,8 @@ namespace AerialRace
             Debug.WriteLine("sRGB to ACEScg");
             Debug.WriteLine(Matrix3d.Transpose(ColorSpace.CalcConvertionMatrix(ColorSpace.Linear_sRGB, ColorSpace.ACEScg)).ToString());
 
+            Debug.WriteLine(GLFW.GetVersionString());
+
             Screen.UpdateScreenSize(Size);
             Screen.NewFrame();
 
