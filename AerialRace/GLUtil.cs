@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL;
+﻿using OpenTK.Graphics;
+using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,57 +15,57 @@ namespace AerialRace
             GL.ObjectLabel(objLabelIdent, (uint)glObject, name.Length, name);
         }
 
-        public static void CreateProgramPipeline(string Name, out int ProgramPipeline)
+        public static void CreateProgramPipeline(string Name, out ProgramPipelineHandle ProgramPipeline)
         {
             Unsafe.SkipInit(out ProgramPipeline);
-            GL.CreateProgramPipeline(out Unsafe.As<int, uint>(ref ProgramPipeline));
-            LabelObject(ObjectIdentifier.ProgramPipeline, ProgramPipeline, $"Pipeline: {Name}");
+            GL.CreateProgramPipeline(out ProgramPipeline);
+            LabelObject(ObjectIdentifier.ProgramPipeline, ProgramPipeline.Handle, $"Pipeline: {Name}");
         }
 
-        public static void CreateProgram(string Name, out int Program)
+        public static void CreateProgram(string Name, out ProgramHandle Program)
         {
-            Program = (int)GL.CreateProgram();
-            LabelObject(ObjectIdentifier.Program, Program, $"Program: {Name}");
+            Program = GL.CreateProgram();
+            LabelObject(ObjectIdentifier.Program, Program.Handle, $"Program: {Name}");
         }
 
-        public static void CreateShader(string Name, ShaderType type, out int Shader)
+        public static void CreateShader(string Name, ShaderType type, out ShaderHandle Shader)
         {
-            Shader = (int)GL.CreateShader(type);
-            LabelObject(ObjectIdentifier.Shader, Shader, $"Shader: {type}: {Name}");
+            Shader = GL.CreateShader(type);
+            LabelObject(ObjectIdentifier.Shader, Shader.Handle, $"Shader: {type}: {Name}");
         }
 
-        public static void CreateBuffer(string Name, out int Buffer)
+        public static void CreateBuffer(string Name, out BufferHandle Buffer)
         {
-            Buffer = (int)GL.CreateBuffer();
-            LabelObject(ObjectIdentifier.Buffer, Buffer, $"Buffer: {Name}");
+            Buffer = GL.CreateBuffer();
+            LabelObject(ObjectIdentifier.Buffer, Buffer.Handle, $"Buffer: {Name}");
         }
 
-        public static void CreateVertexBuffer(string Name, out int Buffer) => CreateBuffer($"VBO: {Name}", out Buffer);
+        public static void CreateVertexBuffer(string Name, out BufferHandle Buffer) => CreateBuffer($"VBO: {Name}", out Buffer);
 
-        public static void CreateElementBuffer(string Name, out int Buffer) => CreateBuffer($"EBO: {Name}", out Buffer);
+        public static void CreateElementBuffer(string Name, out BufferHandle Buffer) => CreateBuffer($"EBO: {Name}", out Buffer);
 
-        public static void CreateVertexArray(string Name, out int VAO)
+        public static void CreateVertexArray(string Name, out VertexArrayHandle VAO)
         {
-            VAO = (int)GL.CreateVertexArray();
-            LabelObject(ObjectIdentifier.VertexArray, VAO, $"VAO: {Name}");
+            VAO = GL.CreateVertexArray();
+            LabelObject(ObjectIdentifier.VertexArray, VAO.Handle, $"VAO: {Name}");
         }
 
-        public static void CreateTexture(string Name, TextureTarget target, out int Texture)
+        public static void CreateTexture(string Name, TextureTarget target, out TextureHandle Texture)
         {
-            Texture = (int)GL.CreateTexture(target);
-            LabelObject(ObjectIdentifier.Texture, Texture, $"Texture: {Name}");
+            Texture = GL.CreateTexture(target);
+            LabelObject(ObjectIdentifier.Texture, Texture.Handle, $"Texture: {Name}");
         }
 
-        public static void CreateSampler(string Name, out int Sampler)
+        public static void CreateSampler(string Name, out SamplerHandle Sampler)
         {
-            Sampler = (int)GL.CreateSampler();
-            LabelObject(ObjectIdentifier.Sampler, Sampler, $"Sampler: {Name}");
+            Sampler = GL.CreateSampler();
+            LabelObject(ObjectIdentifier.Sampler, Sampler.Handle, $"Sampler: {Name}");
         }
 
-        public static void CreateFramebuffer(string Name, out int FBO)
+        public static void CreateFramebuffer(string Name, out FramebufferHandle FBO)
         {
-            FBO = (int)GL.CreateFramebuffer();
-            LabelObject(ObjectIdentifier.Framebuffer, FBO, $"Framebuffer: {Name}");
+            FBO = GL.CreateFramebuffer();
+            LabelObject(ObjectIdentifier.Framebuffer, FBO.Handle, $"Framebuffer: {Name}");
         }
 
         // FIXME: Idk what this should be!!

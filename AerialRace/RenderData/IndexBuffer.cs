@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK.Graphics;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,7 +15,7 @@ namespace AerialRace.RenderData
     class IndexBuffer
     {
         public string Name;
-        public int Handle;
+        public BufferHandle Handle;
         public IndexBufferType IndexType;
         public int ElementSize;
         public int Elements;
@@ -22,7 +23,7 @@ namespace AerialRace.RenderData
 
         public int SizeInBytes => ElementSize * Elements;
 
-        public IndexBuffer(string name, int handle, IndexBufferType indexType, int elementSize, int elements, BufferFlags flags)
+        public IndexBuffer(string name, BufferHandle handle, IndexBufferType indexType, int elementSize, int elements, BufferFlags flags)
         {
             Name = name;
             Handle = handle;

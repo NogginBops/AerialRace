@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK.Graphics;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -45,7 +46,7 @@ namespace AerialRace.RenderData
     class Framebuffer
     {
         public string Name;
-        public int Handle;
+        public FramebufferHandle Handle;
         public FramebufferAttachmentTexture? DepthAttachment;
         public FramebufferAttachmentTexture? StencilAttachment;
         //public Texture? DepthAttachment;
@@ -53,7 +54,7 @@ namespace AerialRace.RenderData
         public ColorAttachement[]? ColorAttachments;
         // TODO: We could do something with empty frame buffers? (GL 4.3 or ARB_framebuffer_no_attachments)
 
-        public Framebuffer(string name, int handle, FramebufferAttachmentTexture? depthAttachment, FramebufferAttachmentTexture? stencilAttachment, ColorAttachement[]? colorAttachments)
+        public Framebuffer(string name, FramebufferHandle handle, FramebufferAttachmentTexture? depthAttachment, FramebufferAttachmentTexture? stencilAttachment, ColorAttachement[]? colorAttachments)
         {
             Name = name;
             Handle = handle;

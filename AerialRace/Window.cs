@@ -162,7 +162,7 @@ namespace AerialRace
                 light.Transform.SetParent(randLights);
             }
 
-            var meshData = MeshLoader.LoadObjMesh("C:/Users/juliu/source/repos/CoolGraphics/CoolGraphics/Assets/Models/pickaxe02.obj");
+            var meshData = MeshLoader.LoadObjMesh("./Models/cube.obj");
 
             Mesh = RenderDataUtil.CreateMesh("Pickaxe", meshData);
 
@@ -877,9 +877,9 @@ namespace AerialRace
             ImGuiController.PressChar((char)e.Unicode);
         }
 
-        private static unsafe void Window_DebugProc2(/*DebugSource*/uint source, /*DebugType*/uint type, uint id, /*DebugSeverity*/uint severity, int length, char* messagePtr, void* userParam)
+        private static unsafe void Window_DebugProc2(DebugSource source, DebugType type, uint id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)
         {
-            string message = Marshal.PtrToStringAnsi((IntPtr)messagePtr, length);
+            string message = Marshal.PtrToStringAnsi(messagePtr, length);
 
             bool showMessage = true;
 

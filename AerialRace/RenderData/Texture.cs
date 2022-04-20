@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL;
+﻿using OpenTK.Graphics;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -108,7 +109,7 @@ namespace AerialRace.RenderData
     class Texture
     {
         public string Name;
-        public int Handle;
+        public TextureHandle Handle;
         public TextureType Type;
         public TextureFormat Format;
         public int Width, Height, Depth;
@@ -116,7 +117,7 @@ namespace AerialRace.RenderData
         public int MipLevels;
         // TODO: We could add swizzle and stencil parameters
 
-        public Texture(string name, int handle, TextureType type, TextureFormat format, int width, int height, int depth, int baseLevel, int maxLevel, int mipLevels)
+        public Texture(string name, TextureHandle handle, TextureType type, TextureFormat format, int width, int height, int depth, int baseLevel, int maxLevel, int mipLevels)
         {
             Name = name;
             Handle = handle;

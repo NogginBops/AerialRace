@@ -1,4 +1,5 @@
 ﻿using AerialRace.RenderData;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -30,13 +31,13 @@ namespace AerialRace.Loading
                 SizedInternalFormat.Srgb8Alpha8 :
                 SizedInternalFormat.Rgba8;
 
-            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out int texture);
-            GL.TextureStorage2D((uint)texture, mipmapLevels, internalFormat, image.Width, image.Height);
+            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out TextureHandle texture);
+            GL.TextureStorage2D(texture, mipmapLevels, internalFormat, image.Width, image.Height);
 
             if (image.TryGetSinglePixelSpan(out Span<Rgba32> allData))
             {
                 image.Mutate(x => x.Flip(FlipMode.Vertical));
-                GL.TextureSubImage2D((uint)texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, (PixelType)All.UnsignedInt8888Rev, in allData[0]);
+                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, (PixelType)All.UnsignedInt8888Rev, in allData[0]);
             }
             else
             {
@@ -44,11 +45,11 @@ namespace AerialRace.Loading
                 for (int i = 0; i < image.Height; i++)
                 {
                     var row = image.GetPixelRowSpan(i);
-                    GL.TextureSubImage2D((uint)texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, (PixelType)All.UnsignedInt8888Rev, in row[0]);
+                    GL.TextureSubImage2D(texture, 0, 0, image.Height - 1 - i, image.Width, 1, PixelFormat.Rgba, (PixelType)All.UnsignedInt8888Rev, in row[0]);
                 }
             }
 
-            if (generateMipmap) GL.GenerateTextureMipmap((uint)texture);
+            if (generateMipmap) GL.GenerateTextureMipmap(texture);
 
             // glTextureStorage2D already sets TextureBaseLevel = 0 and TextureMaxLevel = mipmaplevels - 1
             // so we don't need to call anything here!

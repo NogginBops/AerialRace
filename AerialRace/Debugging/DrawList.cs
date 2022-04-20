@@ -110,8 +110,8 @@ namespace AerialRace.Debugging
                 RenderDataUtil.ReallocBuffer(ref IndexBuffer, newSize);
             }
 
-            GL.NamedBufferSubData((uint)VertexBuffer.Handle, IntPtr.Zero, Vertices.SizeInBytes, in Vertices.Data[0]);
-            GL.NamedBufferSubData((uint)IndexBuffer.Handle, IntPtr.Zero, Indicies.SizeInBytes, in Indicies.Data[0]);
+            GL.NamedBufferSubData(VertexBuffer.Handle, IntPtr.Zero, Vertices.SizeInBytes, in Vertices.Data[0]);
+            GL.NamedBufferSubData(IndexBuffer.Handle, IntPtr.Zero, Indicies.SizeInBytes, in Indicies.Data[0]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

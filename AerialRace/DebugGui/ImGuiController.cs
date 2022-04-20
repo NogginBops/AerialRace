@@ -2,6 +2,7 @@
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using OpenTK.Mathematics;
@@ -187,8 +188,8 @@ void main()
 
             GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2d, out var glTexture);
 
-            GL.TextureStorage2D((uint)glTexture, 1, SizedInternalFormat.Rgba8, width, height);
-            GL.TextureSubImage2D((uint)glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, (void*)pixels);
+            GL.TextureStorage2D(glTexture, 1, SizedInternalFormat.Rgba8, width, height);
+            GL.TextureSubImage2D(glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, (void*)pixels);
 
             _fontTexture = new Texture("ImGui Text Atlas", glTexture, TextureType.Texture2D, TextureFormat.Rgba8, width, height, 1, 0, 0, 0);
 
@@ -394,9 +395,9 @@ void main()
 
                 unsafe
                 {
-                    GL.NamedBufferSubData((uint)VertexBuffer.Handle, IntPtr.Zero, cmd_list.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), (void*)cmd_list.VtxBuffer.Data);
+                    GL.NamedBufferSubData((BufferHandle)VertexBuffer.Handle, IntPtr.Zero, cmd_list.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), (void*)cmd_list.VtxBuffer.Data);
 
-                    GL.NamedBufferSubData((uint)IndexBuffer.Handle, IntPtr.Zero, cmd_list.IdxBuffer.Size * sizeof(ushort), (void*)cmd_list.IdxBuffer.Data);
+                    GL.NamedBufferSubData((BufferHandle)IndexBuffer.Handle, IntPtr.Zero, cmd_list.IdxBuffer.Size * sizeof(ushort), (void*)cmd_list.IdxBuffer.Data);
                 }
 
                 int vtx_offset = 0;

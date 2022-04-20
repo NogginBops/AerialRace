@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using OpenTK.Graphics;
+using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Reflection.Metadata;
@@ -101,17 +102,17 @@ namespace AerialRace.RenderData
     interface ISampler
     {
         public string Name { get; }
-        public int Handle { get; }
+        public SamplerHandle Handle { get; }
         public TextureType Type { get; }
     }
 
     class Sampler : ISampler
     {
         public string Name;
-        public int Handle;
+        public SamplerHandle Handle;
 
         string ISampler.Name => Name;
-        int ISampler.Handle => Handle;
+        SamplerHandle ISampler.Handle => Handle;
         TextureType ISampler.Type => (TextureType)Type;
 
         // Sampler objects don't actually have a type, 
@@ -133,7 +134,7 @@ namespace AerialRace.RenderData
         // GLEXT: ARB_seamless_cubemap_per_texture
         public bool SeamlessCube;
 
-        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba> borderColor, bool seamlessCube)
+        public Sampler(string name, SamplerHandle handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba> borderColor, bool seamlessCube)
         {
             Name = name;
             Handle = handle;
@@ -156,10 +157,10 @@ namespace AerialRace.RenderData
     class ShadowSampler : ISampler
     {
         public string Name;
-        public int Handle;
+        public SamplerHandle Handle;
 
         string ISampler.Name => Name;
-        int ISampler.Handle => Handle;
+        SamplerHandle ISampler.Handle => Handle;
         TextureType ISampler.Type => (TextureType)Type;
 
         // Sampler objects don't actually have a type, 
@@ -182,7 +183,7 @@ namespace AerialRace.RenderData
         public DepthTextureCompareMode CompareMode;
         public DepthTextureCompareFunc CompareFunc;
 
-        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba>? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
+        public ShadowSampler(string name, SamplerHandle handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba>? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
         {
             Name = name;
             Handle = handle;

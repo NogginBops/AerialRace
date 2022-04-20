@@ -1,5 +1,6 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.Loading;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System;
@@ -29,10 +30,10 @@ namespace AerialRace.RenderData
         public static void QueryLimits()
         {
             MaxAnisoLevel = default;
-            GL.GetFloatv((GetPName)All.MaxTextureMaxAnisotropy, ref MaxAnisoLevel);
+            GL.GetFloat((GetPName)All.MaxTextureMaxAnisotropy, ref MaxAnisoLevel);
             //MaxAnisoLevel = GL.GetFloat((GetPName)All.MaxTextureMaxAnisotropy);
 
-            GL.GetIntegerv(GetPName.MaxCombinedTextureImageUnits, ref MaxCombinedTextureUnits);
+            GL.GetInteger(GetPName.MaxCombinedTextureImageUnits, ref MaxCombinedTextureUnits);
             //MaxCombinedTextureUnits = GL.GetInteger(GetPName.MaxCombinedTextureImageUnits);
         }
 
@@ -325,7 +326,7 @@ namespace AerialRace.RenderData
 
         public static Buffer CreateDataBuffer<T>(string name, Span<T> data, BufferFlags flags) where T : unmanaged
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             BufferDataType bufferType = GetAssiciatedBufferDataType<T>();
 
@@ -335,14 +336,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, data, glFlags);
+            GL.NamedBufferStorage<T>(Handle, data, glFlags);
 
             return new Buffer(name, Handle, bufferType, elementSize, data.Length, flags);
         }
 
         public static unsafe Buffer CreateDataBuffer<T>(string name, int elements, BufferFlags flags) where T : unmanaged
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             BufferDataType bufferType = GetAssiciatedBufferDataType<T>();
 
@@ -352,27 +353,27 @@ namespace AerialRace.RenderData
 
             BufferStorageMask glFlags = ToGLStorageMask(flags);
             // GLEXT: ARB_direct_access
-            GL.NamedBufferStorage((uint)Handle, elements * elementSize, (void*)IntPtr.Zero, glFlags);
+            GL.NamedBufferStorage(Handle, elements * elementSize, IntPtr.Zero, glFlags);
 
             return new Buffer(name, Handle, bufferType, elementSize, elements, flags);
         }
 
         public static unsafe Buffer CreateDataBuffer(string name, int bytes, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             BufferDataType bufferType = BufferDataType.Custom;
 
             BufferStorageMask glFlags = ToGLStorageMask(flags);
             // GLEXT: ARB_direct_access
-            GL.NamedBufferStorage((uint)Handle, bytes, (void*)IntPtr.Zero, glFlags);
+            GL.NamedBufferStorage(Handle, bytes, (void*)IntPtr.Zero, glFlags);
 
             return new Buffer(name, Handle, bufferType, -1, bytes, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<byte> data, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<byte>();
 
@@ -380,14 +381,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, data, glFlags);
+            GL.NamedBufferStorage<byte>(Handle, data, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, sizeof(byte), data.Length, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<short> data, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<ushort>();
 
@@ -395,14 +396,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, data, glFlags);
+            GL.NamedBufferStorage<short>(Handle, data, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, sizeof(ushort), data.Length, flags);
         }
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<ushort> data, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<ushort>();
 
@@ -410,14 +411,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, data, glFlags);
+            GL.NamedBufferStorage<ushort>(Handle, data, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, sizeof(ushort), data.Length, flags);
         }
 
         public static unsafe IndexBuffer CreateIndexBuffer(string name, Span<int> data, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<uint>();
 
@@ -425,11 +426,8 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            fixed (void* ptr = data)
-            {
-                GL.NamedBufferStorage((uint)Handle, data.Length * sizeof(int), ptr, glFlags);
-            }
-            
+            GL.NamedBufferStorage<int>(Handle, data, glFlags);
+
             //GL.NamedBufferStorage((uint)Handle, data, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, sizeof(uint), data.Length, flags);
@@ -437,7 +435,7 @@ namespace AerialRace.RenderData
 
         public static IndexBuffer CreateIndexBuffer(string name, Span<uint> data, BufferFlags flags)
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<uint>();
 
@@ -445,14 +443,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, data, glFlags);
+            GL.NamedBufferStorage<uint>(Handle, data, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, sizeof(uint), data.Length, flags);
         }
 
         public static unsafe IndexBuffer CreateIndexBuffer<T>(string name, int elements, BufferFlags flags) where T : unmanaged
         {
-            GLUtil.CreateBuffer(name, out int Handle);
+            GLUtil.CreateBuffer(name, out BufferHandle Handle);
 
             IndexBufferType bufferType = GetAssiciatedIndexBufferType<T>();
 
@@ -461,14 +459,14 @@ namespace AerialRace.RenderData
 
             // GLEXT: ARB_direct_access
             BufferStorageMask glFlags = ToGLStorageMask(flags);
-            GL.NamedBufferStorage((uint)Handle, elements * Unsafe.SizeOf<T>(), (void*)IntPtr.Zero, glFlags);
+            GL.NamedBufferStorage(Handle, elements * Unsafe.SizeOf<T>(), IntPtr.Zero, glFlags);
 
             return new IndexBuffer(name, Handle, bufferType, elementSize, elements, flags);
         }
 
         public static Framebuffer CreateEmptyFramebuffer(string name)
         {
-            GLUtil.CreateFramebuffer(name, out int fbo);
+            GLUtil.CreateFramebuffer(name, out FramebufferHandle fbo);
 
             return new Framebuffer(name, fbo, null, null, null);
         }
@@ -476,12 +474,12 @@ namespace AerialRace.RenderData
         // FIXME: Here we are "leaking" a opengl enum...
         public static FramebufferStatus CheckFramebufferComplete(Framebuffer fbo, FramebufferTarget target)
         {
-            return GL.CheckNamedFramebufferStatus((uint)fbo.Handle, ToGLFramebufferTraget(target));
+            return GL.CheckNamedFramebufferStatus(fbo.Handle, ToGLFramebufferTraget(target));
         }
 
         public static void AddColorAttachment(Framebuffer fbo, Texture colorAttachment, int index, int mipLevel)
         {
-            GL.NamedFramebufferTexture((uint)fbo.Handle, (FramebufferAttachment)(((int)FramebufferAttachment.ColorAttachment0) + index), (uint)colorAttachment.Handle, mipLevel);
+            GL.NamedFramebufferTexture(fbo.Handle, (FramebufferAttachment)(((int)FramebufferAttachment.ColorAttachment0) + index), colorAttachment.Handle, mipLevel);
 
             var attachment = new ColorAttachement(index, mipLevel, colorAttachment);
 
@@ -508,25 +506,25 @@ namespace AerialRace.RenderData
 
         public static void AddDepthAttachment(Framebuffer fbo, Texture depthTexture, int mipLevel)
         {
-            GL.NamedFramebufferTexture((uint)fbo.Handle, FramebufferAttachment.DepthAttachment, (uint)depthTexture.Handle, mipLevel);
+            GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.DepthAttachment, depthTexture.Handle, mipLevel);
             fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel, 0);
         }
 
         public static void AddDepthLayerAttachment(Framebuffer fbo, Texture depthTexture, int mipLevel, int layer)
         {
-            GL.NamedFramebufferTextureLayer((uint)fbo.Handle, FramebufferAttachment.DepthAttachment, (uint)depthTexture.Handle, mipLevel, layer);
+            GL.NamedFramebufferTextureLayer(fbo.Handle, FramebufferAttachment.DepthAttachment, depthTexture.Handle, mipLevel, layer);
             fbo.DepthAttachment = new FramebufferAttachmentTexture(depthTexture, mipLevel, layer);
         }
 
         public static void AddStencilAttachment(Framebuffer fbo, Texture stencilTexture, int mipLevel)
         {
-            GL.NamedFramebufferTexture((uint)fbo.Handle, FramebufferAttachment.StencilAttachment, (uint)stencilTexture.Handle, mipLevel);
+            GL.NamedFramebufferTexture(fbo.Handle, FramebufferAttachment.StencilAttachment, stencilTexture.Handle, mipLevel);
             fbo.StencilAttachment = new FramebufferAttachmentTexture(stencilTexture, mipLevel, 0);
         }
 
         public static void AddDepthStencilAttachment(Framebuffer fbo, Texture depthStencilTexture, int mipLevel)
         {
-            GL.NamedFramebufferTexture((uint)fbo.Handle, (FramebufferAttachment)All.DepthStencilAttachment, (uint)depthStencilTexture.Handle, mipLevel);
+            GL.NamedFramebufferTexture(fbo.Handle, (FramebufferAttachment)All.DepthStencilAttachment, depthStencilTexture.Handle, mipLevel);
             var depthStencil = new FramebufferAttachmentTexture(depthStencilTexture, mipLevel, 0);
             fbo.DepthAttachment = depthStencil;
             fbo.StencilAttachment = depthStencil;
@@ -535,47 +533,47 @@ namespace AerialRace.RenderData
         // FIXME: Make error handling for shader that don't compile better!
         public static ShaderProgram CreateShaderProgram(string name, ShaderStage stage, string source)
         {
-            GLUtil.CreateProgram(name, out int handle);
-            GL.ProgramParameteri((uint)handle, ProgramParameterPName.ProgramSeparable, 1);
+            GLUtil.CreateProgram(name, out ProgramHandle handle);
+            GL.ProgramParameteri(handle, ProgramParameterPName.ProgramSeparable, 1);
 
             //program = new ShaderProgram(name, handle, stage, new Dictionary<string, int>(), new Dictionary<string, int>(), null, null);
 
             GLUtil.CreateShader(name, ToGLShaderType(stage), out var shader);
-            GL.ShaderSource((uint)shader, source);
+            GL.ShaderSource(shader, source);
 
-            GL.CompileShader((uint)shader);
+            GL.CompileShader(shader);
 
             int success = default;
-            GL.GetShaderiv((uint)shader, ShaderParameterName.CompileStatus, ref success);
+            GL.GetShaderi(shader, ShaderParameterName.CompileStatus, ref success);
             if (success == 0)
             {
                 int infoLength = default;
-                string info = GL.GetShaderInfoLog((uint)shader, 256, ref infoLength);
+                string info = GL.GetShaderInfoLog(shader, 256, ref infoLength);
                 Debug.WriteLine($"Error in {stage} shader '{name}':\n{info}");
 
                 // Do some gl cleanup
-                GL.DeleteProgram((uint)handle);
-                GL.DeleteShader((uint)shader);
+                GL.DeleteProgram(handle);
+                GL.DeleteShader(shader);
 
                 // FIXME: return null?
                 throw new Exception();
             }
 
-            GL.AttachShader((uint)handle, (uint)shader);
-            GL.LinkProgram((uint)handle);
+            GL.AttachShader(handle, shader);
+            GL.LinkProgram(handle);
 
-            GL.DetachShader((uint)handle, (uint)shader);
-            GL.DeleteShader((uint)shader);
+            GL.DetachShader(handle, shader);
+            GL.DeleteShader(shader);
 
             int isLinked = default;
-            GL.GetProgramiv((uint)handle, ProgramPropertyARB.LinkStatus, ref isLinked);
+            GL.GetProgrami(handle, ProgramPropertyARB.LinkStatus, ref isLinked);
             if (isLinked == 0)
             {
                 int infoLength = default;
-                string info = GL.GetShaderInfoLog((uint)shader, 256, ref infoLength);
+                string info = GL.GetShaderInfoLog(shader, 256, ref infoLength);
                 Debug.WriteLine($"Error in {stage} program '{name}':\n{info}");
 
-                GL.DeleteProgram((uint)handle);
+                GL.DeleteProgram(handle);
                 throw new Exception();
             }
 
@@ -589,7 +587,7 @@ namespace AerialRace.RenderData
             UniformFieldInfo[] uniformInfo;
             {
                 int uniformCount = default;
-                GL.GetProgramiv((uint)handle, ProgramPropertyARB.ActiveUniforms, ref uniformCount);
+                GL.GetProgrami(handle, ProgramPropertyARB.ActiveUniforms, ref uniformCount);
 
                 uniformInfo = new UniformFieldInfo[uniformCount];
 
@@ -598,8 +596,8 @@ namespace AerialRace.RenderData
                     int nameLength = default;
                     int size = default;
                     UniformType type = default;
-                    string uniformName = GL.GetActiveUniform((uint)handle, (uint)i, 256, ref nameLength, ref size, ref type);
-                    var location = GL.GetUniformLocation((uint)handle, uniformName);
+                    string uniformName = GL.GetActiveUniform(handle, (uint)i, 256, ref nameLength, ref size, ref type);
+                    var location = GL.GetUniformLocation(handle, uniformName);
 
                     UniformFieldInfo fieldInfo;
                     fieldInfo.Location = location;
@@ -619,24 +617,24 @@ namespace AerialRace.RenderData
             UniformBlockInfo[] blockInfo;
             {
                 int uniformBlockCount = default;
-                GL.GetProgramiv((uint)handle, ProgramPropertyARB.ActiveUniformBlocks, ref uniformBlockCount);
+                GL.GetProgrami(handle, ProgramPropertyARB.ActiveUniformBlocks, ref uniformBlockCount);
 
                 blockInfo = new UniformBlockInfo[uniformBlockCount];
 
                 for (int i = 0; i < uniformBlockCount; i++)
                 {
                     int uniformsInBlockCount = default;
-                    GL.GetActiveUniformBlockiv((uint)handle, (uint)i, UniformBlockPName.UniformBlockActiveUniforms, ref uniformsInBlockCount);
+                    GL.GetActiveUniformBlocki(handle, (uint)i, UniformBlockPName.UniformBlockActiveUniforms, ref uniformsInBlockCount);
 
                     Span<int> uniformIndices = stackalloc int[uniformsInBlockCount];
-                    GL.GetActiveUniformBlockiv((uint)handle, (uint)i, UniformBlockPName.UniformBlockActiveUniformIndices, ref uniformIndices[0]);
+                    GL.GetActiveUniformBlocki(handle, (uint)i, UniformBlockPName.UniformBlockActiveUniformIndices, ref uniformIndices[0]);
 
                     int nameLength = default;
-                    GL.GetActiveUniformBlockiv((uint)handle, (uint)i, UniformBlockPName.UniformBlockNameLength, ref nameLength);
+                    GL.GetActiveUniformBlocki(handle, (uint)i, UniformBlockPName.UniformBlockNameLength, ref nameLength);
                     int someLengthIDK = default;
-                    GL.GetActiveUniformBlockName((uint)handle, (uint)i, nameLength, ref someLengthIDK, out string uniformBlockName);
+                    GL.GetActiveUniformBlockName(handle, (uint)i, nameLength, ref someLengthIDK, out string uniformBlockName);
 
-                    int blockIndex = (int)GL.GetUniformBlockIndex((uint)handle, uniformBlockName);
+                    int blockIndex = (int)GL.GetUniformBlockIndex(handle, uniformBlockName);
 
                     blockInfo[i].Name = uniformBlockName;
                     blockInfo[i].Index = blockIndex;
@@ -652,7 +650,7 @@ namespace AerialRace.RenderData
                         int nameLength2 = default;
                         int uniformSize = default;
                         UniformType uniformType = default;
-                        string uniformName = GL.GetActiveUniform((uint)handle, (uint)uniformIndices[j], 256, ref nameLength2, ref uniformSize, ref uniformType);
+                        string uniformName = GL.GetActiveUniform(handle, (uint)uniformIndices[j], 256, ref nameLength2, ref uniformSize, ref uniformType);
 
                         blockMember[j].Location = uniformIndices[j];
                         blockMember[j].Name = uniformName;
@@ -671,32 +669,32 @@ namespace AerialRace.RenderData
 
         public static ShaderPipeline CreateEmptyPipeline(string name)
         {
-            GLUtil.CreateProgramPipeline(name, out int pipeline);
+            GLUtil.CreateProgramPipeline(name, out ProgramPipelineHandle pipeline);
             return new ShaderPipeline(name, pipeline, null, null, null);
         }
 
         public static bool AssembleProgramPipeline(ShaderPipeline pipeline, ShaderProgram? vertex, ShaderProgram? geometry, ShaderProgram? fragment)
         {
             if (vertex != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.VertexShaderBit, (uint)vertex.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.VertexShaderBit, vertex.Handle);
             pipeline.VertexProgram = vertex;
 
             if (geometry != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.GeometryShaderBit, (uint)geometry.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.GeometryShaderBit, geometry.Handle);
             pipeline.GeometryProgram = geometry;
 
             if (fragment != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.FragmentShaderBit, (uint)fragment.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.FragmentShaderBit, fragment.Handle);
             pipeline.FramgmentProgram = fragment;
 
-            GL.ValidateProgramPipeline((uint)pipeline.Handle);
+            GL.ValidateProgramPipeline(pipeline.Handle);
             int valid = default;
-            GL.GetProgramPipelineiv((uint)pipeline.Handle, (PipelineParameterName)All.ValidateStatus, ref valid);
+            GL.GetProgramPipelinei(pipeline.Handle, (PipelineParameterName)All.ValidateStatus, ref valid);
             if (valid == 0)
             {
                 int logLength = default;
-                GL.GetProgramPipelineiv((uint)pipeline.Handle, PipelineParameterName.InfoLogLength, ref logLength);
-                GL.GetProgramPipelineInfoLog((uint)pipeline.Handle, logLength, ref logLength, out string info);
+                GL.GetProgramPipelinei(pipeline.Handle, PipelineParameterName.InfoLogLength, ref logLength);
+                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, ref logLength, out string info);
 
                 Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
 
@@ -717,25 +715,25 @@ namespace AerialRace.RenderData
             var pipeline = new ShaderPipeline(name, handle, null, null, null);
 
             if (vertex != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.VertexShaderBit, (uint)vertex.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.VertexShaderBit, vertex.Handle);
             pipeline.VertexProgram = vertex;
 
             if (geometry != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.GeometryShaderBit, (uint)geometry.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.GeometryShaderBit, geometry.Handle);
             pipeline.GeometryProgram = geometry;
 
             if (fragment != null)
-                GL.UseProgramStages((uint)pipeline.Handle, UseProgramStageMask.FragmentShaderBit, (uint)fragment.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.FragmentShaderBit, fragment.Handle);
             pipeline.FramgmentProgram = fragment;
 
-            GL.ValidateProgramPipeline((uint)pipeline.Handle);
+            GL.ValidateProgramPipeline(pipeline.Handle);
             int valid = default;
-            GL.GetProgramPipelineiv((uint)pipeline.Handle, (PipelineParameterName)All.ValidateStatus, ref valid);
+            GL.GetProgramPipelinei(pipeline.Handle, (PipelineParameterName)All.ValidateStatus, ref valid);
             if (valid == 0)
             {
                 int logLength = default;
-                GL.GetProgramPipelineiv((uint)pipeline.Handle, PipelineParameterName.InfoLogLength, ref logLength);
-                GL.GetProgramPipelineInfoLog((uint)pipeline.Handle, logLength, ref logLength, out string info);
+                GL.GetProgramPipelinei(pipeline.Handle, PipelineParameterName.InfoLogLength, ref logLength);
+                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, ref logLength, out string info);
 
                 Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
 
@@ -756,51 +754,51 @@ namespace AerialRace.RenderData
 
         public static Sampler CreateSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap)
         {
-            GLUtil.CreateSampler(name, out int sampler);
+            GLUtil.CreateSampler(name, out SamplerHandle sampler);
             
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
 
-            GL.SamplerParameterf((uint)sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+            GL.SamplerParameterf(sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
 
             return new Sampler(name, sampler, SamplerType.Sampler2D, SamplerDataType.Float, magFilter, minFilter, 0, -1000, 1000, 1.0f, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4<Rgba>(0f, 0f, 0f, 0f), false);
         }
 
         public static ShadowSampler CreateShadowSampler2D(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap, DepthTextureCompareMode depthCompMode, DepthTextureCompareFunc depthCompFunc)
         {
-            GLUtil.CreateSampler(name, out int sampler);
+            GLUtil.CreateSampler(name, out SamplerHandle sampler);
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
 
-            GL.SamplerParameterf((uint)sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+            GL.SamplerParameterf(sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
 
             return new ShadowSampler(name, sampler, ShadowSamplerType.Sampler2D, magFilter, minFilter, 0, -1000, 1000, anisoLevel, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4<Rgba>(0f, 0f, 0f, 0f), false, depthCompMode, depthCompFunc);
         }
 
         public static ShadowSampler CreateShadowSampler2DArray(string name, MagFilter magFilter, MinFilter minFilter, float anisoLevel, WrapMode xAxisWrap, WrapMode yAxisWrap, DepthTextureCompareMode depthCompMode, DepthTextureCompareFunc depthCompFunc)
         {
-            GLUtil.CreateSampler(name, out int sampler);
+            GLUtil.CreateSampler(name, out SamplerHandle sampler);
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMagFilter, (int)ToGLTextureMagFilter(magFilter));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureMinFilter, (int)ToGLTextureMinFilter(minFilter));
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(xAxisWrap));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureWrapS, (int)ToGLTextureWrapMode(yAxisWrap));
 
-            GL.SamplerParameterf((uint)sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
+            GL.SamplerParameterf(sampler, SamplerParameterF.TextureMaxAnisotropy, MathHelper.Clamp(anisoLevel, 1f, MaxAnisoLevel));
 
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
-            GL.SamplerParameteri((uint)sampler, SamplerParameterI.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureCompareMode, (int)ToGLTextureCompareMode(depthCompMode));
+            GL.SamplerParameteri(sampler, SamplerParameterI.TextureCompareFunc, (int)ToGLTextureCompareFunc(depthCompFunc));
 
             return new ShadowSampler(name, sampler, ShadowSamplerType.Sampler2DArray, magFilter, minFilter, 0, -1000, 1000, anisoLevel, xAxisWrap, yAxisWrap, WrapMode.Repeat, new Color4<Rgba>(0f, 0f, 0f, 0f), false, depthCompMode, depthCompFunc);
         }
@@ -833,32 +831,32 @@ namespace AerialRace.RenderData
 
         public static Texture Create1PixelTexture(string name, Color4<Rgba> color)
         {
-            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out int texture);
+            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out TextureHandle texture);
 
             var format = TextureFormat.Rgba32F;
-            GL.TextureStorage2D((uint)texture, 1, ToGLSizedInternalFormat(format), 1, 1);
+            GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), 1, 1);
 
-            GL.TextureSubImage2D((uint)texture, 0, 0, 0, 1, 1, PixelFormat.Rgba, PixelType.Float, in color);
+            GL.TextureSubImage2D(texture, 0, 0, 0, 1, 1, PixelFormat.Rgba, PixelType.Float, in color);
 
-            GL.GenerateTextureMipmap((uint)texture);
+            GL.GenerateTextureMipmap(texture);
 
             return new Texture(name, texture, TextureType.Texture2D, format, 1, 1, 1, 0, 0, 1);
         }
 
         public static Texture CreateEmpty2DTexture(string name, TextureFormat format, int width, int height)
         {
-            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out int texture);
+            GLUtil.CreateTexture(name, TextureTarget.Texture2d, out TextureHandle texture);
 
-            GL.TextureStorage2D((uint)texture, 1, ToGLSizedInternalFormat(format), width, height);
+            GL.TextureStorage2D(texture, 1, ToGLSizedInternalFormat(format), width, height);
 
             return new Texture(name, texture, TextureType.Texture2D, format, width, height, 1, 0, 0, 1);
         }
 
         public static Texture CreateEmpty2DTextureArray(string name, TextureFormat format, int width, int height, int length)
         {
-            GLUtil.CreateTexture(name, TextureTarget.Texture2dArray, out int texture);
+            GLUtil.CreateTexture(name, TextureTarget.Texture2dArray, out TextureHandle texture);
 
-            GL.TextureStorage3D((uint)texture, 1, ToGLSizedInternalFormat(format), width, height, length);
+            GL.TextureStorage3D(texture, 1, ToGLSizedInternalFormat(format), width, height, length);
             
             return new Texture(name, texture, TextureType.Texture2DArray, format, width, height, length, 0, 0, 1);
         }
@@ -869,8 +867,8 @@ namespace AerialRace.RenderData
 
         public static void SetMinMaxLod(ref Sampler sampler, float min, float max)
         {
-            GL.SamplerParameterf((uint)sampler.Handle, SamplerParameterF.TextureMinLod, min);
-            GL.SamplerParameterf((uint)sampler.Handle, SamplerParameterF.TextureMaxLod, max);
+            GL.SamplerParameterf(sampler.Handle, SamplerParameterF.TextureMinLod, min);
+            GL.SamplerParameterf(sampler.Handle, SamplerParameterF.TextureMaxLod, max);
 
             sampler.LODMin = min;
             sampler.LODMax = max;
@@ -884,36 +882,36 @@ namespace AerialRace.RenderData
             if (data.Length != 0)
             {
                 int size = Unsafe.SizeOf<T>();
-                GL.NamedBufferSubData((uint)buffer.Handle, (IntPtr)byteOffset, data);
+                GL.NamedBufferSubData<T>(buffer.Handle, (IntPtr)byteOffset, data.Length, data);
             }
         }
 
         public static void UploadBufferData<T>(Buffer buffer, int byteOffset, ref T data, int elements) where T : unmanaged
         {
             int size = Unsafe.SizeOf<T>();
-            GL.NamedBufferSubData((uint)buffer.Handle, (IntPtr)byteOffset, elements * size, in data);
+            GL.NamedBufferSubData(buffer.Handle, (IntPtr)byteOffset, elements * size, in data);
         }
 
         public static void ReallocBuffer(ref Buffer buffer, int newElementCount)
         {
-            GL.DeleteBuffer((uint)buffer.Handle);
+            GL.DeleteBuffer(buffer.Handle);
             GLUtil.CreateBuffer(buffer.Name, out buffer.Handle);
 
             BufferStorageMask glFlags = ToGLStorageMask(buffer.Flags);
             // GLEXT: ARB_direct_access
 
-            GL.NamedBufferStorage((uint)buffer.Handle, newElementCount * buffer.ElementSize, IntPtr.Zero, glFlags);
+            GL.NamedBufferStorage(buffer.Handle, newElementCount * buffer.ElementSize, IntPtr.Zero, glFlags);
             buffer.Elements = newElementCount;
         }
 
         public static void ReallocBuffer(ref IndexBuffer buffer, int newSize)
         {
-            GL.DeleteBuffer((uint)buffer.Handle);
+            GL.DeleteBuffer(buffer.Handle);
             GLUtil.CreateElementBuffer(buffer.Name, out buffer.Handle);
 
             BufferStorageMask glFlags = ToGLStorageMask(buffer.Flags);
             // GLEXT: ARB_direct_access
-            GL.NamedBufferStorage((uint)buffer.Handle, newSize * SizeInBytes(buffer.IndexType), IntPtr.Zero, glFlags);
+            GL.NamedBufferStorage(buffer.Handle, newSize * SizeInBytes(buffer.IndexType), IntPtr.Zero, glFlags);
             buffer.Elements = newSize;
         }
 
@@ -972,23 +970,23 @@ namespace AerialRace.RenderData
         // Deletes the buffer and resets it's contents
         public static void DeleteBuffer(ref Buffer? buffer)
         {
-            GL.DeleteBuffer((uint)(buffer?.Handle ?? 0));
-            if (buffer != null) buffer.Handle = -1;
+            GL.DeleteBuffer(buffer?.Handle ?? BufferHandle.Zero);
+            if (buffer != null) buffer.Handle = BufferHandle.Zero;
             buffer = default;
         }
 
         // Deletes the buffer and resets it's contents
         public static void DeleteBuffer(ref IndexBuffer? buffer)
         {
-            GL.DeleteBuffer((uint)(buffer?.Handle ?? 0));
-            if (buffer != null) buffer.Handle = -1;
+            GL.DeleteBuffer(buffer?.Handle ?? BufferHandle.Zero);
+            if (buffer != null) buffer.Handle = BufferHandle.Zero;
             buffer = default;
         }
 
         public static void DeleteTexture(ref Texture? texture)
         {
-            GL.DeleteTexture((uint)(texture?.Handle ?? 0));
-            if (texture != null) texture.Handle = -1;
+            GL.DeleteTexture(texture?.Handle ?? TextureHandle.Zero);
+            if (texture != null) texture.Handle = TextureHandle.Zero;
             texture = null;
         }
 
@@ -1014,8 +1012,8 @@ namespace AerialRace.RenderData
 
         public static void SetupGlobalVAO()
         {
-            GLUtil.CreateVertexArray("The one VAO", out int VAO);
-            GL.BindVertexArray((uint)VAO);
+            GLUtil.CreateVertexArray("The one VAO", out VertexArrayHandle VAO);
+            GL.BindVertexArray(VAO);
 
             for (int i = 0; i < Attributes.Length; i++)
             {
@@ -1099,7 +1097,7 @@ namespace AerialRace.RenderData
         {
             if (AttributeBuffers[index] != buffer)
             {
-                GL.BindVertexBuffer((uint)index, (uint)buffer!.Handle, IntPtr.Zero, buffer.ElementSize);
+                GL.BindVertexBuffer((uint)index, buffer!.Handle, IntPtr.Zero, buffer.ElementSize);
 
                 AttributeBuffers[index] = buffer;
             }
@@ -1109,7 +1107,7 @@ namespace AerialRace.RenderData
         {
             if (AttributeBuffers[index] != buffer)
             {
-                GL.BindVertexBuffer((uint)index, (uint)buffer!.Handle, (IntPtr)offset, buffer.ElementSize);
+                GL.BindVertexBuffer((uint)index, buffer!.Handle, (IntPtr)offset, buffer.ElementSize);
 
                 AttributeBuffers[index] = buffer;
             }
@@ -1137,7 +1135,7 @@ namespace AerialRace.RenderData
         {
             if (AttributeBuffers[index] != null)
             {
-                GL.BindVertexBuffer((uint)index, 0, IntPtr.Zero, 0);
+                GL.BindVertexBuffer((uint)index, BufferHandle.Zero, IntPtr.Zero, 0);
                 AttributeBuffers[index] = null;
             }
         }
@@ -1146,7 +1144,7 @@ namespace AerialRace.RenderData
         {
             if (CurrentIndexBuffer != buffer)
             {
-                GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, (uint)(buffer?.Handle ?? 0));
+                GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, buffer?.Handle ?? BufferHandle.Zero);
                 CurrentIndexBuffer = buffer;
             }
         }
@@ -1155,7 +1153,7 @@ namespace AerialRace.RenderData
         {
             if (CurrentIndexBuffer != null)
             {
-                GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
+                GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, BufferHandle.Zero);
                 CurrentIndexBuffer = null;
             }
         }
@@ -1190,7 +1188,7 @@ namespace AerialRace.RenderData
         {
             if (CurrentPipeline != pipeline)
             {
-                GL.BindProgramPipeline((uint)pipeline.Handle);
+                GL.BindProgramPipeline(pipeline.Handle);
                 CurrentPipeline = pipeline;
             }
         }
@@ -1270,41 +1268,41 @@ namespace AerialRace.RenderData
                 case PropertyType.Invalid:
                     throw new Exception("You probably forgot the set the property type.");
                 case PropertyType.Int:
-                    GL.ProgramUniform1i((uint)vert.Handle, vertLoc, property.IntValue);
-                    GL.ProgramUniform1i((uint)frag.Handle, fragLoc, property.IntValue);
+                    GL.ProgramUniform1i(vert.Handle, vertLoc, property.IntValue);
+                    GL.ProgramUniform1i(frag.Handle, fragLoc, property.IntValue);
                     break;
                 case PropertyType.Float:
-                    GL.ProgramUniform1f((uint)vert.Handle, vertLoc, property.FloatValue);
-                    GL.ProgramUniform1f((uint)frag.Handle, fragLoc, property.FloatValue);
+                    GL.ProgramUniform1f(vert.Handle, vertLoc, property.FloatValue);
+                    GL.ProgramUniform1f(frag.Handle, fragLoc, property.FloatValue);
                     break;
                 case PropertyType.Float2:
                     var f2 = property.Vector2Value;
-                    GL.ProgramUniform2f((uint)vert.Handle, vertLoc, f2.X, f2.Y);
-                    GL.ProgramUniform2f((uint)frag.Handle, fragLoc, f2.X, f2.Y);
+                    GL.ProgramUniform2f(vert.Handle, vertLoc, f2.X, f2.Y);
+                    GL.ProgramUniform2f(frag.Handle, fragLoc, f2.X, f2.Y);
                     break;
                 case PropertyType.Float3:
                     var f3 = property.Vector3Value;
-                    GL.ProgramUniform3f((uint)vert.Handle, vertLoc, f3.X, f3.Y, f3.Z);
-                    GL.ProgramUniform3f((uint)frag.Handle, fragLoc, f3.X, f3.Y, f3.Z);
+                    GL.ProgramUniform3f(vert.Handle, vertLoc, f3.X, f3.Y, f3.Z);
+                    GL.ProgramUniform3f(frag.Handle, fragLoc, f3.X, f3.Y, f3.Z);
                     break;
                 case PropertyType.Float4:
                     var f4 = property.Vector4Value;
-                    GL.ProgramUniform4f((uint)vert.Handle, vertLoc, f4.X, f4.Y, f4.Z, f4.W);
-                    GL.ProgramUniform4f((uint)frag.Handle, fragLoc, f4.X, f4.Y, f4.Z, f4.W);
+                    GL.ProgramUniform4f(vert.Handle, vertLoc, f4.X, f4.Y, f4.Z, f4.W);
+                    GL.ProgramUniform4f(frag.Handle, fragLoc, f4.X, f4.Y, f4.Z, f4.W);
                     break;
                 case PropertyType.Color:
                     // FIXME: Is this a vec3 or vec4????
                     var c4 = property.ColorValue;
-                    GL.ProgramUniform4f((uint)vert.Handle, vertLoc, c4.X, c4.Y, c4.Z, c4.W);
-                    GL.ProgramUniform4f((uint)frag.Handle, fragLoc, c4.X, c4.Y, c4.Z, c4.W);
+                    GL.ProgramUniform4f(vert.Handle, vertLoc, c4.X, c4.Y, c4.Z, c4.W);
+                    GL.ProgramUniform4f(frag.Handle, fragLoc, c4.X, c4.Y, c4.Z, c4.W);
                     break;
                 case PropertyType.Matrix3:
-                    GL.ProgramUniformMatrix3fv((uint)vert.Handle, vertLoc, 1, true, in property.Matrix3Value.Row0.X);
-                    GL.ProgramUniformMatrix3fv((uint)frag.Handle, fragLoc, 1, true, in property.Matrix3Value.Row0.X);
+                    GL.ProgramUniformMatrix3f(vert.Handle, vertLoc, true, in property.Matrix3Value);
+                    GL.ProgramUniformMatrix3f(frag.Handle, fragLoc, true, in property.Matrix3Value);
                     break;
                 case PropertyType.Matrix4:
-                    GL.ProgramUniformMatrix4fv((uint)vert.Handle, vertLoc, 1, true, in property.Matrix4Value.Row0.X);
-                    GL.ProgramUniformMatrix4fv((uint)frag.Handle, fragLoc, 1, true, in property.Matrix4Value.Row0.X);
+                    GL.ProgramUniformMatrix4f(vert.Handle, vertLoc, true, in property.Matrix4Value);
+                    GL.ProgramUniformMatrix4f(frag.Handle, fragLoc, true, in property.Matrix4Value);
                     break;
                 default:
                     break;
@@ -1316,7 +1314,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniformMatrix4fv((uint)prog.Handle, location, 1, transpose, in matrix.Row0.X);
+            GL.ProgramUniformMatrix4f(prog.Handle, location, transpose, in matrix);
         }
 
         // FIXME: We probably want to handle matrices slightly different than we are currently doing
@@ -1328,7 +1326,7 @@ namespace AerialRace.RenderData
             if (TryGetUniformInfo(uniformName + "[0]", prog, out var info))
             {
                 Debug.Assert(info.Size >= matrices.Length);
-                GL.ProgramUniformMatrix4fv((uint)prog.Handle, info.Location, matrices.Length, transpose, in matrices[0].Row0.X);
+                GL.ProgramUniformMatrix4f(prog.Handle, info.Location, matrices.Length, transpose, matrices);
             }
         }
 
@@ -1337,7 +1335,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniformMatrix3fv((uint)prog.Handle, location, 1, transpose, in matrix.Row0.X);
+            GL.ProgramUniformMatrix3f(prog.Handle, location, transpose, in matrix);
         }
 
         public static void UniformVector3(string uniformName, ShaderStage stage, Vector3 vec3)
@@ -1345,7 +1343,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniform3f((uint)prog.Handle, location, vec3.X, vec3.Y, vec3.Z);
+            GL.ProgramUniform3f(prog.Handle, location, vec3.X, vec3.Y, vec3.Z);
         }
 
         public static void UniformVector3(string uniformName, ShaderStage stage, Color4<Rgba> color)
@@ -1353,7 +1351,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniform3f((uint)prog.Handle, location, color.X, color.Y, color.Z);
+            GL.ProgramUniform3f(prog.Handle, location, color.X, color.Y, color.Z);
         }
 
         public static void Uniform1(string uniformName, ShaderStage stage, int i)
@@ -1361,7 +1359,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniform1i((uint)prog.Handle, location, i);
+            GL.ProgramUniform1i(prog.Handle, location, i);
         }
 
         public static void Uniform1(string uniformName, ShaderStage stage, float f)
@@ -1369,7 +1367,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniform1f((uint)prog.Handle, location, f);
+            GL.ProgramUniform1f(prog.Handle, location, f);
         }
 
         public static void Uniform4(string uniformName, ShaderStage stage, Vector4 vec4)
@@ -1377,7 +1375,7 @@ namespace AerialRace.RenderData
             var prog = GetPipelineStage(stage);
             var location = GetUniformLocation(uniformName, prog);
 
-            GL.ProgramUniform4f((uint)prog.Handle, location, vec4.X, vec4.Y, vec4.Z, vec4.W);
+            GL.ProgramUniform4f(prog.Handle, location, vec4.X, vec4.Y, vec4.Z, vec4.W);
         }
 
         public static void UniformBlock(string blockName, ShaderStage stage, Buffer buffer)
@@ -1386,7 +1384,7 @@ namespace AerialRace.RenderData
 
             if (program.UniformBlockIndices.TryGetValue(blockName, out int index))
             {
-                GL.BindBufferBase(BufferTargetARB.UniformBuffer, (uint)index, (uint)buffer.Handle);
+                GL.BindBufferBase(BufferTargetARB.UniformBuffer, (uint)index, buffer.Handle);
             }
             else
             {
@@ -1436,14 +1434,14 @@ namespace AerialRace.RenderData
         {
             if (BoundTextures[unit] != texture)
             {
-                GL.BindTextureUnit((uint)unit, (uint)(texture?.Handle ?? 0));
+                GL.BindTextureUnit((uint)unit, texture?.Handle ?? TextureHandle.Zero);
                 BoundTextures[unit] = texture;
             }
         }
 
         public static void BindTextureUnsafe(int unit, int textureHandle)
         {
-            GL.BindTextureUnit((uint)unit, (uint)textureHandle);
+            GL.BindTextureUnit((uint)unit, (TextureHandle)textureHandle);
 
             BoundTextures[unit] = null;
         }
@@ -1471,7 +1469,7 @@ namespace AerialRace.RenderData
             
             if (BoundSamplers[unit] != sampler)
             {
-                GL.BindSampler((uint)unit, (uint)(sampler?.Handle ?? 0));
+                GL.BindSampler((uint)unit, sampler?.Handle ?? SamplerHandle.Zero);
 
                 BoundSamplers[unit] = sampler;
             }
@@ -1489,7 +1487,7 @@ namespace AerialRace.RenderData
             // If the buffer is null, bind 0 as the draw buffer, otherwise bind the framebuffer
             if (DrawBuffer != buffer)
             {
-                GL.BindFramebuffer(GLFrameBufferTarget.DrawFramebuffer, (uint)(buffer?.Handle ?? 0));
+                GL.BindFramebuffer(GLFrameBufferTarget.DrawFramebuffer, buffer?.Handle ?? FramebufferHandle.Zero);
                 DrawBuffer = buffer;
             }
         }
@@ -1499,7 +1497,7 @@ namespace AerialRace.RenderData
             if (ReadBuffer != buffer)
             {
                 // If the buffer is null, bind 0 as the draw buffer, otherwise bind the framebuffer
-                GL.BindFramebuffer(GLFrameBufferTarget.ReadFramebuffer, (uint)(buffer?.Handle ?? 0));
+                GL.BindFramebuffer(GLFrameBufferTarget.ReadFramebuffer, buffer?.Handle ?? FramebufferHandle.Zero);
                 ReadBuffer = buffer;
             }
         }
@@ -1511,8 +1509,8 @@ namespace AerialRace.RenderData
             // FIXME: We might want to store these values explicitly in our code.
             int defaultWidth = default;
             int defaultHeight = default;
-            GL.GetNamedFramebufferParameteriv((uint)buffer.Handle, GetFramebufferParameter.FramebufferDefaultWidth, ref defaultWidth);
-            GL.GetNamedFramebufferParameteriv((uint)buffer.Handle, GetFramebufferParameter.FramebufferDefaultHeight, ref defaultHeight);
+            GL.GetNamedFramebufferParameteri(buffer.Handle, GetFramebufferParameter.FramebufferDefaultWidth, ref defaultWidth);
+            GL.GetNamedFramebufferParameteri(buffer.Handle, GetFramebufferParameter.FramebufferDefaultHeight, ref defaultHeight);
             
             bool hasAttachments =
                 buffer.DepthAttachment != null ||

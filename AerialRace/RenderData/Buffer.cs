@@ -1,4 +1,5 @@
-﻿using System;
+﻿using OpenTK.Graphics;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -37,7 +38,7 @@ namespace AerialRace.RenderData
     class Buffer
     {
         public string Name;
-        public int Handle;
+        public BufferHandle Handle;
         public BufferDataType DataType;
         public int ElementSize;
         public int Elements;
@@ -45,7 +46,7 @@ namespace AerialRace.RenderData
 
         public int SizeInBytes => ElementSize * Elements;
 
-        public Buffer(string name, int handle, BufferDataType dataType, int elementSize, int elements, BufferFlags flags)
+        public Buffer(string name, BufferHandle handle, BufferDataType dataType, int elementSize, int elements, BufferFlags flags)
         {
             Name = name;
             Handle = handle;
