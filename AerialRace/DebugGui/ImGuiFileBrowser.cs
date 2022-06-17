@@ -324,7 +324,7 @@ namespace AerialRace.DebugGui
                         {
                             ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.125f, 0.125f, 0.125f, 1.0f));
 
-                            if (ImGui.ListBoxHeader("##NavBarDropBox", new Vector2(0, listItemHeight * 5)))
+                            if (ImGui.BeginListBox("##NavBarDropBox", new Vector2(0, listItemHeight * 5)))
                             {
                                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.882f, 0.745f, 0.078f, 1.0f));
                                 for (int j = i + 1; j < CurrentDirList.Count; j++)
@@ -337,7 +337,7 @@ namespace AerialRace.DebugGui
                                 }
                                 
                                 ImGui.PopStyleColor();
-                                ImGui.ListBoxFooter();
+                                ImGui.EndListBox();
                             }
 
                             ImGui.PopStyleColor();
@@ -527,7 +527,7 @@ namespace AerialRace.DebugGui
             InputComboboxSize = new Vector2(inputBarWidth, 0);
             ImGui.PushItemWidth(inputBarWidth);
             // FIXME: This will probably not marshal the string correctly
-            if (ImGui.InputTextWithHint("##FileNameInput", "Type a name...", InputFn, 256, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll))
+            if (ImGui.InputTextWithHint("##FileNameInput", "Type a name...", ref InputFn, 256, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll))
             {
                 if (InputFn.Length > 0)
                 {
@@ -699,7 +699,7 @@ namespace AerialRace.DebugGui
                 ImGui.BeginChild("##InputBarComboBox", InputComboboxSize, true, popupFlags);
 
                 Vector2 listboxsize = InputComboboxSize - ImGui.GetStyle().WindowPadding * 2.0f;
-                if (ImGui.ListBoxHeader("##InputBarComboBoxList", listboxsize))
+                if (ImGui.BeginListBox("##InputBarComboBoxList", listboxsize))
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));
                     ImGuiInternal.PushFocusScope(focusscopeid);
@@ -715,7 +715,7 @@ namespace AerialRace.DebugGui
                     }
                     ImGuiInternal.PopFocusScope();
                     ImGui.PopStyleColor(1);
-                    ImGui.ListBoxFooter();
+                    ImGui.EndListBox();
                 }
                 ImGui.EndChild();
                 ImGui.PopStyleColor(2);

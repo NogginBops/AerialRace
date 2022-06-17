@@ -15,7 +15,7 @@ namespace AerialRace.Physics
         public StaticCollider(ICollider shape, Vector3 position, SimpleMaterial material)
         {
             Shape = shape;
-            Static = Phys.AddStaticBody(position + shape.Center, shape, 0.1f, material);
+            Static = Phys.AddStaticBody(position + shape.Center, shape, material);
         }
     }
 }

@@ -19,6 +19,10 @@ namespace AerialRace.Physics
 
         float deltaTime;
 
+        public bool AllowSubstepsForUnconstrainedBodies => true;
+
+        public bool IntegrateVelocityForKinematics => false;
+
         /// <summary>
         /// Gets how the pose integrator should handle angular velocity integration.
         /// </summary>
@@ -59,10 +63,35 @@ namespace AerialRace.Physics
         /// <param name="workerIndex">Index of the worker thread processing this body.</param>
         /// <param name="velocity">Reference to the body's current velocity to integrate.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void IntegrateVelocity(int bodyIndex, in RigidPose pose, in BodyInertia localInertia, int workerIndex, ref BodyVelocity velocity)
+        public void IntegrateVelocity(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation, BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity)
         {
+            for (int bundleSlotIndex = 0; bundleSlotIndex < Vector<int>.Count; ++bundleSlotIndex)
+            {
+                var bodyIndex = bodyIndices[bundleSlotIndex];
+                //Not every slot in the SIMD vector is guaranteed to be filled.
+                if (bodyIndex >= 0)
+                {
+                    BodyHandle handle = Simulation.Bodies.ActiveSet.IndexToHandle[bodyIndex];
+                    SimpleBody body = BodyProps[handle];
+
+                    Vector3 gravityDt = body.HasGravity ? GravityDt : Vector3.Zero;
+
+                    float linearDampingDt = MathF.Pow(MathHelper.Clamp(1 - body.LinearDamping, 0, 1), dt[bundleSlotIndex]);
+                    float angularDampingDt = MathF.Pow(MathHelper.Clamp(1 - body.AngularDamping, 0, 1), dt[bundleSlotIndex]);
+
+                    // FIXME: Figure out a way to go wide here
+                    Vector3Wide.ReadSlot(ref velocity.Linear, bundleSlotIndex, out Vector3 linearVelocity);
+                    linearVelocity = (linearVelocity + gravityDt) * linearDampingDt;
+                    Vector3Wide.WriteSlot(linearVelocity, bundleSlotIndex, ref velocity.Linear);
+
+                    Vector3Wide.ReadSlot(ref velocity.Angular, bundleSlotIndex, out Vector3 anglularVelocity);
+                    anglularVelocity *= angularDampingDt;
+                    Vector3Wide.WriteSlot(anglularVelocity, bundleSlotIndex, ref velocity.Angular);
+                }
+            }
+
             //Note that we avoid accelerating kinematics. Kinematics are any body with an inverse mass of zero (so a mass of ~infinity). No force can move them.
-            if (localInertia.InverseMass > 0)
+            /*if (localInertia.InverseMass > 0)
             {
                 // Get the gravity vector depending on if this vector is affected by gravity
                 BodyHandle handle = Simulation.Bodies.ActiveSet.IndexToHandle[bodyIndex];
@@ -75,7 +104,7 @@ namespace AerialRace.Physics
 
                 velocity.Linear = (velocity.Linear + gravityDt) * linearDampingDt;
                 velocity.Angular *= angularDampingDt;
-            }
+            }*/
         }
     }
 }

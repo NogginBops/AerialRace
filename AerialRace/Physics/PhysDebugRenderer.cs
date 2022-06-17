@@ -39,8 +39,10 @@ namespace AerialRace.Physics
             ref var set = ref bodies.Sets[setIndex];
             var handle = set.IndexToHandle[bodyIndex];
 
+            ref SolverState state = ref set.SolverStates[bodyIndex];
+
             ref var activity = ref set.Activity[bodyIndex];
-            ref var inertia = ref set.LocalInertias[bodyIndex];
+            ref var inertia = ref state.Inertia.Local;
 
             Color4 color;
             if (Bodies.IsKinematic(inertia))
@@ -64,7 +66,7 @@ namespace AerialRace.Physics
                 color = new Color4(color.R * 0.2f, color.G * 0.2f, color.B * 0.4f, 1f);
             }
 
-            RenderShape(shapes, set.Collidables[bodyIndex].Shape, ref set.Poses[bodyIndex], color);
+            RenderShape(shapes, set.Collidables[bodyIndex].Shape, ref state.Motion.Pose, color);
         }
 
         public static unsafe void RenderShape(Shapes shapes, TypedIndex shapeIndex, ref RigidPose pose, Color4 color)

@@ -61,12 +61,12 @@ namespace AerialRace.Physics
                 BufferPool,
                 new NarrowPhaseCallbacks(Materials),
                 new PoseIntegratorCallbacks(new Vector3(0, -9.81f, 0).ToNumerics(), BodyProps),
-                new PositionLastTimestepper());
+                new SolveDescription(4, 1));
         }
 
         public static BodyReference AddDynamicBody(RigidPose pose, IConvexCollider collider, float mass, float speculativeMargin, BodyActivityDescription bodyActivityDesc, SimpleMaterial mat, SimpleBody bodyProp)
         {
-            collider.ConvexShape.ComputeInertia(mass, out var inertia);
+            var inertia = collider.ConvexShape.ComputeInertia(mass);
             var handle = Simulation.Bodies.Add(
                 BodyDescription.CreateDynamic(
                     pose,
@@ -84,13 +84,12 @@ namespace AerialRace.Physics
             return new BodyReference(handle, Simulation.Bodies);
         }
 
-        public static StaticReference AddStaticBody(Vector3 position, ICollider collider, float speculativeMargin, SimpleMaterial material)
+        public static StaticReference AddStaticBody(Vector3 position, ICollider collider, SimpleMaterial material)
         {
             var handle = Simulation.Statics.Add(
                 new StaticDescription(
                     position.AsNumerics(),
-                    collider.TypedIndex,
-                    speculativeMargin
+                    collider.TypedIndex
                 ));
 
             Materials.Allocate(handle) = material;

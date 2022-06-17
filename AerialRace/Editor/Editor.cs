@@ -296,7 +296,7 @@ namespace AerialRace.Editor
                     Light? light = Window.Lights.LightsList.Find(l => l.Transform == SelectedTransform);
                     if (light != null)
                     {
-                        ImGui.DragFloat("Radius", ref light.Radius, 1, 0.01f, 10000, null, ImGuiSliderFlags.ClampOnInput);
+                        ImGui.DragFloat("Radius", ref light.Radius, 1, 0.01f, 10000, null, ImGuiSliderFlags.AlwaysClamp);
 
                         ImGui.ColorEdit3("Intensity", ref light.Intensity.AsNumerics(), ImGuiColorEditFlags.HDR | ImGuiColorEditFlags.Float);
 
