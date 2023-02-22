@@ -38,8 +38,8 @@ namespace AerialRace.Physics
         {
             ref var set = ref bodies.Sets[setIndex];
             var handle = set.IndexToHandle[bodyIndex];
-
-            ref SolverState state = ref set.SolverStates[bodyIndex];
+            
+            ref BodyDynamics state = ref set.DynamicsState[bodyIndex];
 
             ref var activity = ref set.Activity[bodyIndex];
             ref var inertia = ref state.Inertia.Local;
