@@ -34,15 +34,18 @@ namespace AerialRace.RenderData
         public ShaderProgram? GeometryProgram;
         public ShaderProgram? FragmentProgram;
 
+        public ShaderProgram? ComputeProgram;
+
         public Dictionary<string, UniformLocation> Uniforms;
 
-        public ShaderPipeline(string name, int handle, ShaderProgram? vertexProgram, ShaderProgram? geometryProgram, ShaderProgram? framgmentProgram)
+        public ShaderPipeline(string name, int handle, ShaderProgram? vertexProgram, ShaderProgram? geometryProgram, ShaderProgram? framgmentProgram, ShaderProgram? computeProgram)
         {
             Name = name;
             Handle = handle;
             VertexProgram = vertexProgram;
             GeometryProgram = geometryProgram;
             FragmentProgram = framgmentProgram;
+            ComputeProgram = computeProgram;
 
             Uniforms = new Dictionary<string, UniformLocation>();
         }

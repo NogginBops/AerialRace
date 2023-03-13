@@ -512,6 +512,7 @@ namespace AerialRace
                 {
                     HDRSceneBuffer = RenderDataUtil.CreateEmptyFramebuffer("HDR Scene Buffer");
 
+                    // FIXME: Rgba16F?
                     var hdrColor = RenderDataUtil.CreateEmpty2DTexture("HDR Texture", TextureFormat.Rgba32F, Width, Height);
                     RenderDataUtil.AddColorAttachment(HDRSceneBuffer, hdrColor, 0, 0);
 
@@ -1031,90 +1032,105 @@ namespace AerialRace
                     DebugHelper.Line(Editor.Gizmos.GizmoDrawList, plane.Normal * plane.Offset, plane.Normal * plane.Offset + plane.Normal * 10, Color4.Cyan, Color4.White);
                 }
 
-                    //var frustum = Shadows.SliceFrustum(shadowCamera, splits[0], splits[1]);
+                //var frustum = Shadows.SliceFrustum(shadowCamera, splits[0], splits[1]);
 
-                    //DebugHelper.Quad(Debug.DepthTestList, frustum.Near00, frustum.Near01, frustum.Near10, frustum.Near11, new Color4(1, 0, 0, 0.5f));
+                //DebugHelper.Quad(Debug.DepthTestList, frustum.Near00, frustum.Near01, frustum.Near10, frustum.Near11, new Color4(1, 0, 0, 0.5f));
 
-                    DrawListSettings drawListSettings = new DrawListSettings
-                    {
-                        DepthTest = true,
-                        DepthWrite = false,
-                        Vp = camera.Transform.WorldToLocal * proj,
-                        CullMode = CullMode.None,
-                    };
-
-                    RenderDataUtil.UsePipeline(Debug.DebugPipeline);
-                    DrawListRenderer.RenderDrawList(Debug.DepthTestList, ref drawListSettings);
-
-                    RenderDataUtil.SetNormalAlphaBlending();
-
-                    metrics.Combine(drawListSettings.Metrics);
-                    metrics.Combine(transparentPass.Metrics);
-                }
-
-                using (_ = RenderDataUtil.PushGenericPass("HDR to LDR pass"))
+                DrawListSettings drawListSettings = new DrawListSettings
                 {
-                    RenderDataUtil.SetCullMode(CullMode.Back);
+                    DepthTest = true,
+                    DepthWrite = false,
+                    Vp = camera.Transform.WorldToLocal * proj,
+                    CullMode = CullMode.None,
+                };
 
-                    RenderDataUtil.BindDrawFramebuffer(null);
-                    RenderDataUtil.SetViewport(0, 0, Width, Height);
+                RenderDataUtil.UsePipeline(Debug.DebugPipeline);
+                DrawListRenderer.RenderDrawList(Debug.DepthTestList, ref drawListSettings);
 
+                RenderDataUtil.SetNormalAlphaBlending();
+
+                metrics.Combine(drawListSettings.Metrics);
+                metrics.Combine(transparentPass.Metrics);
+            }
+
+            if (Editor.Editor.InEditorMode)
+            {
+                using (_ = RenderDataUtil.PushGenericPass("Vectorscope"))
+                {
                     if (UseMSAA)
                     {
-                        RenderDataUtil.UsePipeline(MultisampleHDRToLDRPipeline);
 
-                        RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
-                        RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
-                        RenderDataUtil.Uniform1("Samples", ShaderStage.Fragment, MultisampleHDRSceneBuffer.ColorAttachments![0].ColorTexture.Samples);
-                        RenderDataUtil.BindTexture(0, MultisampleHDRSceneBuffer.ColorAttachments![0].ColorTexture, MultisampleHDRSampler);
                     }
                     else
                     {
-                        RenderDataUtil.UsePipeline(HDRToLDRPipeline);
-
-                        RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
-                        RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
-                        RenderDataUtil.BindTexture(0, HDRSceneBuffer.ColorAttachments![0].ColorTexture, HDRSampler);
+                        Editor.Editor.ComputeVectorscope(HDRSceneBuffer.ColorAttachments![0].ColorTexture);
                     }
-
-                    RenderDataUtil.SetDepthWrite(false);
-                    RenderDataUtil.SetColorWrite(ColorChannels.All);
-                    RenderDataUtil.Clear(ClearMask.Color);
-
-                    RenderDataUtil.SetDepthFunc(DepthFunc.AlwaysPass);
-                    RenderDataUtil.SetNormalAlphaBlending();
-
-                    RenderDataUtil.BindIndexBuffer(null);
-                    RenderDataUtil.DrawArrays(Primitive.Triangles, 0, 3);
-
-                    metrics.Vertices += 3;
                 }
+            }
+            
+            using (_ = RenderDataUtil.PushGenericPass("HDR to LDR pass"))
+            {
+                RenderDataUtil.SetCullMode(CullMode.Back);
 
-                /**
-                using (_ = RenderDataUtil.PushGenericPass("HDR to Vectorscope"))
+                RenderDataUtil.BindDrawFramebuffer(null);
+                RenderDataUtil.SetViewport(0, 0, Width, Height);
+
+                if (UseMSAA)
                 {
-                    GL.BindBuffer(BufferTarget.PixelPackBuffer, HDRSceneVectorscopeBuffer.Handle);
+                    RenderDataUtil.UsePipeline(MultisampleHDRToLDRPipeline);
 
-                    //GL.PixelStore(PixelStoreParameter.PackAlignment, 1);
-
-                    GL.GetTextureImage(HDRSceneBuffer.ColorAttachments![0].ColorTexture.Handle, 0, PixelFormat.Rgba, PixelType.Float, HDRSceneVectorscopeBuffer.SizeInBytes, IntPtr.Zero);
-
-                    GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
-
-                    RenderDataUtil.UsePipeline(VectorscopePipeline);
-
-                    RenderDataUtil.BindIndexBuffer(null);
-                    RenderDataUtil.DisableAllVertexAttributes();
-                    RenderDataUtil.BindVertexAttribBuffer(0, HDRSceneVectorscopeBuffer);
-                    var attrib = new AttributeSpecification("Test", 4, RenderData.AttributeType.Float, false, 0);
-                    RenderDataUtil.SetAndEnableVertexAttribute(0, attrib);
-                    RenderDataUtil.LinkAttributeBuffer(0, 0);
-
-                    RenderDataUtil.DrawArrays(Primitive.Points, 0, HDRSceneVectorscopeBuffer.Elements);
+                    RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
+                    RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
+                    RenderDataUtil.Uniform1("Samples", ShaderStage.Fragment, MultisampleHDRSceneBuffer.ColorAttachments![0].ColorTexture.Samples);
+                    RenderDataUtil.BindTexture(0, MultisampleHDRSceneBuffer.ColorAttachments![0].ColorTexture, MultisampleHDRSampler);
                 }
-                */
+                else
+                {
+                    RenderDataUtil.UsePipeline(HDRToLDRPipeline);
 
-                    using (_ = RenderDataUtil.PushGenericPass("Scene Debug"))
+                    RenderDataUtil.Uniform1("Tonemap", ShaderStage.Fragment, (int)CurrentTonemap);
+                    RenderDataUtil.Uniform1("HDR", ShaderStage.Fragment, 0);
+                    RenderDataUtil.BindTexture(0, HDRSceneBuffer.ColorAttachments![0].ColorTexture, HDRSampler);
+                }
+
+                RenderDataUtil.SetDepthWrite(false);
+                RenderDataUtil.SetColorWrite(ColorChannels.All);
+                RenderDataUtil.Clear(ClearMask.Color);
+
+                RenderDataUtil.SetDepthFunc(DepthFunc.AlwaysPass);
+                RenderDataUtil.SetNormalAlphaBlending();
+
+                RenderDataUtil.BindIndexBuffer(null);
+                RenderDataUtil.DrawArrays(Primitive.Triangles, 0, 3);
+
+                metrics.Vertices += 3;
+            }
+
+            /**
+            using (_ = RenderDataUtil.PushGenericPass("HDR to Vectorscope"))
+            {
+                GL.BindBuffer(BufferTarget.PixelPackBuffer, HDRSceneVectorscopeBuffer.Handle);
+
+                //GL.PixelStore(PixelStoreParameter.PackAlignment, 1);
+
+                GL.GetTextureImage(HDRSceneBuffer.ColorAttachments![0].ColorTexture.Handle, 0, PixelFormat.Rgba, PixelType.Float, HDRSceneVectorscopeBuffer.SizeInBytes, IntPtr.Zero);
+
+                GL.BindBuffer(BufferTarget.PixelPackBuffer, 0);
+
+                RenderDataUtil.UsePipeline(VectorscopePipeline);
+
+                RenderDataUtil.BindIndexBuffer(null);
+                RenderDataUtil.DisableAllVertexAttributes();
+                RenderDataUtil.BindVertexAttribBuffer(0, HDRSceneVectorscopeBuffer);
+                var attrib = new AttributeSpecification("Test", 4, RenderData.AttributeType.Float, false, 0);
+                RenderDataUtil.SetAndEnableVertexAttribute(0, attrib);
+                RenderDataUtil.LinkAttributeBuffer(0, 0);
+
+                RenderDataUtil.DrawArrays(Primitive.Points, 0, HDRSceneVectorscopeBuffer.Elements);
+            }
+            */
+
+            using (_ = RenderDataUtil.PushGenericPass("Scene Debug"))
             {
                 // Draw debug stuff
                 RenderDataUtil.SetDepthTesting(false);

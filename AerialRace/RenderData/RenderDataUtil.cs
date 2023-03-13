@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading;
 using System.Transactions;
 using GLFrameBufferTarget = OpenTK.Graphics.OpenGL4.FramebufferTarget;
+using GLTextureAccess = OpenTK.Graphics.OpenGL4.TextureAccess;
 
 namespace AerialRace.RenderData
 {
@@ -422,6 +423,17 @@ namespace AerialRace.RenderData
                 TextureType.Texture2DMultisample => true,
                 TextureType.Texture2DMultisampleArray => true,
                 _ => false,
+            };
+        }
+
+        public static GLTextureAccess ToGLTextureAccess(TextureAccess textureAccess)
+        {
+            return textureAccess switch
+            {
+                TextureAccess.ReadWrite => GLTextureAccess.ReadWrite,
+                TextureAccess.ReadOnly => GLTextureAccess.ReadOnly,
+                TextureAccess.WriteOnly => GLTextureAccess.WriteOnly,
+                _ => throw new InvalidEnumArgumentException(nameof(textureAccess), (int)textureAccess, typeof(TextureAccess)),
             };
         }
 
@@ -1020,6 +1032,43 @@ namespace AerialRace.RenderData
             GLUtil.CreateProgram(program.Name, out int newProgram);
 
 
+        }
+
+        public static unsafe void ClearTexture<T>(Texture texture, int level, Span<T> data) where T : unmanaged
+        {
+            Debug.Assert(data.Length == 4, "We only support non-depth non-stencil clears atm.");
+
+            Debug.Assert(texture.Format == TextureFormat.R32UI, "We only support R32ui formats atm.");
+
+            // FIXME: Differentiate textures with integer internal format!
+            PixelFormat format = PixelFormat.RedInteger;
+
+            PixelType type;
+            if (typeof(T) == typeof(byte))
+            {
+                type = PixelType.UnsignedByte;
+            }
+            else if (typeof(T) == typeof(int))
+            {
+                type = PixelType.UnsignedInt;
+            }
+            else if (typeof(T) == typeof(float))
+            {
+                type = PixelType.Float;
+            }
+            else if (typeof(T) == typeof(OpenTK.Mathematics.Half))
+            {
+                type = PixelType.HalfFloat;
+            }
+            else
+            {
+                throw new ArgumentException($"This function doesn't support the type {typeof(T)} yet.");
+            }
+
+            fixed (void* ptr = data)
+            {
+                GL.ClearTexImage(texture.Handle, level, format, type, (IntPtr)ptr);
+            }
         }
 
         #endregion
@@ -1771,6 +1820,10 @@ namespace AerialRace.RenderData
         public static Texture?[] BoundTextures = new Texture[MinTextureUnits];
         public static ISampler?[] BoundSamplers = new ISampler[MinTextureUnits];
 
+        // FIXME: We need to store more info than this, e.g. what layer was bound!
+        public static Texture?[] BoundImages = new Texture[MinTextureUnits];
+
+
         public static void BindTexture(int unit, Texture texture, Sampler sampler)
         {
             BindTexture(unit, texture);
@@ -1889,6 +1942,17 @@ namespace AerialRace.RenderData
             }
 
             GL.BindSamplers(startUnit, handles.Length, ref handles[0]);
+        }
+
+        public static void BindImage(int unit, Texture texture, int level, TextureAccess access)
+        {
+            // FIXME: We need to save how the image was bound!
+            if (BoundImages[unit] != texture)
+            {
+                GL.BindImageTexture(unit, texture.Handle, level, false, 0, ToGLTextureAccess(access), ToGLSizedInternalFormat(texture.Format));
+
+                BoundImages[unit] = texture;
+            }
         }
 
         #endregion
@@ -2030,6 +2094,16 @@ namespace AerialRace.RenderData
                 Debug.WriteLine("WARNING: Calling DrawArrays while there is an index buffer bound. This is probably not intentional.");
 
             GL.DrawArrays(ToGLPrimitiveType(type), offset, vertices);
+        }
+
+        public static void Dispatch(int xGroups, int yGroups, int zGroups)
+        {
+            // FIXME: Check that the current pipeline is a compute shader
+            if (CurrentPipeline?.ComputeProgram == null)
+                throw new Exception($"Trying to dispatch compute shader but the current pipeline '{CurrentPipeline?.Name}' doesn't contain a compute shader.");
+
+            // FIXME: Do some validation on groups??
+            GL.DispatchCompute(xGroups, yGroups, zGroups);
         }
 
         public static Recti CurrentScissor = Recti.Empty;

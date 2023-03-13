@@ -76,5 +76,14 @@ namespace AerialRace
                 MarkResized(buffer);
             }
         }
+
+        public static void ResizeToScreenSizeIfNecessary(Texture texture)
+        {
+            // FIXME: Keep track that we have resized this texture this frame??
+            if (ResizedThisFrame)
+            {
+                RenderDataUtil.CreateResizedTexture2D(texture, Size);
+            }
+        }
     }
 }

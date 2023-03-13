@@ -105,6 +105,13 @@ namespace AerialRace.RenderData
         Stencil8 = 62,
     }
 
+    enum TextureAccess : int
+    {
+        ReadWrite = 0,
+        ReadOnly = 1,
+        WriteOnly = 2,
+    }
+
     class Texture
     {
         public string Name;

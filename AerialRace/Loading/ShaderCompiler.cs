@@ -28,7 +28,7 @@ namespace AerialRace.Loading
         {
             GLUtil.CreateProgramPipeline(name, out var handle);
 
-            var pipeline = new ShaderPipeline(name, handle, null, null, null);
+            var pipeline = new ShaderPipeline(name, handle, null, null, null, null);
 
             if (vertexProgram != null)
                 GL.UseProgramStages(pipeline.Handle, ProgramStageMask.VertexShaderBit, vertexProgram.Handle);
@@ -41,6 +41,39 @@ namespace AerialRace.Loading
             if (fragmentProgram != null)
                 GL.UseProgramStages(pipeline.Handle, ProgramStageMask.FragmentShaderBit, fragmentProgram.Handle);
             pipeline.FragmentProgram = fragmentProgram;
+
+            // FIXME: Move this function out of the class
+            pipeline.UpdateUniforms();
+
+            GL.ValidateProgramPipeline(pipeline.Handle);
+            GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.ValidateStatus, out int valid);
+            if (valid == 0)
+            {
+                GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.InfoLogLength, out int logLength);
+                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, out _, out string info);
+
+                Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
+
+                // FIXME: Consider using this for debug!!
+                // GL.DebugMessageInsert()
+                throw new Exception();
+            }
+
+            LiveShaderLoader.TrackPipeline(pipeline);
+
+            return pipeline;
+        }
+
+        public static ShaderPipeline CompilePipeline(string name, string computePath)
+        {
+            var computeProgram = CompileProgram($"{name}: Compute", ShaderStage.Compute, computePath);
+
+            GLUtil.CreateProgramPipeline(name, out var handle);
+
+            var pipeline = new ShaderPipeline(name, handle, null, null, null, computeProgram);
+
+            GL.UseProgramStages(pipeline.Handle, ProgramStageMask.ComputeShaderBit, computeProgram.Handle);
+            pipeline.ComputeProgram = computeProgram;
 
             // FIXME: Move this function out of the class
             pipeline.UpdateUniforms();
@@ -189,6 +222,9 @@ namespace AerialRace.Loading
 
             if (pipeline.FragmentProgram != null)
                 GL.UseProgramStages(handle, ProgramStageMask.FragmentShaderBit, pipeline.FragmentProgram.Handle);
+
+            if (pipeline.ComputeProgram != null)
+                GL.UseProgramStages(handle, ProgramStageMask.ComputeShaderBit, pipeline.ComputeProgram.Handle);
 
             GL.ValidateProgramPipeline(handle);
             GL.GetProgramPipeline(handle, ProgramPipelineParameter.ValidateStatus, out int valid);
@@ -373,6 +409,7 @@ namespace AerialRace.Loading
             TrackShaderIfNotNullAndHasFile(pipeline.VertexProgram, pipeline);
             TrackShaderIfNotNullAndHasFile(pipeline.GeometryProgram, pipeline);
             TrackShaderIfNotNullAndHasFile(pipeline.FragmentProgram, pipeline);
+            TrackShaderIfNotNullAndHasFile(pipeline.ComputeProgram, pipeline);
 
             static void TrackShaderIfNotNullAndHasFile(ShaderProgram? shader, ShaderPipeline pipeline)
             {

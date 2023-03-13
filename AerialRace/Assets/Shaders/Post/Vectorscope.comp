@@ -1,0 +1,50 @@
+#version 430 core
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+//in InvocationData {
+//    uvec3 gl_NumWorkGroups;
+//    uvec3 gl_WorkGroupID;
+//    uvec3 gl_LocalInvocationID;
+//    uvec3 gl_GlobalInvocationID;
+//    uint  gl_LocalInvocationIndex;
+//};
+
+layout(rgba32f, binding = 0) uniform restrict readonly image2D Scene;
+layout(r32ui, binding = 1) uniform restrict coherent uimage2D Vectorscope;
+
+ivec2 toImageCoord(vec2 coord, ivec2 imageSize)
+{
+    return ivec2(coord.xy * imageSize);
+}
+
+vec3 rgb2hsv(vec3 c)
+{
+    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec2 angleLengthToVec(float angle, float length)
+{
+    return vec2(cos(angle) * length, sin(angle) * length);
+}
+
+void main(void)
+{
+    // Any pixels outside of the texture
+    //if (any(gl_GlobalInvocationID.xy > uvec2(imageSize(Scene)))) return;
+    ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+
+    vec4 color = imageLoad(Scene, xy);
+
+    vec3 hsv = rgb2hsv(color.rgb);
+
+    ivec2 coord = toImageCoord(angleLengthToVec(hsv.x * 2 * 3.14, hsv.z) * 0.5 + 0.5, imageSize(Vectorscope));
+
+    imageAtomicAdd(Vectorscope, coord, uint(1));
+}

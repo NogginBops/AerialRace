@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using AerialRace.DebugGui;
 using AerialRace.Loading;
 using AerialRace.RenderData;
 using ImGuiNET;
@@ -31,6 +32,8 @@ namespace AerialRace.Editor
             EditorCamera.OrthograpicSize = 200;
 
             Gizmos.Init();
+
+            InitVectorscope();
         }
 
         // Called on update while in editor mode
@@ -144,6 +147,8 @@ namespace AerialRace.Editor
             ShowTransformHierarchy();
 
             ShowSceneSettings();
+
+            ShowVectorscope();
 
             if (SelectedTransform != null)
             {
@@ -468,6 +473,68 @@ namespace AerialRace.Editor
                 }
             }
             ImGui.End();
+        }
+
+        private static Texture VectorscopeTexture;
+        private static Texture VectorscopeColorTexture;
+        private static ShaderPipeline VectorscopeComputeShader;
+        private static ShaderPipeline ScopeToImageShader;
+
+        public static void InitVectorscope()
+        {
+            VectorscopeTexture = RenderDataUtil.CreateEmpty2DTexture("Vectorscope", TextureFormat.R32UI, Screen.Width, Screen.Height);
+            VectorscopeColorTexture = RenderDataUtil.CreateEmpty2DTexture("Vectorscope Image", TextureFormat.Rgba16F, Screen.Width, Screen.Height);
+            VectorscopeComputeShader = ShaderCompiler.CompilePipeline("Scene to vectorscope", "./Shaders/Post/Vectorscope.comp");
+            ScopeToImageShader = ShaderCompiler.CompilePipeline("Vectorscope to image", "./Shaders/Post/ScopeToImage.comp");
+        }
+
+        public static void ShowVectorscope()
+        {
+            if (ImGui.Begin("Vectorscope"))
+            {
+                int tex = ImGuiController.ReferenceTexture(VectorscopeColorTexture);
+                ImGui.Image((IntPtr)tex, new System.Numerics.Vector2(800, 600));
+            }
+            ImGui.End();
+        }
+
+        public static void ComputeVectorscope(Texture sceneTexture)
+        {
+            Screen.ResizeToScreenSizeIfNecessary(VectorscopeTexture);
+            // FIXME: Match the size we are displaying at in imgui!
+            Screen.ResizeToScreenSizeIfNecessary(VectorscopeColorTexture);
+
+            RenderDataUtil.ClearTexture(VectorscopeTexture, 0, stackalloc int[4] { 0, 0, 0, 0 });
+
+            RenderDataUtil.UsePipeline(VectorscopeComputeShader);
+
+            // Here we want to run the compute shader...
+            RenderDataUtil.Uniform1("SceneTexture", 0);
+            RenderDataUtil.Uniform1("Vectorscope", 1);
+            RenderDataUtil.BindImage(0, sceneTexture, 0, TextureAccess.ReadOnly);
+            RenderDataUtil.BindImage(1, VectorscopeTexture, 0, TextureAccess.ReadWrite);
+
+            // FIXME: Get work group size from opengl!
+            RenderDataUtil.Dispatch((int)MathF.Ceiling(sceneTexture.Width / 8), (int)MathF.Ceiling(sceneTexture.Height / 8), 1);
+
+            // Sync image access between shaders
+            OpenTK.Graphics.OpenGL4.GL.MemoryBarrier(OpenTK.Graphics.OpenGL4.MemoryBarrierFlags.AllBarrierBits);
+            OpenTK.Graphics.OpenGL4.GL.TextureBarrier();
+
+            RenderDataUtil.UsePipeline(ScopeToImageShader);
+
+            // Here we want to run the compute shader...
+            RenderDataUtil.Uniform1("Vectorscope", 0);
+            RenderDataUtil.Uniform1("Image", 1);
+            RenderDataUtil.BindImage(0, VectorscopeTexture, 0, TextureAccess.ReadOnly);
+            RenderDataUtil.BindImage(1, VectorscopeColorTexture, 0, TextureAccess.ReadWrite);
+
+            // FIXME: Get work group size from opengl!
+            RenderDataUtil.Dispatch((int)MathF.Ceiling(sceneTexture.Width / 8), (int)MathF.Ceiling(sceneTexture.Height / 8), 1);
+
+            // FIXME: Is this necessary?
+            OpenTK.Graphics.OpenGL4.GL.MemoryBarrier(OpenTK.Graphics.OpenGL4.MemoryBarrierFlags.AllBarrierBits);
+            OpenTK.Graphics.OpenGL4.GL.TextureBarrier();
         }
     }
 }
