@@ -88,7 +88,6 @@ namespace AerialRace
 
             GameWindowSettings gwSettings = new GameWindowSettings()
             {
-                RenderFrequency = 0,
                 UpdateFrequency = 0,
             };
 
