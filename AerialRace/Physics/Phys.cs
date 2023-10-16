@@ -114,7 +114,7 @@ namespace AerialRace.Physics
                     body.UpdatePreviousState();
                 }
 
-                Window.Player.FixedUpdate(TimeStep);
+                Ship.Player.FixedUpdate(TimeStep);
 
                 Steps++;
                 Simulation.Timestep(TimeStep);

@@ -128,12 +128,12 @@ namespace AerialRace.RenderData
         public float MaxAnisotropy;
 
         public WrapMode WrapModeS, WrapModeT, WrapModeR;
-        public Color4 BorderColor;
+        public Color4<Rgba> BorderColor;
 
         // GLEXT: ARB_seamless_cubemap_per_texture
         public bool SeamlessCube;
 
-        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4 borderColor, bool seamlessCube)
+        public Sampler(string name, int handle, SamplerType type, SamplerDataType dataType, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba> borderColor, bool seamlessCube)
         {
             Name = name;
             Handle = handle;
@@ -175,14 +175,14 @@ namespace AerialRace.RenderData
         public float MaxAnisotropy;
 
         public WrapMode WrapModeS, WrapModeT, WrapModeR;
-        public Color4? BorderColor;
+        public Color4<Rgba>? BorderColor;
 
         public bool SeamlessCube;
 
         public DepthTextureCompareMode CompareMode;
         public DepthTextureCompareFunc CompareFunc;
 
-        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
+        public ShadowSampler(string name, int handle, ShadowSamplerType type, MagFilter magFilter, MinFilter minFilter, float lodBias, float lodMin, float lodMax, float maxAnisotropy, WrapMode wrapModeS, WrapMode wrapModeT, WrapMode wrapModeR, Color4<Rgba>? borderColor, bool seamlessCube, DepthTextureCompareMode compareMode, DepthTextureCompareFunc compareFunc)
         {
             Name = name;
             Handle = handle;

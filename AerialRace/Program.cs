@@ -86,6 +86,11 @@ namespace AerialRace
             }
             */
 
+            PAL2Window palWindow = new PAL2Window();
+
+            palWindow.Run();
+            return;
+
             GameWindowSettings gwSettings = new GameWindowSettings()
             {
                 UpdateFrequency = 0,
@@ -95,7 +100,7 @@ namespace AerialRace
             {
                 API = ContextAPI.OpenGL,
                 APIVersion = new Version(4, 6),
-                AutoLoadBindings = true,
+                AutoLoadBindings = false, // FIXME: OpenTK 5.0-pre.9 issue
                 //CurrentMonitor = 
                 Flags = ContextFlags.Debug | ContextFlags.ForwardCompatible,
                 //Icon = 

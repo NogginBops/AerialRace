@@ -33,12 +33,12 @@ namespace AerialRace.Loading
         };
 
         public static Buffer UnitQuadDebugColorsBuffer;
-        public static readonly Color4[] UnitQuadDebugColors = new Color4[]
+        public static readonly Color4<Rgba>[] UnitQuadDebugColors = new Color4<Rgba>[]
         {
-            new Color4(0f, 0f, 0f, 1f),
-            new Color4(1f, 1f, 1f, 1f),
-            new Color4(1f, 0f, 0f, 1f),
-            new Color4(0f, 0f, 0f, 1f),
+            new Color4<Rgba>(0f, 0f, 0f, 1f),
+            new Color4<Rgba>(1f, 1f, 1f, 1f),
+            new Color4<Rgba>(1f, 0f, 0f, 1f),
+            new Color4<Rgba>(0f, 0f, 0f, 1f),
         };
 
         // FIXME: Make sure this is only called while there is a GL context current
@@ -47,7 +47,7 @@ namespace AerialRace.Loading
             UnitQuadIndexBuffer = RenderDataUtil.CreateIndexBuffer("Unit Quad Indices", UnitQuadIndices, BufferFlags.None);
             CenteredUnitQuadBuffer = RenderDataUtil.CreateDataBuffer<StandardVertex>("Centered Unit Quad", CenteredUnitQuad, BufferFlags.None);
             UnitQuadBuffer = RenderDataUtil.CreateDataBuffer<StandardVertex>("Unit Quad", UnitQuad, BufferFlags.None);
-            UnitQuadDebugColorsBuffer = RenderDataUtil.CreateDataBuffer<Color4>("Unit Quad Debug Colors", UnitQuadDebugColors, BufferFlags.None);
+            UnitQuadDebugColorsBuffer = RenderDataUtil.CreateDataBuffer<Color4<Rgba>>("Unit Quad Debug Colors", UnitQuadDebugColors, BufferFlags.None);
         }
 
         public static void Init() { }

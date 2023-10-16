@@ -1,6 +1,6 @@
 ﻿using AerialRace.Mathematics;
 using AerialRace.RenderData;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -24,7 +24,7 @@ namespace AerialRace.Debugging
             return PixelsToGL(new Vector2(x, y));
         }
 
-        public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color)
+        public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4<Rgba> Color)
         {
             List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
@@ -34,7 +34,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(PixelsToGL(Rect.X + Rect.Width, Rect.Y), UVs.Zw, Color);
         }
 
-        public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4 Color1, Color4 Color2, Color4 Color3, Color4 Color4)
+        public static void Rect(DrawList List, Rect Rect, Vector4 UVs, Texture Texture, Color4<Rgba> Color1, Color4<Rgba> Color2, Color4<Rgba> Color3, Color4<Rgba> Color4)
         {
             List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
@@ -44,7 +44,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(PixelsToGL(Rect.X + Rect.Width, Rect.Y), UVs.Zw, Color4);
         }
 
-        public static void Rect(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
+        public static void Rect(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4<Rgba> Color)
         {
             List.AddCommand(Primitive.TriangleStrip, 4, Texture);
 
@@ -54,7 +54,7 @@ namespace AerialRace.Debugging
             List.AddVertexWithIndex(PixelsToGL(Position.X + Size.X, Position.Y), UVs.Zw, Color);
         }
 
-        public static void RectOutline(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4 Color)
+        public static void RectOutline(DrawList List, Vector2 Position, Vector2 Size, Vector4 UVs, Texture Texture, Color4<Rgba> Color)
         {
             List.AddCommand(Primitive.LineStrip, 5, Texture);
 
@@ -66,7 +66,7 @@ namespace AerialRace.Debugging
             List.AddVertex(PixelsToGL(Position + Size), UVs.Zy, Color);
         }
 
-        public static void OutlineCircle(DrawList list, Vector2 Position, float Radius, Color4 color, int Segments)
+        public static void OutlineCircle(DrawList list, Vector2 Position, float Radius, Color4<Rgba> color, int Segments)
         {
             Debug.Assert(Segments >= 3, $"Segments cannot be less than 3. {Segments}");
 
@@ -132,7 +132,7 @@ namespace AerialRace.Debugging
                 new Vertex(new Vector3( 1, -1, -1),  new Vector2(0, 1)),
             };
 
-        public static void OutlineBox(DrawList list, Vector3 center, Quaternion orientation, Vector3 halfSize, Color4 color)
+        public static void OutlineBox(DrawList list, Vector3 center, Quaternion orientation, Vector3 halfSize, Color4<Rgba> color)
         {
             list.Prewarm(BoxVertices.Length);
             /*
@@ -156,7 +156,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
-        public static void OutlineBox(DrawList list, Box3 box, Color4 color)
+        public static void OutlineBox(DrawList list, Box3 box, Color4<Rgba> color)
         {
             list.PrewarmVertices(8);
             list.PrewarmIndices(24);
@@ -203,7 +203,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Lines, BoxVertices.Length, BuiltIn.WhiteTex);
         }
 
-        public static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
+        public static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4<Rgba> color)
         {
             Span<int> iArray = stackalloc int[6] { 0, 1, 2, 1, 3, 2 };
 
@@ -226,7 +226,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Triangles, faces * 6, BuiltIn.WhiteTex);
         }
 
-        public static void Plane(DrawList list, Plane plane, Vector3 around, Vector2 halfSize, Color4 color)
+        public static void Plane(DrawList list, Plane plane, Vector3 around, Vector2 halfSize, Color4<Rgba> color)
         {
             list.PrewarmVertices(4);
             list.PrewarmIndices(6);
@@ -244,7 +244,7 @@ namespace AerialRace.Debugging
         // ----  New 3D helpers  ----
         // --------------------------
 
-        public static void Quad(DrawList list, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color4 color, Texture? tex = null)
+        public static void Quad(DrawList list, Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4, Color4<Rgba> color, Texture? tex = null)
         {
             list.PrewarmVertices(4);
             list.PrewarmIndices(6);
@@ -259,7 +259,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Triangles, 6, tex ?? BuiltIn.WhiteTex);
         }
 
-        public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
+        public static void FrustumPoints(DrawList list, in FrustumPoints points, Color4<Rgba> nearColor, Color4<Rgba> farColor)
         {
             var iNear00 = list.AddVertexWithIndex(points.Near00, (0, 0), nearColor);
             var iNear01 = list.AddVertexWithIndex(points.Near01, (0, 1), nearColor);
@@ -291,7 +291,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Lines, 24, BuiltIn.WhiteTex);
         }
 
-        public static void FrustumPointsBox(DrawList list, in FrustumPoints points, Color4 nearColor, Color4 farColor)
+        public static void FrustumPointsBox(DrawList list, in FrustumPoints points, Color4<Rgba> nearColor, Color4<Rgba> farColor)
         {
             AddQuad(list, points.Near00, points.Near01, points.Near10, points.Near11, nearColor);
             AddQuad(list, points.Far00, points.Far01, points.Far10, points.Far11, farColor);
@@ -304,7 +304,7 @@ namespace AerialRace.Debugging
 
             list.AddCommand(Primitive.Triangles, 6 * 6, BuiltIn.WhiteTex);
 
-            static void AddQuad(DrawList list, Vector3 p00, Vector3 p01, Vector3 p10, Vector3 p11, Color4 color)
+            static void AddQuad(DrawList list, Vector3 p00, Vector3 p01, Vector3 p10, Vector3 p11, Color4<Rgba> color)
             {
                 list.AddVertexWithIndex(p00, (0, 0), color);
                 var i2 = list.AddVertexWithIndex(p01, (0, 1), color);
@@ -315,7 +315,7 @@ namespace AerialRace.Debugging
             }
         }
 
-        public static void Line(DrawList list, Vector3 a, Vector3 b, Color4 colorA, Color4 colorB)
+        public static void Line(DrawList list, Vector3 a, Vector3 b, Color4<Rgba> colorA, Color4<Rgba> colorB)
         {
             list.Prewarm(2);
             list.AddVertexWithIndex(a, new Vector2(0, 0), colorA);
@@ -323,7 +323,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
-        public static void RectOutline(DrawList List, Vector3 center, Vector3 U, Vector3 V, Vector4 UVs, Texture Texture, Color4 Color)
+        public static void RectOutline(DrawList List, Vector3 center, Vector3 U, Vector3 V, Vector4 UVs, Texture Texture, Color4<Rgba> Color)
         {
             var halfU = U / 2f;
             var halfV = V / 2f;
@@ -337,7 +337,7 @@ namespace AerialRace.Debugging
             List.AddCommand(Primitive.LineLoop, 4, Texture);
         }
 
-        public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4 color)
+        public static void Cone(DrawList list, Vector3 @base, float radius, float height, Quaternion orientation, int segments, Color4<Rgba> color)
         {
             Debug.Assert(segments >= 3, $"A cone cannot have less than 3 segments. {segments}");
 
@@ -395,7 +395,7 @@ namespace AerialRace.Debugging
             return (v3, v2n);
         }
 
-        public static void Cone(DrawList list, Vector3 tip, float radius, float height, in Vector3 direction, int segments, Color4 color)
+        public static void Cone(DrawList list, Vector3 tip, float radius, float height, in Vector3 direction, int segments, Color4<Rgba> color)
         {
             Debug.Assert(segments >= 3, $"A cone cannot have less than 3 segments. {segments}");
 
@@ -441,7 +441,7 @@ namespace AerialRace.Debugging
             list.AddCommand(Primitive.Triangles, segments * 3 * 2, BuiltIn.WhiteTex);
         }
 
-        public static void Cylinder(DrawList list, Cylinder cylinder, int segments, Color4 color)
+        public static void Cylinder(DrawList list, Cylinder cylinder, int segments, Color4<Rgba> color)
         {
             Debug.Assert(segments >= 3, $"A cylinder cannot have less than 3 segments. {segments}");
 

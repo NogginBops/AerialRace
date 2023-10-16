@@ -3,7 +3,7 @@ using AerialRace.Loading;
 using AerialRace.RenderData;
 using ImGuiNET;
 using OpenTK;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Desktop;
@@ -189,7 +189,7 @@ void main()
 
             _textureSampler = RenderDataUtil.CreateSampler2D("ImGui Font Sampler", MagFilter.Nearest, MinFilter.LinearMipmapLinear, 1.0f, WrapMode.Repeat, WrapMode.Repeat);
 
-            GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2D, out var glTexture);
+            GLUtil.CreateTexture("ImGui Text Atlas", TextureTarget.Texture2d, out var glTexture);
 
             GL.TextureStorage2D(glTexture, 1, SizedInternalFormat.Rgba8, width, height);
             GL.TextureSubImage2D(glTexture, 0, 0, 0, width, height, PixelFormat.Bgra, PixelType.UnsignedByte, pixels);
@@ -383,7 +383,7 @@ void main()
 
             GL.Enable(EnableCap.Blend);
             GL.Enable(EnableCap.ScissorTest);
-            GL.BlendEquation(BlendEquationMode.FuncAdd);
+            GL.BlendEquation(BlendEquationModeEXT.FuncAdd);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             GL.Disable(EnableCap.CullFace);
             RenderDataUtil.SetDepthTesting(false);

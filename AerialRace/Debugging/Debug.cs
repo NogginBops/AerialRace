@@ -55,7 +55,7 @@ namespace AerialRace.Debugging
             DepthTestList.Clear();
         }
 
-        public static void Line(Vector3 a, Vector3 b, Color4 color)
+        public static void Line(Vector3 a, Vector3 b, Color4<Rgba> color)
         {
             List.AddVertexWithIndex(a, new Vector2(0, 1), color);
             List.AddVertexWithIndex(b, new Vector2(1, 0), color);
@@ -63,7 +63,7 @@ namespace AerialRace.Debugging
             List.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
-        public static void Direction(Vector3 origin, Vector3 direction, Color4 color)
+        public static void Direction(Vector3 origin, Vector3 direction, Color4<Rgba> color)
         {
             List.AddVertexWithIndex(origin, new Vector2(0, 1), color);
             List.AddVertexWithIndex(origin + direction, new Vector2(1, 0), color);
@@ -71,7 +71,7 @@ namespace AerialRace.Debugging
             List.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
         }
 
-        public static void DirectionNormalized(Vector3 origin, Vector3 direction, Color4 color)
+        public static void DirectionNormalized(Vector3 origin, Vector3 direction, Color4<Rgba> color)
         {
             List.AddVertexWithIndex(origin, new Vector2(0, 1), color);
             List.AddVertexWithIndex(origin + direction.Normalized(), new Vector2(1, 0), color);

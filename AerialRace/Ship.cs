@@ -14,6 +14,8 @@ namespace AerialRace
     [Serializable]
     class Ship
     {
+        public static Ship Player;
+
         public Transform Transform;
 
         public MeshRenderer MeshRenderer;
@@ -58,7 +60,7 @@ namespace AerialRace
             Model = RenderDataUtil.CreateMesh(name, meshData);
             Material = material;
 
-            Camera = new Camera("Player Camera", 100, 0.1f, 10_000f, new Color4(1f, 0, 1f, 1f));
+            Camera = new Camera("Player Camera", 100, 0.1f, 10_000f, new Color4<Rgba>(1f, 0, 1f, 1f));
             Camera.Transform.LocalPosition = CameraOffset;
 
             MeshRenderer = new MeshRenderer(Transform, Model, Material);
@@ -149,10 +151,10 @@ namespace AerialRace
 
             //Debug.Direction(Transform.LocalPosition, Velocity, Color4.Blue);
 
-            if (state.IsKeyPressed(Keys.B))
+            /*if (state.IsKeyPressed(Keys.B))
             {
                 Debug.Break();
-            }
+            }*/
 
             const float RudderLiftFactor = 0.1f;
             const float rudderArea = 4f;
@@ -324,6 +326,45 @@ namespace AerialRace
                 MouseInfluenceTimeout = 1f;
 
                 var delta = mouse.Delta;
+
+                Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
+                Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;
+                Camera.XAxisRotation = MathHelper.Clamp(Camera.XAxisRotation, CameraMinY * Util.D2R, CameraMaxY * Util.D2R);
+            }
+
+            MouseInfluenceTimeout -= deltaTime;
+            if (MouseInfluenceTimeout < 0.001f)
+            {
+                MouseInfluenceTimeout = 0;
+
+                Camera.XAxisRotation -= Camera.XAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.XAxisRotation) < 0.001f) Camera.XAxisRotation = 0;
+                Camera.YAxisRotation -= Camera.YAxisRotation * deltaTime * 3f;
+                if (Math.Abs(Camera.YAxisRotation) < 0.001f) Camera.YAxisRotation = 0;
+            }
+
+            var targetPos = Transform.LocalPosition;
+
+            Quaternion rotation =
+                    Transform.LocalRotation * RotationOffset *
+                    Quaternion.FromAxisAngle(Vector3.UnitY, Camera.YAxisRotation) *
+                    Quaternion.FromAxisAngle(Vector3.UnitX, Camera.XAxisRotation);
+
+            targetPos = targetPos + (rotation * new Vector3(0, 0, CameraOffset.Length));
+
+            Camera.Transform.LocalPosition = Vector3.Lerp(Camera.Transform.LocalPosition, targetPos, 30f * deltaTime);
+
+            Camera.Transform.LocalRotation = Quaternion.Slerp(Camera.Transform.LocalRotation, rotation, 5f * deltaTime);
+        }
+
+        public void UpdateCamera2(Vector2 mouseDelta, bool rightButtonIsDown, float deltaTime)
+        {
+            // Move the camera
+            if (rightButtonIsDown)
+            {
+                MouseInfluenceTimeout = 1f;
+
+                var delta = mouseDelta;
 
                 Camera.YAxisRotation += -delta.X * MouseSpeedX * deltaTime;
                 Camera.XAxisRotation += -delta.Y * MouseSpeedY * deltaTime;

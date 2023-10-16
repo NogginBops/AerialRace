@@ -1,6 +1,6 @@
 ﻿using AerialRace.Loading;
 using AerialRace.RenderData;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,11 +17,11 @@ namespace AerialRace
 
         public Material SkyMaterial;
         public Vector3 SunDirection;
-        public Color4 SunColor;
-        public Color4 SkyColor;
-        public Color4 GroundColor;
+        public Color4<Rgba> SunColor;
+        public Color4<Rgba> SkyColor;
+        public Color4<Rgba> GroundColor;
 
-        public Sky(Material skyMat, Vector3 sunDir, Color4 sunColor, Color4 skyColor, Color4 groundColor)
+        public Sky(Material skyMat, Vector3 sunDir, Color4<Rgba> sunColor, Color4<Rgba> skyColor, Color4<Rgba> groundColor)
         {
             // FIXME: We might not want this later but it's fine for now.
             if (Instance == null)

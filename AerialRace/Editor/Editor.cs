@@ -160,7 +160,7 @@ namespace AerialRace.Editor
                 Gizmos.LightIcon(light);
             }
 
-            Gizmos.CameraGizmo(Window.Player.Camera);
+            Gizmos.CameraGizmo(Ship.Player.Camera);
 
             // Gizmos drawlist rendering
             using (var gizmosOverlayPass = RenderDataUtil.PushGenericPass("Gizmos overlay pass"))
@@ -177,7 +177,7 @@ namespace AerialRace.Editor
                 // FIXME: Make our own enum
                 RenderDataUtil.BindDrawFramebufferSetViewportAndClear(
                     Gizmos.GizmosOverlay,
-                    default(Color4),
+                    default(Color4<Rgba>),
                     ClearMask.Color | ClearMask.Depth);
 
                 RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
@@ -216,7 +216,7 @@ namespace AerialRace.Editor
 
                     metrics.Triangles += 3;
 
-                    OpenTK.Graphics.OpenGL4.GL.DrawArrays(OpenTK.Graphics.OpenGL4.PrimitiveType.Triangles, 0, 3);
+                    OpenTK.Graphics.OpenGL.GL.DrawArrays(OpenTK.Graphics.OpenGL.PrimitiveType.Triangles, 0, 3);
 
                     // Important to unbind this texture so that we can draw to it later.
                     RenderDataUtil.BindTexture(0, null);
@@ -375,9 +375,9 @@ namespace AerialRace.Editor
                 ImGui.ColorEdit3("Sky color", ref Window.Sky.SkyColor.AsNumerics3(), flags);
                 ImGui.ColorEdit3("Ground color", ref Window.Sky.GroundColor.AsNumerics3(), flags);
 
-                float rads = Window.Player.Camera.VerticalFov * Util.D2R;
+                float rads = Ship.Player.Camera.VerticalFov * Util.D2R;
                 ImGui.SliderAngle("VFoV", ref rads, 10, 120);
-                Window.Player.Camera.VerticalFov = rads * Util.R2D;
+                Ship.Player.Camera.VerticalFov = rads * Util.R2D;
             }
             ImGui.End();
 
@@ -518,8 +518,8 @@ namespace AerialRace.Editor
             RenderDataUtil.Dispatch((int)MathF.Ceiling(sceneTexture.Width / 8), (int)MathF.Ceiling(sceneTexture.Height / 8), 1);
 
             // Sync image access between shaders
-            OpenTK.Graphics.OpenGL4.GL.MemoryBarrier(OpenTK.Graphics.OpenGL4.MemoryBarrierFlags.AllBarrierBits);
-            OpenTK.Graphics.OpenGL4.GL.TextureBarrier();
+            OpenTK.Graphics.OpenGL.GL.MemoryBarrier(OpenTK.Graphics.OpenGL.MemoryBarrierMask.AllBarrierBits);
+            OpenTK.Graphics.OpenGL.GL.TextureBarrier();
 
             RenderDataUtil.UsePipeline(ScopeToImageShader);
 
@@ -533,8 +533,8 @@ namespace AerialRace.Editor
             RenderDataUtil.Dispatch((int)MathF.Ceiling(sceneTexture.Width / 8), (int)MathF.Ceiling(sceneTexture.Height / 8), 1);
 
             // FIXME: Is this necessary?
-            OpenTK.Graphics.OpenGL4.GL.MemoryBarrier(OpenTK.Graphics.OpenGL4.MemoryBarrierFlags.AllBarrierBits);
-            OpenTK.Graphics.OpenGL4.GL.TextureBarrier();
+            OpenTK.Graphics.OpenGL.GL.MemoryBarrier(OpenTK.Graphics.OpenGL.MemoryBarrierMask.AllBarrierBits);
+            OpenTK.Graphics.OpenGL.GL.TextureBarrier();
         }
     }
 }

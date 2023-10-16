@@ -61,7 +61,7 @@ namespace AerialRace.Editor
             Screen.RegisterFramebuffer(GizmosOverlay);
 
             var status = RenderDataUtil.CheckFramebufferComplete(GizmosOverlay, FramebufferTarget.ReadDraw);
-            if (status != OpenTK.Graphics.OpenGL4.FramebufferStatus.FramebufferComplete)
+            if (status != OpenTK.Graphics.OpenGL.FramebufferStatus.FramebufferComplete)
             {
                 throw new Exception(status.ToString());
             }
@@ -138,13 +138,13 @@ namespace AerialRace.Editor
             var yDisk = new Disk(translation, axisY, rotationRadius);
             var zDisk = new Disk(translation, axisZ, rotationRadius);
 
-            Color4 xAxisColor = new Color4(0.8f, 0f, 0f, 1f);
-            Color4 yAxisColor = new Color4(0f, 0.8f, 0f, 1f);
-            Color4 zAxisColor = new Color4(0f, 0f, 0.8f, 1f);
+            Color4<Rgba> xAxisColor = new Color4<Rgba>(0.8f, 0f, 0f, 1f);
+            Color4<Rgba> yAxisColor = new Color4<Rgba>(0f, 0.8f, 0f, 1f);
+            Color4<Rgba> zAxisColor = new Color4<Rgba>(0f, 0f, 0.8f, 1f);
 
-            Color4 xRotationColor = new Color4(0.8f, 0f, 0f, 1f);
-            Color4 yRotationColor = new Color4(0f, 0.8f, 0f, 1f);
-            Color4 zRotationColor = new Color4(0f, 0f, 0.8f, 1f);
+            Color4<Rgba> xRotationColor = new Color4<Rgba>(0.8f, 0f, 0f, 1f);
+            Color4<Rgba> yRotationColor = new Color4<Rgba>(0f, 0.8f, 0f, 1f);
+            Color4<Rgba> zRotationColor = new Color4<Rgba>(0f, 0f, 0.8f, 1f);
 
             var closestTranslateAxis = GetClosestAxis(MouseRay, xRay, yRay, zRay, arrowLength, radius, out var translationDistance, out var translationPoint);
 
@@ -307,22 +307,22 @@ namespace AerialRace.Editor
                     switch (closestAxis)
                     {
                         case Axis.X:
-                            xAxisColor = new Color4(1f, 0.4f, 0.4f, 1f);
+                            xAxisColor = new Color4<Rgba>(1f, 0.4f, 0.4f, 1f);
                             break;
                         case Axis.Y:
-                            yAxisColor = new Color4(0.4f, 1f, 0.4f, 1f);
+                            yAxisColor = new Color4<Rgba>(0.4f, 1f, 0.4f, 1f);
                             break;
                         case Axis.Z:
-                            zAxisColor = new Color4(0.4f, 0.4f, 1f, 1f);
+                            zAxisColor = new Color4<Rgba>(0.4f, 0.4f, 1f, 1f);
                             break;
                         case Axis.XRotation:
-                            xRotationColor = new Color4(1f, 0.4f, 0.4f, 1f);
+                            xRotationColor = new Color4<Rgba>(1f, 0.4f, 0.4f, 1f);
                             break;
                         case Axis.YRotation:
-                            yRotationColor = new Color4(0.4f, 1f, 0.4f, 1f);
+                            yRotationColor = new Color4<Rgba>(0.4f, 1f, 0.4f, 1f);
                             break;
                         case Axis.ZRotation:
-                            zRotationColor = new Color4(0.4f, 0.4f, 1f, 1f);
+                            zRotationColor = new Color4<Rgba>(0.4f, 0.4f, 1f, 1f);
                             break;
                         case Axis.None:
                         default:
@@ -357,14 +357,14 @@ namespace AerialRace.Editor
             Cube(GizmoDrawList, translation + axisY * boxDist, halfSize, rotation, Color4.Lime);
             Cube(GizmoDrawList, translation + axisZ * boxDist, halfSize, rotation, Color4.Blue);
 
-            static void Direction(DrawList list, Vector3 origin, Vector3 dir, float length, Color4 color)
+            static void Direction(DrawList list, Vector3 origin, Vector3 dir, float length, Color4<Rgba> color)
             {
                 list.AddVertexWithIndex(origin, (0, 1), color);
                 list.AddVertexWithIndex(origin + (dir * length), (1, 0), color);
                 list.AddCommand(Primitive.Lines, 2, BuiltIn.WhiteTex);
             }
 
-            static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4 color)
+            static void Cube(DrawList list, Vector3 center, Vector3 halfSize, in Matrix3 rot, Color4<Rgba> color)
             {
                 Span<int> iArray = stackalloc int[6] { 0, 1, 2, 1, 3, 2 };
 
@@ -561,7 +561,7 @@ namespace AerialRace.Editor
 
             Vector3 pos = light.Transform.WorldPosition;
 
-            var color = new Color4(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
+            var color = new Color4<Rgba>(light.Intensity.X, light.Intensity.Y, light.Intensity.Z, 1f);
 
             //OutlineSphere(GizmoDrawList, pos, light.Radius, 50, color);
 
@@ -581,7 +581,7 @@ namespace AerialRace.Editor
 
         }
 
-        public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4 color)
+        public static void Billboard(DrawList list, Vector3 position, Vector3 right, Vector3 up, float size, Texture texture, Color4<Rgba> color)
         {
             list.Prewarm(4);
 
@@ -596,7 +596,7 @@ namespace AerialRace.Editor
             list.AddCommand(Primitive.TriangleStrip, 4, texture);
         }
 
-        public static void OutlineDisk(DrawList list, Disk disk, int segments, Color4 color)
+        public static void OutlineDisk(DrawList list, Disk disk, int segments, Color4<Rgba> color)
         {
             if (segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {segments}", nameof(segments));
             list.Prewarm(segments);
@@ -618,7 +618,7 @@ namespace AerialRace.Editor
             list.AddCommand(Primitive.LineLoop, segments, BuiltIn.WhiteTex);
         }
 
-        public static void OutlineSphere(DrawList list, Vector3 pos, float radius, int segments, Color4 color)
+        public static void OutlineSphere(DrawList list, Vector3 pos, float radius, int segments, Color4<Rgba> color)
         {
             if (segments <= 2) throw new ArgumentException($"Segments cannot be less than 2. {segments}", nameof(segments));
             list.Prewarm(segments);

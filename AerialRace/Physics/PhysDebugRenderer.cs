@@ -44,32 +44,32 @@ namespace AerialRace.Physics
             ref var activity = ref set.Activity[bodyIndex];
             ref var inertia = ref state.Inertia.Local;
 
-            Color4 color;
+            Color4<Rgba> color;
             if (Bodies.IsKinematic(inertia))
             {
-                color = new Color4(0f, 0.609f, 0.37f, 1f);
+                color = new Color4<Rgba>(0f, 0.609f, 0.37f, 1f);
             }
             else
             {
-                color = new Color4(0.8f, 0.1f, 0.566f, 1f);
+                color = new Color4<Rgba>(0.8f, 0.1f, 0.566f, 1f);
             }
 
             if (bodyIndex == 0)
             {
                 if (activity.SleepCandidate)
                 {
-                    color = new Color4(color.R * 0.35f, color.G * 0.35f, color.B * 0.7f, 1f);
+                    color = new Color4<Rgba>(color.X * 0.35f, color.Y * 0.35f, color.Z * 0.7f, 1f);
                 }
             }
             else
             {
-                color = new Color4(color.R * 0.2f, color.G * 0.2f, color.B * 0.4f, 1f);
+                color = new Color4<Rgba>(color.X * 0.2f, color.Y * 0.2f, color.Z * 0.4f, 1f);
             }
 
             RenderShape(shapes, set.Collidables[bodyIndex].Shape, ref state.Motion.Pose, color);
         }
 
-        public static unsafe void RenderShape(Shapes shapes, TypedIndex shapeIndex, ref RigidPose pose, Color4 color)
+        public static unsafe void RenderShape(Shapes shapes, TypedIndex shapeIndex, ref RigidPose pose, Color4<Rgba> color)
         {
             if (shapeIndex.Exists)
             {
@@ -78,7 +78,7 @@ namespace AerialRace.Physics
             }
         }
 
-        public static unsafe void RenderShape(void* data, int shapeType, Shapes shapes, ref RigidPose pose, Color4 color)
+        public static unsafe void RenderShape(void* data, int shapeType, Shapes shapes, ref RigidPose pose, Color4<Rgba> color)
         {
 
             switch (shapeType)

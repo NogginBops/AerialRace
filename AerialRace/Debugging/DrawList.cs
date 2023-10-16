@@ -1,7 +1,7 @@
 ﻿using AerialRace.RenderData;
 using OpenTK;
 using OpenTK.Graphics;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -20,13 +20,14 @@ namespace AerialRace.Debugging
 
         public Vector3 Position;
         public Vector2 UV;
-        public Color4 Color;
+        // We can't use Color4 here as it is not blittable..
+        public Vector4 Color;
 
-        public DrawListVertex(Vector3 position, Vector2 uv, Color4 color)
+        public DrawListVertex(Vector3 position, Vector2 uv, Color4<Rgba> color)
         {
             Position = position;
             UV = uv;
-            Color = color;
+            Color = color.AsVector4();
         }
 
         public override string ToString()
@@ -110,8 +111,8 @@ namespace AerialRace.Debugging
                 RenderDataUtil.ReallocBuffer(ref IndexBuffer, newSize);
             }
 
-            GL.NamedBufferSubData(VertexBuffer.Handle, IntPtr.Zero, Vertices.SizeInBytes, ref Vertices.Data[0]);
-            GL.NamedBufferSubData(IndexBuffer.Handle, IntPtr.Zero, Indicies.SizeInBytes, ref Indicies.Data[0]);
+            GL.NamedBufferSubData(VertexBuffer.Handle, IntPtr.Zero, Vertices.SizeInBytes, in Vertices.Data[0]);
+            GL.NamedBufferSubData(IndexBuffer.Handle, IntPtr.Zero, Indicies.SizeInBytes, in Indicies.Data[0]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -126,26 +127,26 @@ namespace AerialRace.Debugging
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddVertex(Vector2 Pos, Vector2 UV, Color4 Color)
+        public void AddVertex(Vector2 Pos, Vector2 UV, Color4<Rgba> Color)
         {
             Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddVertex(Vector3 Pos, Vector2 UV, Color4 Color)
+        public void AddVertex(Vector3 Pos, Vector2 UV, Color4<Rgba> Color)
         {
             Vertices.Add(new DrawListVertex(Pos, UV, Color));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4 Color)
+        public int AddVertexWithIndex(Vector2 Pos, Vector2 UV, Color4<Rgba> Color)
         {
             Vertices.Add(new DrawListVertex(new Vector3(Pos), UV, Color));
             return AddIndexOfLastVertex();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int AddVertexWithIndex(Vector3 Pos, Vector2 UV, Color4 Color)
+        public int AddVertexWithIndex(Vector3 Pos, Vector2 UV, Color4<Rgba> Color)
         {
             Vertices.Add(new DrawListVertex(Pos, UV, Color));
             return AddIndexOfLastVertex();

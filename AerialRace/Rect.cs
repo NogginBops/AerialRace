@@ -82,7 +82,7 @@ namespace AerialRace
             return HashCode.Combine(X, Y, Width, Height);
         }
 
-        public void DebugDraw(DrawList list, Color4 Color)
+        public void DebugDraw(DrawList list, Color4<Rgba> Color)
         {
             DebugHelper.RectOutline(list, Position, Size, Debug.FullUV, BuiltIn.WhiteTex, Color);
         }
@@ -170,7 +170,7 @@ namespace AerialRace
             return HashCode.Combine(X, Y, Width, Height);
         }
 
-        public void DebugDraw(DrawList list, Color4 Color)
+        public void DebugDraw(DrawList list, Color4<Rgba> Color)
         {
             DebugHelper.RectOutline(list, Position, Size, Debug.FullUV, BuiltIn.WhiteTex, Color);
         }

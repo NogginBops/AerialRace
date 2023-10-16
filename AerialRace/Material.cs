@@ -74,7 +74,7 @@ namespace AerialRace
         [FieldOffset(12)] public Vector2 Vector2Value;
         [FieldOffset(12)] public Vector3 Vector3Value;
         [FieldOffset(12)] public Vector4 Vector4Value;
-        [FieldOffset(12)] public Color4 ColorValue;
+        [FieldOffset(12)] public Color4<Rgba> ColorValue;
         [FieldOffset(12)] public Matrix3 Matrix3Value;
         [FieldOffset(12)] public Matrix4 Matrix4Value;
 
@@ -126,7 +126,7 @@ namespace AerialRace
             Vector4Value = vec4;
         }
 
-        public unsafe Property(string name, Color4 col)
+        public unsafe Property(string name, Color4<Rgba> col)
         {
             this = default;
             Name = name;

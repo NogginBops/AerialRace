@@ -103,9 +103,9 @@ namespace AerialRace.Loading
     {
         public string Name;
 
-        public Color4 Ka;
-        public Color4 Kd;
-        public Color4 Ks;
+        public Color4<Rgba> Ka;
+        public Color4<Rgba> Kd;
+        public Color4<Rgba> Ks;
         public float Ns;
         public float d;
 
@@ -391,7 +391,7 @@ namespace AerialRace.Loading
                         float ka2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
                         float ka3 = Util.ParseFloatFast(lineSpan[index3..]);
 
-                        currentMat.Ka = new Color4(ka1, ka2, ka3, 1f);
+                        currentMat.Ka = new Color4<Rgba>(ka1, ka2, ka3, 1f);
                     }
                     else if (line.StartsWithFast("Kd "))
                     {
@@ -403,7 +403,7 @@ namespace AerialRace.Loading
                         float kd2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
                         float kd3 = Util.ParseFloatFast(lineSpan[index3..]);
 
-                        currentMat.Kd = new Color4(kd1, kd2, kd3, 1f);
+                        currentMat.Kd = new Color4<Rgba>(kd1, kd2, kd3, 1f);
                     }
                     else if (line.StartsWithFast("Ks "))
                     {
@@ -415,7 +415,7 @@ namespace AerialRace.Loading
                         float ks2 = Util.ParseFloatFast(lineSpan[index2..(index3 - 1)]);
                         float ks3 = Util.ParseFloatFast(lineSpan[index3..]);
 
-                        currentMat.Ks = new Color4(ks1, ks2, ks3, 1f);
+                        currentMat.Ks = new Color4<Rgba>(ks1, ks2, ks3, 1f);
                     }
                     else if (line.StartsWithFast("d "))
                     {

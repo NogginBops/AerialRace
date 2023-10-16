@@ -1,33 +1,38 @@
 ﻿using AerialRace.Debugging;
 using AerialRace.DebugGui;
 using AerialRace.Loading;
+using AerialRace.Mathematics;
 using AerialRace.Physics;
 using AerialRace.RenderData;
-using AerialRace.Particles;
-using AerialRace.Mathematics;
 using ImGuiNET;
+using OpenTK.Core.Platform;
+using OpenTK.Graphics;
+using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using OpenTK.Platform.Native;
 using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
-using OpenTK.Graphics.OpenGL;
-using OpenTK.Graphics;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AerialRace
 {
-    internal class Window : GameWindow
+    internal class PAL2Window
     {
-        public Window(GameWindowSettings gwSettings, NativeWindowSettings nwSettins) : base(gwSettings, nwSettins)
-        {
-            // FIXME: OpenTK 5.0-pre.9 issue
-            GLLoader.LoadBindings(new GLFWBindingsContext());
+        static IWindowComponent WindowComp = PlatformComponents.CreateWindowComponent();
+        static IOpenGLComponent OpenGLComp = PlatformComponents.CreateOpenGLComponent();
+        static IKeyboardComponent KeyboardComp = PlatformComponents.CreateKeyboardComponent();
+        static IMouseComponent MouseComp = PlatformComponents.CreateMouseComponent();
 
-            Title += ": OpenGL Version: " + GL.GetString(StringName.Version);
-        }
+        public WindowHandle Window;
+        public OpenGLContextHandle Context;
 
         public static int LightFalloff = 1;
         public static float LightCutout = 0.01f;
@@ -43,9 +48,6 @@ namespace AerialRace
             ASCESApprox,
             Reinhard,
         }
-
-        public int Width => Size.X;
-        public int Height => Size.Y;
 
         public AssetDB AssetDB;
 
@@ -73,7 +75,6 @@ namespace AerialRace
 
         Sampler StandardSampler;
 
-        // FIXME: Remove static
         Texture ShipTexture;
 
         RigidBody TestBox;
@@ -109,12 +110,72 @@ namespace AerialRace
         private readonly static GLDebugProc DebugProcCallback = Window_DebugProc;
         private static GCHandle DebugProcGCHandle;
 
-        protected override void OnLoad()
+        public PAL2Window()
+        {
+            EventQueue.EventRaised += EventQueue_EventRaised;
+
+            WindowComp.Initialize(PalComponents.Window);
+            OpenGLComp.Initialize(PalComponents.OpenGL);
+            KeyboardComp.Initialize(PalComponents.KeyboardInput);
+
+            OpenGLGraphicsApiHints settings = new OpenGLGraphicsApiHints()
+            {
+                Version = new Version(4, 6),
+                Profile = OpenGLProfile.Core,
+                ForwardCompatibleFlag = true,
+                DebugFlag = true,
+            };
+
+            Window = WindowComp.Create(settings);
+            Context = OpenGLComp.CreateFromWindow(Window);
+
+            OpenGLComp.SetCurrentContext(Context);
+            GLLoader.LoadBindings(OpenGLComp.GetBindingsContext(Context));
+
+            WindowComp.SetTitle(Window, "AerialRacer: OpenGL Version: " + GL.GetString(StringName.Version));
+            WindowComp.SetClientSize(Window, 1920, 1080);
+            // Show the window
+            WindowComp.SetMode(Window, WindowMode.Normal);
+
+            OnLoad();
+        }
+
+        private void EventQueue_EventRaised(PalHandle? handle, PlatformEventType type, EventArgs args)
+        {
+            // Only look for window events relating to our window
+            if (args is WindowEventArgs windowArgs && windowArgs.Window == Window)
+            {
+                if (args is CloseEventArgs close)
+                {
+                    WindowComp.Destroy(close.Window);
+                }
+                else if (args is WindowResizeEventArgs resize)
+                {
+                    Screen.UpdateScreenSize(resize.NewSize);
+                    ImGuiController?.WindowResized(resize.NewSize.X, resize.NewSize.Y);
+                }
+                else if (args is MouseButtonDownEventArgs mouseDown)
+                {
+                    if (mouseDown.Button == OpenTK.Core.Platform.MouseButton.Button2)
+                    {
+                        rightMouseButtonIsDown = true;
+                    }
+                }
+                else if (args is MouseButtonUpEventArgs mouseUp)
+                {
+                    if (mouseUp.Button == OpenTK.Core.Platform.MouseButton.Button2)
+                    {
+                        rightMouseButtonIsDown = false;
+                    }
+                }
+            }
+        }
+
+        public void OnLoad()
         {
             System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
             watch.Start();
 
-            base.OnLoad();
             Directory.SetCurrentDirectory("..\\..\\..\\Assets");
 
             DebugProcGCHandle = GCHandle.Alloc(DebugProcCallback, GCHandleType.Normal);
@@ -135,9 +196,11 @@ namespace AerialRace
             Debug.WriteLine("sRGB to ACEScg");
             Debug.WriteLine(Matrix3d.Transpose(ColorSpace.CalcConvertionMatrix(ColorSpace.Linear_sRGB, ColorSpace.ACEScg)).ToString());
 
-            Debug.WriteLine(GLFW.GetVersionString());
+            // FIXME: PAL2 version string?
+            Debug.WriteLine($"WindowComp={WindowComp.Name}, OpenGLComp={OpenGLComp}");
 
-            Screen.UpdateScreenSize(Size);
+            WindowComp.GetClientSize(Window, out int width, out int height);
+            Screen.UpdateScreenSize(new Vector2i(width, height));
             Screen.NewFrame();
 
             AssetDB = new AssetDB();
@@ -148,9 +211,10 @@ namespace AerialRace
 
             RenderDataUtil.QueryLimits();
             BuiltIn.StaticCtorTrigger();
-            Debug.Init(Width, Height);
+            Debug.Init(width, height);
 
-            VSync = VSyncMode.On;
+            // Enable VSync
+            OpenGLComp.SetSwapInterval(1);
 
             Lights = new Lights();
             var light1 = Lights.AddPointLight("Light 1", new Vector3(1, 5, 1), Color4.Antiquewhite, 30, 100);
@@ -162,7 +226,7 @@ namespace AerialRace
                 var pos = rand.NextPosition((-150, 1f, -150), (150, 30, 150));
                 var color = rand.NextColorHue(1, 1);
                 var radius = Util.MapRange(rand.NextFloat(), 0, 1, 40, 200);
-                var light = Lights.AddPointLight($"Light {i+2}", pos, color, radius, rand.NextFloat() * 1000);
+                var light = Lights.AddPointLight($"Light {i + 2}", pos, color, radius, rand.NextFloat() * 1000);
 
                 light.Transform.SetParent(randLights);
             }
@@ -214,7 +278,7 @@ namespace AerialRace
             // FIXME: Magic numbers
             QuadMesh.AddLink(3, 1);
 
-            QuadTransform = new Transform("Quad", new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI/4f));
+            QuadTransform = new Transform("Quad", new Vector3(0f, 0f, -2f), Quaternion.FromAxisAngle(Vector3.UnitY, MathF.PI / 4f));
 
             ChildTransform = new Transform("Child", new Vector3(1f, 1f, 0f));
 
@@ -366,7 +430,7 @@ namespace AerialRace
                 domeMat.Properties.SetProperty(new Property("material.Metallic", 0.8f));
                 domeMat.Properties.SetProperty(new Property("material.Roughness", 0.5f));
                 domeMat.Properties.SetProperty(new Property("InvertRoughness", false));
-                
+
                 SimpleMaterial physMatDome = new SimpleMaterial()
                 {
                     FrictionCoefficient = 1f,
@@ -414,7 +478,8 @@ namespace AerialRace
             }
 
             // Load sponza
-            if (true) {
+            if (true)
+            {
                 Transform baseTransform = new Transform("Sponza");
 
                 baseTransform.LocalScale = new Vector3(0.2f, 0.2f, 0.2f);
@@ -506,20 +571,20 @@ namespace AerialRace
 
             TestBoxTransform = new Transform("Test Box", new Vector3(0, 20f, 0), Quaternion.FromAxisAngle(new Vector3(1, 0, 0), 0.1f), Vector3.One);
             TestBox = new RigidBody(new BoxCollider(new Vector3(1, 1, 1) * 2), TestBoxTransform, 1f, SimpleMaterial.Default, SimpleBody.Default);
-            
+
             TestBoxRenderer = new MeshRenderer(TestBoxTransform, cube, Material);
 
-            ImGuiController = new ImGuiController(Width, Height);
+            ImGuiController = new ImGuiController(width, height);
 
             {
                 {
                     HDRSceneBuffer = RenderDataUtil.CreateEmptyFramebuffer("HDR Scene Buffer");
 
                     // FIXME: Rgba16F?
-                    var hdrColor = RenderDataUtil.CreateEmpty2DTexture("HDR Texture", TextureFormat.Rgba32F, Width, Height);
+                    var hdrColor = RenderDataUtil.CreateEmpty2DTexture("HDR Texture", TextureFormat.Rgba32F, width, height);
                     RenderDataUtil.AddColorAttachment(HDRSceneBuffer, hdrColor, 0, 0);
 
-                    var hdrDepth = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, Width, Height);
+                    var hdrDepth = RenderDataUtil.CreateEmpty2DTexture("Depth Prepass Texture", TextureFormat.Depth32F, width, height);
                     RenderDataUtil.AddDepthAttachment(HDRSceneBuffer, hdrDepth, 0);
 
                     Screen.RegisterFramebuffer(HDRSceneBuffer);
@@ -542,10 +607,10 @@ namespace AerialRace
 
                     MultisampleHDRSceneBuffer = RenderDataUtil.CreateEmptyFramebuffer("Multisample HDR Scene Buffer");
 
-                    var msHdrColor = RenderDataUtil.CreateEmptyMultisample2DTexture("Multisample HDR Texture", TextureFormat.Rgba32F, Width, Height, SAMPLES, false);
+                    var msHdrColor = RenderDataUtil.CreateEmptyMultisample2DTexture("Multisample HDR Texture", TextureFormat.Rgba32F, width, height, SAMPLES, false);
                     RenderDataUtil.AddColorAttachment(MultisampleHDRSceneBuffer, msHdrColor, 0, 0);
 
-                    var msHdrDepth = RenderDataUtil.CreateEmptyMultisample2DTexture("Multisample Depth Prepass Texture", TextureFormat.Depth32F, Width, Height, SAMPLES, false);
+                    var msHdrDepth = RenderDataUtil.CreateEmptyMultisample2DTexture("Multisample Depth Prepass Texture", TextureFormat.Depth32F, width, height, SAMPLES, false);
                     RenderDataUtil.AddDepthAttachment(MultisampleHDRSceneBuffer, msHdrDepth, 0);
 
                     Screen.RegisterFramebuffer(MultisampleHDRSceneBuffer);
@@ -565,7 +630,7 @@ namespace AerialRace
 
             {
                 VectorscopePipeline = ShaderCompiler.CompilePipeline("Vectorscope", "./Shaders/VectorScopeTest.vert", "./Shaders/Unlit.frag");
-                HDRSceneVectorscopeBuffer = RenderDataUtil.CreateDataBuffer("Vectorscope buffer", Width * Height, 4 * 4, BufferFlags.Dynamic);
+                HDRSceneVectorscopeBuffer = RenderDataUtil.CreateDataBuffer("Vectorscope buffer", width * height, 4 * 4, BufferFlags.Dynamic);
             }
 
             {
@@ -601,10 +666,11 @@ namespace AerialRace
                 sunPosition.Normalized(),
                 new Color4<Rgba>(1f, 1f, 1f, 1f),
                 //new Color4(2f, 3f, 6f, 1f),
-                new Color4<Rgba>(2f/6f, 3f/6f, 6f/6f, 1f),
+                new Color4<Rgba>(2f / 6f, 3f / 6f, 6f / 6f, 1f),
                 new Color4<Rgba>(0.188f, 0.082f, 0.016f, 1f));
 
-            Editor.Editor.InitEditor(this);
+            // FIXME:
+            //Editor.Editor.InitEditor(this);
 
             // Setup an always bound VAO
             RenderDataUtil.SetupGlobalVAO();
@@ -613,16 +679,37 @@ namespace AerialRace
             Debug.WriteLine($"OnLoad took {watch.ElapsedMilliseconds}ms");
         }
 
-        public float ShaderReloadCheckTimer = 0;
-        protected override void OnRenderFrame(FrameEventArgs args)
+        public void Run()
         {
-            base.OnRenderFrame(args);
+            System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+            while (true)
+            {
+                WindowComp.ProcessEvents();
+
+                if (WindowComp.IsWindowDestroyed(Window))
+                {
+                    break;
+                }
+
+                // FIXME: Proper deltaTime!
+                OnUpdateFrame(1f / 144f);
+                OnRenderFrame(1f / 144f);
+
+                Console.WriteLine($"Time: {(watch.ElapsedTicks / (float)System.Diagnostics.Stopwatch.Frequency) * 1000:0.000}ms");
+                watch.Restart();
+            }
+        }
+
+        public float ShaderReloadCheckTimer = 0;
+        protected void OnRenderFrame(double dt)
+        {
+            float deltaTime = (float)dt;
 
             Editor.Profiling.NewFrame();
             // FIXME: passID = -1 is bad
             Editor.Profiling.PushSpan("Frame", -1);
 
-            ShaderReloadCheckTimer += (float)args.Time;
+            ShaderReloadCheckTimer += deltaTime;
             if (ShaderReloadCheckTimer >= 1)
             {
                 LiveShaderLoader.RecompileShadersIfNeeded();
@@ -631,16 +718,16 @@ namespace AerialRace
 
             Screen.NewFrame();
 
-            float deltaTime = (float)args.Time;
-
             Phys.Update(deltaTime);
 
             var ppos = TestBoxTransform.LocalPosition;
             TestBox.UpdateTransform(TestBoxTransform);
 
-            Debug.NewFrame(Width, Height);
+            WindowComp.GetClientSize(Window, out int width, out int height);
+            Debug.NewFrame(width, height);
 
-            ImGuiController.Update(this, (float)args.Time);
+            // FIXME: Update Imgui controller.
+            //ImGuiController.Update(this, deltaTime);
             // Update above calls ImGui.NewFrame()...
             // ImGui.NewFrame();
 
@@ -684,7 +771,7 @@ namespace AerialRace
 
             using (_ = RenderDataUtil.PushGenericPass("SwapBuffer"))
             {
-                SwapBuffers();
+                OpenGLComp.SwapBuffers(Context);
             }
 
             Editor.Profiling.PopSpan(-1);
@@ -747,7 +834,8 @@ namespace AerialRace
             {
                 if (meshRenderer.CastShadows)
                 {
-                    shadowCasters.Add(new ShadowCaster(){
+                    shadowCasters.Add(new ShadowCaster()
+                    {
                         AABB = MeshRenderer.RecalculateAABB(meshRenderer.Mesh.AABB, meshRenderer.Transform),
                         CulledMask = 0,
                     });
@@ -908,7 +996,7 @@ namespace AerialRace
                 RenderDataUtil.SetDepthWrite(true);
                 RenderDataUtil.SetColorWrite(ColorChannels.None);
                 RenderDataUtil.Clear(ClearMask.Depth);
-                
+
                 RenderDataUtil.SetDepthFunc(DepthFunc.PassIfLessOrEqual);
 
                 MeshRenderer.Render(ref depthPrePass);
@@ -1014,7 +1102,8 @@ namespace AerialRace
                     }
                 }
 
-                if (false) {
+                if (false)
+                {
                     var cullingData = CameraFrustumCullingData.FromCamera(cullingCamera);
 
                     DebugHelper.FrustumPoints(Editor.Gizmos.GizmoDrawList, cullingData.Points,
@@ -1070,13 +1159,14 @@ namespace AerialRace
                     }
                 }
             }
-            
+
             using (_ = RenderDataUtil.PushGenericPass("HDR to LDR pass"))
             {
                 RenderDataUtil.SetCullMode(CullMode.Back);
 
                 RenderDataUtil.BindDrawFramebuffer(null);
-                RenderDataUtil.SetViewport(0, 0, Width, Height);
+                WindowComp.GetClientSize(Window, out int width, out int height);
+                RenderDataUtil.SetViewport(0, 0, width, height);
 
                 if (UseMSAA)
                 {
@@ -1162,26 +1252,24 @@ namespace AerialRace
         }
 
         float TotalTime = 0;
-        protected override void OnUpdateFrame(FrameEventArgs args)
+        protected void OnUpdateFrame(double deltaTime)
         {
-            base.OnUpdateFrame(args);
+            TotalTime += (float)deltaTime;
 
-            TotalTime += (float)args.Time;
-
-            if (args.Time > 0.17)
+            if (deltaTime > 0.17)
             {
-                Debug.WriteLine($"Long frame time: {args.Time:0.000}");
+                Debug.WriteLine($"Long frame time: {deltaTime:0.000}");
             }
 
             //QuadTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(0, -1, 0), 0.1f * MathF.PI * (float)args.Time);
             //QuadTransform.LocalPosition = new Vector3(1, MathF.Sin(TotalTime * MathF.PI * 0.2f), -2);
 
-            ChildTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)args.Time);
+            ChildTransform.LocalRotation *= Quaternion.FromAxisAngle(new Vector3(1, 0, 0), MathF.PI * (float)deltaTime);
 
             //Camera.Transform.Rotation *= Quaternion.FromAxisAngle(new Vector3(0, 1, 0), 2 * MathF.PI * (float)args.Time);
 
             // Exit if needed
-            if (IsKeyPressed(Keys.Escape))
+            /*if (IsKeyPressed(Keys.Escape))
             {
                 Close();
             }
@@ -1208,15 +1296,15 @@ namespace AerialRace
                 {
                     WindowState = WindowState.Fullscreen;
                 }
-            }
+            }*/
 
             // Toggle editor mode
-            var ctrlDown = KeyboardState.IsKeyDown(Keys.LeftControl) | KeyboardState.IsKeyDown(Keys.Right);
+            /*var ctrlDown = KeyboardState.IsKeyDown(Keys.LeftControl) | KeyboardState.IsKeyDown(Keys.Right);
             if (ctrlDown && KeyboardState.IsKeyPressed(Keys.E))
             {
                 Editor.Editor.InEditorMode = !Editor.Editor.InEditorMode;
-                
-            }
+
+            }*/
 
             // FIXME: Make a keyboard input thing that has a on/off toggle to
             // make this easier.
@@ -1228,16 +1316,16 @@ namespace AerialRace
 
             if (Editor.Editor.InEditorMode)
             {
-                Editor.Editor.UpdateEditor(KeyboardState, MouseState, (float)args.Time);
+                //Editor.Editor.UpdateEditor(KeyboardState, MouseState, (float)args.Time);
             }
             else
             {
-                HandleKeyboard(KeyboardState, (float)args.Time);
-                HandleMouse(MouseState, (float)args.Time);
+                //HandleKeyboard(KeyboardState, (float)args.Time);
+                HandleMouse((float)deltaTime);
             }
         }
 
-
+        static Vector2? LastMousePos;
         public void HandleKeyboard(KeyboardState keyboard, float deltaTime)
         {
             var io = ImGui.GetIO();
@@ -1249,32 +1337,31 @@ namespace AerialRace
             Ship.Player.UpdateControls(keyboard, deltaTime);
         }
 
-        public void HandleMouse(MouseState mouse, float deltaTime)
+        bool rightMouseButtonIsDown = false;
+        public void HandleMouse(float deltaTime)
         {
+            MouseComp.GetPosition(out int x, out int y);
+            Vector2 pos = (x, y);
+            if (LastMousePos == null) LastMousePos = pos;
+            Vector2 delta = LastMousePos.Value - pos;
+            LastMousePos = pos;
+            Console.WriteLine( delta);
+
             // FIXME: Make this better so that we don't have to split mouse and keyboard input!
             var io = ImGui.GetIO();
             if (io.WantCaptureMouse)
                 return;
 
-            Ship.Player.UpdateCamera(mouse, deltaTime);
+            Ship.Player.UpdateCamera2(delta, rightMouseButtonIsDown, deltaTime);
         }
 
-        protected override void OnResize(ResizeEventArgs e)
+        // FIXME: Delta time!
+        public void Render()
         {
-            base.OnResize(e);
+            GL.ClearColor(Color4.Coral);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
 
-            Screen.UpdateScreenSize(new Vector2i(e.Width, e.Height));
-
-            ImGuiController.WindowResized(e.Width, e.Height);
-
-            // FIXME: Adjust things that need to be adjusted
-        }
-
-        protected override void OnTextInput(TextInputEventArgs e)
-        {
-            base.OnTextInput(e);
-
-            ImGuiController.PressChar((char)e.Unicode);
+            OpenGLComp.SwapBuffers(Context);
         }
 
         private static void Window_DebugProc(DebugSource source, DebugType type, uint id, DebugSeverity severity, int length, IntPtr messagePtr, IntPtr userParam)

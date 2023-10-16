@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AerialRace.RenderData;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using AerialRace.Debugging;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace AerialRace.Loading
 {
@@ -31,26 +32,27 @@ namespace AerialRace.Loading
             var pipeline = new ShaderPipeline(name, handle, null, null, null, null);
 
             if (vertexProgram != null)
-                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.VertexShaderBit, vertexProgram.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.VertexShaderBit, vertexProgram.Handle);
             pipeline.VertexProgram = vertexProgram;
 
             if (geometryProgram != null)
-                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.FragmentShaderBit, geometryProgram.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.FragmentShaderBit, geometryProgram.Handle);
             pipeline.GeometryProgram = geometryProgram;
 
             if (fragmentProgram != null)
-                GL.UseProgramStages(pipeline.Handle, ProgramStageMask.FragmentShaderBit, fragmentProgram.Handle);
+                GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.FragmentShaderBit, fragmentProgram.Handle);
             pipeline.FragmentProgram = fragmentProgram;
 
             // FIXME: Move this function out of the class
             pipeline.UpdateUniforms();
 
             GL.ValidateProgramPipeline(pipeline.Handle);
-            GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.ValidateStatus, out int valid);
+
+            int valid = GL.GetProgramPipelinei(pipeline.Handle, (PipelineParameterName)All.ValidateStatus);
             if (valid == 0)
             {
-                GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.InfoLogLength, out int logLength);
-                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, out _, out string info);
+                int logLength = GL.GetProgramPipelinei(pipeline.Handle, PipelineParameterName.InfoLogLength);
+                string info = GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, null!);
 
                 Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
 
@@ -72,18 +74,18 @@ namespace AerialRace.Loading
 
             var pipeline = new ShaderPipeline(name, handle, null, null, null, computeProgram);
 
-            GL.UseProgramStages(pipeline.Handle, ProgramStageMask.ComputeShaderBit, computeProgram.Handle);
+            GL.UseProgramStages(pipeline.Handle, UseProgramStageMask.ComputeShaderBit, computeProgram.Handle);
             pipeline.ComputeProgram = computeProgram;
 
             // FIXME: Move this function out of the class
             pipeline.UpdateUniforms();
 
             GL.ValidateProgramPipeline(pipeline.Handle);
-            GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.ValidateStatus, out int valid);
+            int valid = GL.GetProgramPipelinei(pipeline.Handle, (PipelineParameterName)All.ValidateStatus);
             if (valid == 0)
             {
-                GL.GetProgramPipeline(pipeline.Handle, ProgramPipelineParameter.InfoLogLength, out int logLength);
-                GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, out _, out string info);
+                int logLength = GL.GetProgramPipelinei(pipeline.Handle, PipelineParameterName.InfoLogLength);
+                string info = GL.GetProgramPipelineInfoLog(pipeline.Handle, logLength, null!);
 
                 Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
 
@@ -111,7 +113,7 @@ namespace AerialRace.Loading
         private static ShaderProgram CompileProgram(string name, ShaderStage stage, string source, ShaderSourceDescription? sourceDesc)
         {
             GLUtil.CreateProgram(name, out int handle);
-            GL.ProgramParameter(handle, ProgramParameterName.ProgramSeparable, 1);
+            GL.ProgramParameteri(handle, ProgramParameterPName.ProgramSeparable, 1);
 
             //program = new ShaderProgram(name, handle, stage, new Dictionary<string, int>(), new Dictionary<string, int>(), null, null);
 
@@ -120,10 +122,10 @@ namespace AerialRace.Loading
 
             GL.CompileShader(shader);
 
-            GL.GetShader(shader, ShaderParameter.CompileStatus, out int success);
+            int success = GL.GetShaderi(shader, ShaderParameterName.CompileStatus);
             if (success == 0)
             {
-                string info = GL.GetShaderInfoLog(shader);
+                GL.GetShaderInfoLog(shader, out string info);
                 // FIXME: Process the compile error using sourceDesc
                 Debug.WriteLine($"Error in {stage} shader '{name}':\n{info}");
 
@@ -140,10 +142,10 @@ namespace AerialRace.Loading
             GL.DetachShader(handle, shader);
             GL.DeleteShader(shader);
 
-            GL.GetProgram(handle, GetProgramParameterName.LinkStatus, out int isLinked);
+            int isLinked = GL.GetProgrami(handle, ProgramPropertyARB.LinkStatus);
             if (isLinked == 0)
             {
-                string info = GL.GetProgramInfoLog(handle);
+                GL.GetProgramInfoLog(handle, out string info);
                 Debug.WriteLine($"Error in {stage} program '{name}':\n{info}");
 
                 GL.DeleteProgram(handle);
@@ -163,17 +165,17 @@ namespace AerialRace.Loading
             var source = ShaderPreprocessor.PreprocessSource(program.Source!.MainFile.FullName, out program.Source);
 
             GLUtil.CreateProgram(program.Name, out var handle);
-            GL.ProgramParameter(handle, ProgramParameterName.ProgramSeparable, 1);
+            GL.ProgramParameteri(handle, ProgramParameterPName.ProgramSeparable, 1);
 
             GLUtil.CreateShader(program.Name, RenderDataUtil.ToGLShaderType(program.Stage), out var shader);
 
             GL.ShaderSource(shader, source);
             GL.CompileShader(shader);
 
-            GL.GetShader(shader, ShaderParameter.CompileStatus, out int success);
+            int success = GL.GetShaderi(shader, ShaderParameterName.CompileStatus);
             if (success == 0)
             {
-                string info = GL.GetShaderInfoLog(shader);
+                GL.GetShaderInfoLog(shader, out string info);
                 // FIXME: Process the compile error using sourceDesc
                 Debug.WriteLine($"Error in {program.Stage} shader '{program.Name}':\n{info}");
 
@@ -193,10 +195,10 @@ namespace AerialRace.Loading
             GL.DetachShader(handle, shader);
             GL.DeleteShader(shader);
 
-            GL.GetProgram(handle, GetProgramParameterName.LinkStatus, out int isLinked);
+            int isLinked = GL.GetProgrami(handle, ProgramPropertyARB.LinkStatus);
             if (isLinked == 0)
             {
-                string info = GL.GetProgramInfoLog(handle);
+                GL.GetProgramInfoLog(handle, out string info);
                 Debug.WriteLine($"Error in {program.Stage} program '{program.Name}':\n{info}");
 
                 GL.DeleteProgram(handle);
@@ -215,23 +217,23 @@ namespace AerialRace.Loading
             GLUtil.CreateProgramPipeline(pipeline.Name, out var handle);
 
             if (pipeline.VertexProgram != null)
-                GL.UseProgramStages(handle, ProgramStageMask.VertexShaderBit, pipeline.VertexProgram.Handle);
+                GL.UseProgramStages(handle, UseProgramStageMask.VertexShaderBit, pipeline.VertexProgram.Handle);
 
             if (pipeline.GeometryProgram != null)
-                GL.UseProgramStages(handle, ProgramStageMask.GeometryShaderBit, pipeline.GeometryProgram.Handle);
+                GL.UseProgramStages(handle, UseProgramStageMask.GeometryShaderBit, pipeline.GeometryProgram.Handle);
 
             if (pipeline.FragmentProgram != null)
-                GL.UseProgramStages(handle, ProgramStageMask.FragmentShaderBit, pipeline.FragmentProgram.Handle);
+                GL.UseProgramStages(handle, UseProgramStageMask.FragmentShaderBit, pipeline.FragmentProgram.Handle);
 
             if (pipeline.ComputeProgram != null)
-                GL.UseProgramStages(handle, ProgramStageMask.ComputeShaderBit, pipeline.ComputeProgram.Handle);
+                GL.UseProgramStages(handle, UseProgramStageMask.ComputeShaderBit, pipeline.ComputeProgram.Handle);
 
             GL.ValidateProgramPipeline(handle);
-            GL.GetProgramPipeline(handle, ProgramPipelineParameter.ValidateStatus, out int valid);
+            int valid = GL.GetProgramPipelinei(handle, (PipelineParameterName)All.ValidateStatus);
             if (valid == 0)
             {
-                GL.GetProgramPipeline(handle, ProgramPipelineParameter.InfoLogLength, out int logLength);
-                GL.GetProgramPipelineInfoLog(handle, logLength, out _, out string info);
+                int logLength = GL.GetProgramPipelinei(handle, PipelineParameterName.InfoLogLength);
+                string info = GL.GetProgramPipelineInfoLog(handle, logLength, ref Unsafe.NullRef<int>());
 
                 Debug.WriteLine($"Error in program pipeline '{pipeline.Name}':\n{info}");
 
@@ -255,13 +257,15 @@ namespace AerialRace.Loading
 
             UniformFieldInfo[] uniformInfo;
             if (false) {
-                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniforms, out int uniformCount);
+                int uniformCount = GL.GetProgrami(program.Handle, ProgramPropertyARB.ActiveUniforms);
 
                 uniformInfo = new UniformFieldInfo[uniformCount];
 
                 for (int i = 0; i < uniformCount; i++)
                 {
-                    string uniformName = GL.GetActiveUniform(program.Handle, i, out int size, out ActiveUniformType type);
+                    int size = default;
+                    UniformType type = default;
+                    string uniformName = GL.GetActiveUniform(program.Handle, (uint)i, 1024, ref Unsafe.NullRef<int>(), ref size, ref type);
                     var location = GL.GetUniformLocation(program.Handle, uniformName);
 
                     UniformFieldInfo fieldInfo;
@@ -278,28 +282,28 @@ namespace AerialRace.Loading
             }
 
             {
-                GL.GetProgramInterface(program.Handle, ProgramInterface.Uniform, ProgramInterfaceParameter.ActiveResources, out int uniformCount);
+                int uniformCount = GL.GetProgramInterfacei(program.Handle, ProgramInterface.Uniform, ProgramInterfacePName.ActiveResources);
                 RefList<UniformFieldInfo> uniformInfo2 = new RefList<UniformFieldInfo>(uniformCount);
-                Span<ProgramProperty> props = stackalloc ProgramProperty[] {
-                    ProgramProperty.BlockIndex,
-                    ProgramProperty.NameLength,
-                    ProgramProperty.Type,
-                    ProgramProperty.Location,
-                    ProgramProperty.ArraySize,
+                Span<ProgramResourceProperty> props = stackalloc ProgramResourceProperty[] {
+                    ProgramResourceProperty.BlockIndex,
+                    ProgramResourceProperty.NameLength,
+                    ProgramResourceProperty.Type,
+                    ProgramResourceProperty.Location,
+                    ProgramResourceProperty.ArraySize,
                 };
                 Span<int> data = stackalloc int[props.Length];
 
                 for (int i = 0; i < uniformCount; i++)
                 {
-                    GL.GetProgramResource(program.Handle, ProgramInterface.Uniform, i, props.Length, ref props[0], data.Length, out _, out data[0]);
+                    GL.GetProgramResourcei(program.Handle, ProgramInterface.Uniform, (uint)i, props.Length, in props[0], data.Length, ref Unsafe.NullRef<int>(), ref data[0]);
 
                     if (data[0] != -1) continue;
 
                     ref var uniform = ref uniformInfo2.RefAdd();
 
-                    GL.GetProgramResourceName(program.Handle, ProgramInterface.Uniform, i, data[1], out _, out uniform.Name);
+                    GL.GetProgramResourceName(program.Handle, ProgramInterface.Uniform, (uint)i, data[1], ref Unsafe.NullRef<int>(), out uniform.Name);
 
-                    uniform.Type = (ActiveUniformType)data[2];
+                    uniform.Type = (UniformType)data[2];
                     uniform.Location = data[3];
                     uniform.Size = data[4];
 
@@ -313,24 +317,25 @@ namespace AerialRace.Loading
 
             UniformBlockInfo[] blockInfo;
             {
-                GL.GetProgram(program.Handle, GetProgramParameterName.ActiveUniformBlocks, out int uniformBlockCount);
+                int uniformBlockCount = GL.GetProgrami(program.Handle, ProgramPropertyARB.ActiveUniformBlocks);
 
                 blockInfo = new UniformBlockInfo[uniformBlockCount];
 
                 for (int i = 0; i < uniformBlockCount; i++)
                 {
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniforms, out int uniformsInBlockCount);
+
+                    int uniformsInBlockCount = GL.GetActiveUniformBlocki(program.Handle, (uint)i, UniformBlockPName.UniformBlockActiveUniforms);
 
                     Span<int> uniformIndices = stackalloc int[uniformsInBlockCount];
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockActiveUniformIndices, out uniformIndices[0]);
+                    GL.GetActiveUniformBlocki(program.Handle, (uint)i, UniformBlockPName.UniformBlockActiveUniformIndices, uniformIndices);
 
-                    GL.GetActiveUniformBlock(program.Handle, i, ActiveUniformBlockParameter.UniformBlockNameLength, out int nameLength);
-                    GL.GetActiveUniformBlockName(program.Handle, i, nameLength, out _, out string uniformBlockName);
+                    int nameLength = GL.GetActiveUniformBlocki(program.Handle, (uint)i, UniformBlockPName.UniformBlockNameLength);
+                    GL.GetActiveUniformBlockName(program.Handle, (uint)i, nameLength, ref Unsafe.NullRef<int>(), out string uniformBlockName);
 
-                    int blockIndex = GL.GetUniformBlockIndex(program.Handle, uniformBlockName);
+                    int blockIndex = (int)GL.GetUniformBlockIndex(program.Handle, uniformBlockName);
 
                     // FIXME: Do something better here!
-                    GL.UniformBlockBinding(program.Handle, blockIndex, blockIndex);
+                    GL.UniformBlockBinding(program.Handle, (uint)blockIndex, (uint)blockIndex);
 
                     blockInfo[i].Name = uniformBlockName;
                     blockInfo[i].Index = blockIndex;
@@ -343,7 +348,9 @@ namespace AerialRace.Loading
                     var blockMember = blockInfo[i].Members;
                     for (int j = 0; j < uniformIndices.Length; j++)
                     {
-                        string uniformName = GL.GetActiveUniform(program.Handle, uniformIndices[j], out int uniformSize, out var uniformType);
+                        int uniformSize = default;
+                        UniformType uniformType = default;
+                        string uniformName = GL.GetActiveUniform(program.Handle, (uint)uniformIndices[j], 1024, ref Unsafe.NullRef<int>(), ref uniformSize, ref uniformType);
 
                         blockMember[j].Location = uniformIndices[j];
                         blockMember[j].Name = uniformName;

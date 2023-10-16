@@ -1,4 +1,5 @@
 ﻿using AerialRace.Debugging;
+using OpenTK;
 using OpenTK.Mathematics;
 using System;
 using System.Collections.Generic;
@@ -192,11 +193,17 @@ namespace AerialRace
         public static ref Quaternion AsOpenTK(ref this System.Numerics.Quaternion quat) =>
             ref Unsafe.As<System.Numerics.Quaternion, Quaternion>(ref quat);
 
-        public static ref System.Numerics.Vector4 AsNumerics4(ref this Color4 col) =>
-            ref Unsafe.As<Color4, System.Numerics.Vector4>(ref col);
+        public static ref Vector4 AsVector4<T>(ref this Color4<T> col) where T : IColorSpace4 =>
+            ref Unsafe.As<Color4<T>, Vector4>(ref col);
 
-        public static ref System.Numerics.Vector3 AsNumerics3(ref this Color4 col) =>
-            ref Unsafe.As<Color4, System.Numerics.Vector3>(ref col);
+        public static ref Vector3 AsVector3<T>(ref this Color4<T> col) where T : IColorSpace4 =>
+            ref Unsafe.As<Color4<T>, Vector3>(ref col);
+
+        public static ref System.Numerics.Vector4 AsNumerics4<T>(ref this Color4<T> col) where T : IColorSpace4 =>
+            ref Unsafe.As<Color4<T>, System.Numerics.Vector4>(ref col);
+
+        public static ref System.Numerics.Vector3 AsNumerics3<T>(ref this Color4<T> col) where T : IColorSpace4 =>
+            ref Unsafe.As<Color4<T>, System.Numerics.Vector3>(ref col);
 
 
 
@@ -258,9 +265,9 @@ namespace AerialRace
             return DateTime.Compare(before, later) < 0;
         }
 
-        public static Color4 WithAlpha(this Color4 color, float alpha)
+        public static Color4<Rgba> WithAlpha(this Color4<Rgba> color, float alpha)
         {
-            return new Color4(color.R, color.G, color.B, alpha);
+            return new Color4<Rgba>(color.X, color.Y, color.Z, alpha);
         }
 
 
@@ -272,9 +279,9 @@ namespace AerialRace
             return (pos * (max - min)) + min;
         }
 
-        public static Color4 NextColorHue(this Random rand, float saturation, float value)
+        public static Color4<Rgba> NextColorHue(this Random rand, float saturation, float value)
         {
-            return Color4.FromHsv(new Vector4(rand.NextFloat(), saturation, value, 1f));
+            return new Color4<Hsva>(rand.NextFloat(), saturation, value, 1f).ToRgba();
         }
 
         public static Vector3 NextOnUnitSphere(this Random rand)

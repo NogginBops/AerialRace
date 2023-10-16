@@ -1,5 +1,5 @@
 ﻿using AerialRace.RenderData;
-using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics.OpenGL;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -32,14 +32,14 @@ namespace AerialRace.Loading
                 (SizedInternalFormat)All.Srgb8Alpha8 :
                 SizedInternalFormat.Rgba8;
 
-            GLUtil.CreateTexture(name, OpenTK.Graphics.OpenGL4.TextureTarget.Texture2D, out int texture);
+            GLUtil.CreateTexture(name, OpenTK.Graphics.OpenGL.TextureTarget.Texture2d, out int texture);
             GL.TextureStorage2D(texture, mipmapLevels, internalFormat, image.Width, image.Height);
 
             if (image.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
             {
                 Span<Rgba32> allData = memory.Span;
                 image.Mutate(x => x.Flip(FlipMode.Vertical));
-                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedInt8888Reversed, ref allData[0]);
+                GL.TextureSubImage2D(texture, 0, 0, 0, image.Width, image.Height, PixelFormat.Rgba, PixelType.UnsignedInt8888Rev, in allData[0]);
             }
             else
             {
