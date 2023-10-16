@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <StartupObject>AerialRace.Program</StartupObject>
   </PropertyGroup>
@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BEPUphysics" Version="2.5.0-beta.8" />
+    <PackageReference Include="BEPUphysics" Version="2.5.0-beta.13" />
     <PackageReference Include="ImGui.NET" Version="1.89.9.2" />
     <PackageReference Include="OpenTK" Version="4.8.1" />
     <PackageReference Include="SixLabors.ImageSharp" Version="2.1.3" />

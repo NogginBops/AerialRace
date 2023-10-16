@@ -427,6 +427,11 @@ namespace AerialRace.Loading
                         string name = line["map_Kd ".Length..];
                         currentMat.MapKd = Path.Combine(dir, name);
                     }
+                    else if (line.StartsWithFast("map_Disp "))
+                    {
+                        string name = line["map_Disp ".Length..];
+                        currentMat.MapDisp = Path.Combine(dir, name);
+                    }
                     else continue;
                 }
 
@@ -533,12 +538,12 @@ namespace AerialRace.Loading
                     var lineSpan = line.AsSpan();
                     if (string.IsNullOrEmpty(line)) continue;
 
-                    if (line.StartsWithFast("o "))
+                    if (line.StartsWithFast("g "))
                     {
                         data.Objects.Add(new ObjObject());
 
                         currentObject = ref data.Objects[^1];
-                        currentObject.Name = line["o ".Length..];
+                        currentObject.Name = line["g ".Length..];
                         
                         currentObject.Faces = new List<Face>();
 

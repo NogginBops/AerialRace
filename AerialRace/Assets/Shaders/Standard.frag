@@ -70,8 +70,15 @@ void main(void)
     vec2 st1 = dFdx(uv);
     vec2 st2 = dFdy(uv);
 
-    vec3 tangent = normalize(q1 * st2.t - q2 * st1.t);
+    vec3 tangent = gl_FrontFacing ? normalize(q1 * st2.t - q2 * st1.t) : normalize(q2 * st1.t - q1 * st2.t);
     vec3 bitangent = normalize(-q1 * st2.s + q2 * st1.s);
+
+    //bitangent *= dot(cross(vertexNormal, tangent), bitangent) < 0.0 ? -1.0 : 1.0;
+
+    //tangent *= gl_FrontFacing ? 1.0 : -1.0;
+    
+    //tangent = cross(bitangent, vertexNormal);
+    tangent = normalize(tangent - vertexNormal * dot(vertexNormal, tangent));
 
     // This constructs a column major matrix
     mat3 tangentToWorld = mat3(tangent, bitangent, vertexNormal);
@@ -82,9 +89,14 @@ void main(void)
     vec3 normal =  normalize(tangentToWorld * N);
     N = normal;
 
+    //vec3 bitangent2 = normalize(bitangent - normal * dot(normal, bitangent));
+    //vec3 tangent2 = normalize(tangent - normal * dot(normal, tangent));
     vec3 bitangent2 = normalize(cross(normal, tangent));
     vec3 tangent2 = normalize(cross(normal, bitangent2));
     mat3 fragTangentToWorld = mat3(tangent2, bitangent2, normal);
+
+    //Color = vec4(tangent2, 1);
+    //return;
 
     vec3 V = normalize(u_Camera.position.xyz - fragPos.xyz);
     vec3 R = reflect(-V, normal);
