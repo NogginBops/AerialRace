@@ -289,7 +289,7 @@ namespace AerialRace.DebugGui
             Vector2 swContentSize = swSize - style.WindowPadding * 2.0f;
             Vector2 nwSize = new Vector2(pwContentSize.X - style.ItemSpacing.X - swSize.X, swSize.Y);
 
-            ImGui.BeginChild("##NavigationWindow", nwSize, true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("##NavigationWindow", nwSize, ImGuiChildFlags.Border, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
 
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.882f, 0.745f, 0.078f, 1.0f));
             for (int i = 0; i < CurrentDirList.Count; i++)
@@ -362,7 +362,7 @@ namespace AerialRace.DebugGui
             ImGui.EndChild();
 
             ImGui.SameLine();
-            ImGui.BeginChild("##SearchWindow", swSize, true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
+            ImGui.BeginChild("##SearchWindow", swSize, ImGuiChildFlags.Border, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
 
             // Render Search/Filter bar
             float markerWidth = ImGui.CalcTextSize("(?)").X + style.ItemSpacing.X;
@@ -428,7 +428,7 @@ namespace AerialRace.DebugGui
                 contentWidth = 0;
 
             ImGui.SetNextWindowContentSize(new Vector2(contentWidth, 0));
-            ImGui.BeginChild("##ScrollingRegion", new Vector2(0, windowHeight), true, ImGuiWindowFlags.HorizontalScrollbar);
+            ImGui.BeginChild("##ScrollingRegion", new Vector2(0, windowHeight), ImGuiChildFlags.Border, ImGuiWindowFlags.HorizontalScrollbar);
             ImGui.Columns(numCols);
 
 
@@ -696,7 +696,7 @@ namespace AerialRace.DebugGui
                 ImGui.SetNextWindowPos(InputComboboxPos + new Vector2(0, ImGui.GetFrameHeightWithSpacing()));
                 ImGui.PushClipRect(Vector2.Zero, ImGui.GetIO().DisplaySize, false);
 
-                ImGui.BeginChild("##InputBarComboBox", InputComboboxSize, true, popupFlags);
+                ImGui.BeginChild("##InputBarComboBox", InputComboboxSize, ImGuiChildFlags.Border, popupFlags);
 
                 Vector2 listboxsize = InputComboboxSize - ImGui.GetStyle().WindowPadding * 2.0f;
                 if (ImGui.BeginListBox("##InputBarComboBoxList", listboxsize))
@@ -1120,7 +1120,7 @@ namespace AerialRace.DebugGui
                 //ImGui.TextWrapped("%s", text);
                 ImGui.TextUnformatted(text);
 
-                ImGui.BeginChild("##SupportedExts", new Vector2(0, cwHeight), true);
+                ImGui.BeginChild("##SupportedExts", new Vector2(0, cwHeight), ImGuiChildFlags.Border);
                 for (int i = 0; i < ValidExts.Count; i++)
                     // FIXME: ImGui.BulletText(fmt, ...) varargs!!
                     ImGui.BulletText(ValidExts[i]);

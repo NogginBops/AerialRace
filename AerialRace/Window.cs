@@ -110,7 +110,7 @@ namespace AerialRace
         {
             System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
             watch.Start();
-
+            
             base.OnLoad();
             Directory.SetCurrentDirectory("..\\..\\..\\Assets");
 
@@ -204,7 +204,7 @@ namespace AerialRace
                 BuiltIn.StandardAttributes);
             // FIXME: Have some better way to compute this...
             QuadMesh.AABB.Inflate(new Vector3(0.5f, 0.5f, 0));
-            QuadMesh.AABB.Inflate(new Vector3(-0.5f, -0.5f, 0));
+            //QuadMesh.AABB.Inflate(new Vector3(-0.5f, -0.5f, 0));
             // Add the debug colors as a separate buffer and attribute
             QuadMesh.AddBuffer(StaticGeometry.UnitQuadDebugColorsBuffer);
             QuadMesh.AddAttribute(new AttributeSpecification("Color", 4, RenderData.AttributeType.Float, false, 0));
@@ -1137,7 +1137,7 @@ namespace AerialRace
 
                 Matrix4 viewMatrix = camera.Transform.WorldToLocal;
                 camera.CalcProjectionMatrix(out proj);
-
+                
                 //PhysDebugRenderer.RenderColliders();
                 //RenderDrawList(PhysDebugRenderer.Drawlist, Debug.DebugPipeline, ref proj, ref viewMatrix);
 
